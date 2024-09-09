@@ -1,0 +1,44 @@
+/* Custom toast styles for dark theme */
+.Toastify__toast-container {
+  padding: 0;
+}
+
+.Toastify__toast {
+  background-color: #2d3748;
+  color: #e2e8f0;
+  border-radius: 8px;
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.1),
+    0 1px 3px rgba(0, 0, 0, 0.08);
+  font-family: 'Lora', serif;
+  font-size: 14px;
+}
+
+.Toastify__toast--error {
+  background-color: #742a2a;
+}
+
+.Toastify__toast--success {
+  background-color: #22543d;
+}
+
+.Toastify__toast--info {
+  background-color: #2a4365;
+}
+
+.Toastify__toast--warning {
+  background-color: #744210;
+}
+
+.Toastify__progress-bar {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.Toastify__close-button {
+  color: #e2e8f0;
+  opacity: 0.7;
+}
+
+.Toastify__close-button:hover {
+  opacity: 1;
+}

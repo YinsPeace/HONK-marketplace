@@ -1,13 +1,2354 @@
+/* stylelint-disable */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+/* stylelint-enable */
+
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+
+.row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-gap: 10px;
+}
+
+.notpixelated {
+  image-rendering: unset !important;
+}
+
+/* Global settings for body and general font spacing */
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
+  font-family: 'VT323', monospace;
+  letter-spacing: 0.05em; /* Adds light spacing for body text */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #1a202c; /* Dark background */
+  color: #e2e8f0; /* Light text color */
+}
+
+/* Heading Styles */
+h1 {
+  font-size: 3rem !important;
+  letter-spacing: 0.1em !important;
+  margin-bottom: 1rem;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
+h2 {
+  font-size: 2.5rem; /* Slightly smaller than h1 */
+  letter-spacing: 0.08em;
+  color: #fff; /* White for emphasis */
+  margin-bottom: 0.8rem;
+}
+
+h3 {
+  font-size: 2rem; /* Medium heading size */
+  letter-spacing: 0.07em;
+  color: #e2e8f0; /* Light gray for consistency */
+  margin-bottom: 0.6rem;
+}
+
+h4 {
+  font-size: 1.5rem; /* Smaller heading */
+  letter-spacing: 0.05em; /* Subtle spacing */
+  color: #a0aec0; /* Slightly dimmed gray */
+  margin-bottom: 0.4rem;
+}
+
+.filters-expand {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.6rem;
+}
+
+/* Button Styles */
+button {
+  letter-spacing: 0.1em;
+}
+
+/* Other Specific Styles */
+.label {
+  letter-spacing: 0.07em;
+}
+
+.CardContainer {
+  perspective: 1000px;
+  width: 300px;
+  height: 430px;
+  margin: 0 auto;
+}
+
+.card {
+  width: 300px; /* adjust as needed */
+  height: 430px; /* adjust as needed */
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.8s;
+  cursor: pointer;
+}
+
+.card.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden; /* For Safari */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.front-face {
+  background-color: #1a202c; /* Dark gray */
+}
+
+.back-face {
+  background-color: #2d3748; /* Lighter gray */
+  transform: rotateY(180deg);
+}
+
+.heroCard {
+  width: 300px;
+  height: 430px;
+  position: relative;
+  transition: transform 1s;
+  transform-style: preserve-3d;
+  line-height: 140%;
+}
+
+.heroCard * {
+  box-sizing: border-box;
+}
+
+.flipped {
+  transform: rotateY(180deg);
+  transition: transform 1s;
+}
+
+.perilousJourneyIcon {
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  padding: 0;
+  background-color: transparent;
+  border: 0;
+  z-index: 10;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: pixelated;
+}
+
+.heroCardFront,
+.heroCardBack {
+  background-image: url(./assets/images/hero/cards/commonCardBackground.png);
+  background-repeat: no-repeat;
+  background-size: 100%;
+  padding: 0px 20px 20px;
+  border-radius: 20px;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: visible;
+  opacity: 1;
+  transition: all 1s ease;
+  z-index: 1;
+}
+
+.heroCardFrame {
+  display: inline;
+  height: calc(100% - 20px);
+}
+
+.heroCardFrame:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  background-repeat: no-repeat, no-repeat;
+  background-size: 100%, 100%;
+}
+
+.heroCardFront .heroCardFrame:before {
+  background-image: url(./assets/images/hero/cards/commonCardBorder.png),
+    url(./assets/images/hero/cards/commonCardBorderInside.png);
+}
+
+.heroCardBack .heroCardFrame:before {
+  background-image: url(./assets/images/hero/cards/commonCardBorder.png),
+    url(./assets/images/hero/cards/commonCardBackFrame.png);
+}
+
+.heroCardBack {
+  transform: rotateY(180deg);
+}
+
+.flipped .heroCardFront {
+  visibility: hidden;
+  opacity: 0;
+  transition: all 1s ease;
+}
+
+.heroCardBack .heroStats {
+  height: calc(100% - 20px);
+  width: 100%;
+}
+
+.heroCardBack .heroFrame {
+  height: 100%;
+  display: grid;
+}
+
+/**
+CARD ICONS
+**/
+
+.heroCard .specials {
+  text-align: center;
+  position: relative;
+  z-index: 6;
+  width: 50%;
+  margin: 0 auto;
+  height: 28px;
+  justify-content: center;
+}
+
+.heroCard .specials img,
+.heroCard .class .icon img {
+  image-rendering: -moz-crisp-edges;
+  image-rendering: pixelated;
+  width: calc(8px * 2);
+  height: calc(8px * 2);
+}
+
+.heroCard .specials .icon {
+  height: 18px;
+}
+
+.heroCard .specials .icon,
+.heroCard .class .icon {
+  position: relative;
+  display: inline-block;
+  margin: 0px 4px;
+}
+
+.heroCard .class .icon {
+  height: 16px;
+  margin-left: 6px;
+}
+
+.heroCard .cardRarity {
+  align-self: center;
+  justify-self: center;
+}
+
+.heroCard .cardRarity .icon {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+}
+
+.tooltip {
+  visibility: hidden;
+  background-color: #100f21;
+  color: #fff;
+  text-align: center;
+  border-radius: 4px;
+  padding: 2px 10px;
+  font-size: 11px;
+  white-space: nowrap;
+  position: absolute;
+  z-index: 1;
+  transition: all 0.2s ease-in-out;
+  opacity: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  font-family: 'Poppins', sans-serif;
+  text-transform: capitalize;
+}
+
+.heroCard .icon .tooltip {
+  top: 80%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.heroCard .icon:hover .tooltip {
+  top: 110%;
+  visibility: visible;
+  opacity: 1;
+}
+
+.heroCard .cardRarity .icon .tooltip {
+  bottom: 60%;
+  top: auto;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.heroCard .cardRarity .icon:hover .tooltip {
+  bottom: 80%;
+  top: auto;
+  visibility: visible;
+  opacity: 1;
+}
+
+/**
+HERO PREVIEW
+**/
+
+.heroPreview {
+  z-index: 2;
+}
+
+.heroPreview,
+.heroStats {
+  position: relative;
+  text-align: center;
+  padding: 12px;
+  width: 252px;
+  margin: 0 auto;
+}
+
+.heroPreview .heroFrame {
+  width: 228px;
+  height: 212px;
+}
+
+.heroPreview:before {
+  content: '';
+  display: block;
+  background: url(./assets/images/hero/cards/commonCardFrame.png);
+  background-repeat: no-repeat;
+  position: absolute;
+  top: -28px;
+  left: -24px;
+  z-index: 2;
+  width: 300px;
+  height: 430px;
+}
+
+.heroFrame {
+  background: transparent;
+  padding: 16px;
+  position: relative;
+  color: #dbe3e8;
+}
+
+.heroID {
+  position: absolute;
+  left: 50%;
+  bottom: 11px;
+  transform: translateX(-50%);
+  font-family: 'Lora', serif;
+  font-size: 12px;
+  z-index: 10;
+  line-height: 100%;
+  color: #dbe3e8;
+}
+
+.heroImage {
+  width: 100%; /* This will make the hero image full width of the .heroPreview */
+  height: auto; /* This will maintain the aspect ratio of the image */
+}
+
+.heroHealth,
+.heroMana {
+  position: absolute;
+  z-index: 10;
+  bottom: 11px;
+  font-size: 13px;
+  font-family: 'Lora', serif;
+  display: grid;
+  align-items: center;
+  grid-template-columns: auto auto;
+  grid-gap: 4px;
+  line-height: 100%;
+  color: #dbe3e8;
+}
+
+.heroHealth img,
+.heroMana img {
+  width: 16px;
+  height: 16px;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: pixelated;
+}
+
+.heroHealth {
+  left: 24px;
+}
+
+.heroMana {
+  right: 24px;
+}
+
+.heroHealth .tooltip,
+.heroMana .tooltip {
+  bottom: 90%;
+  left: 0;
+}
+
+.heroHealth:hover .tooltip,
+.heroMana:hover .tooltip {
+  visibility: visible;
+  opacity: 1;
+  bottom: 110%;
+}
+
+/*** BACKGROUNDS ***/
+
+.heroPreview .heroFrame,
+.heroFrame {
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  image-rendering: pixelated;
+}
+
+.heroCard:hover .heroPreview .heroFrame:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  pointer-events: none;
+  width: 100%;
+  height: 100%;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-position: center;
+  image-rendering: pixelated;
+  z-index: 11;
+}
+
+.heroCard .heroPreview .heroFrame:after {
+  content: '';
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(16, 15, 33, 0);
+  background: linear-gradient(180deg, rgba(16, 15, 33, 1) 0%, rgba(16, 15, 33, 0.3) 100%);
+  z-index: 0;
+  opacity: 0.8;
+  transition: all 0.2s ease-in-out;
+}
+
+.heroCard:hover .heroPreview .heroFrame:after {
+  opacity: 0;
+}
+
+.heroCard .heroPreview .heroFrame:before {
+  display: none;
+}
+
+.arctic {
+  background-image: url('./assets/images/hero/backgrounds/arctic-back.png');
+}
+
+.heroCard:hover .arctic {
+  background-image: url('./assets/images/hero/backgrounds/arctic-back.gif');
+}
+
+.arctic:before {
+  background-image: url('./assets/images/hero/backgrounds/arctic-front.gif');
+}
+
+.swamp {
+  background-image: url('./assets/images/hero/backgrounds/swamp-back.png');
+}
+
+.heroCard:hover .swamp {
+  background-image: url('./assets/images/hero/backgrounds/swamp-back.gif');
+}
+
+.swamp:before {
+  background-image: url('./assets/images/hero/backgrounds/swamp-front.gif');
+  opacity: 0.2;
+}
+
+.forest {
+  background-image: url('./assets/images/hero/backgrounds/forest-back.png');
+}
+
+.heroCard:hover .forest {
+  background-image: url('./assets/images/hero/backgrounds/forest-back.gif');
+}
+
+.forest:before {
+  background-image: url('./assets/images/hero/backgrounds/forest-front.gif');
+}
+
+.city {
+  background-image: url('./assets/images/hero/backgrounds/city-back.png');
+}
+
+.heroCard:hover .city {
+  background-image: url('./assets/images/hero/backgrounds/city-back.gif');
+}
+
+.plains {
+  background-image: url('./assets/images/hero/backgrounds/plains-back.png');
+}
+
+.heroCard:hover .plains {
+  background-image: url('./assets/images/hero/backgrounds/plains-back.gif');
+}
+
+.island {
+  background-image: url('./assets/images/hero/backgrounds/island-back.png');
+}
+
+.heroCard:hover .island {
+  background-image: url('./assets/images/hero/backgrounds/island-back.gif');
+}
+
+.desert {
+  background-image: url('./assets/images/hero/backgrounds/desert-back.png');
+}
+
+.heroCard:hover .desert {
+  background-image: url('./assets/images/hero/backgrounds/desert-back.gif');
+}
+
+.mountains {
+  background-image: url('./assets/images/hero/backgrounds/mountains-back.png');
+}
+
+.mountains:before {
+  background-image: url('./assets/images/hero/backgrounds/mountains-front.gif');
+  opacity: 0.1;
+}
+
+.backgroundGeneral {
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+/*** HERO NAME ***/
+
+.heroName {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  transform: translateX(-50%);
+  top: 30px;
+}
+
+.heroName span {
+  position: relative;
+  display: inline-block;
+  background-image: url(./assets/images/hero/cards/commonCardTab.png);
+  background-repeat: repeat-x;
+  font-size: 14px;
+  height: 26px;
+  color: #dbe3e8;
+  white-space: nowrap;
+  font-family: 'Lora', serif;
+  padding: 0px 4px;
+  line-height: 26px;
+  text-align: center;
+}
+
+.heroName span:before,
+.heroName span:after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 16px;
+  height: 26px;
+  background-repeat: no-repeat;
+}
+
+.heroName span:before {
+  right: -15px;
+  background-image: url(./assets/images/hero/cards/commonCardTabCorner2.png);
+}
+
+.heroName span:after {
+  background-image: url(./assets/images/hero/cards/commonCardTabCorner1.png);
+  left: -15px;
+}
+
+/*** HERO ***/
+
+.heroContainer {
+  width: 100%;
+  height: calc(52px * 4);
+  position: relative;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: pixelated;
+  margin: 0 auto;
+  display: inline-block;
+  z-index: 2;
+  top: 1px;
+}
+
+@keyframes pulse {
+  from,
+  to {
+    box-shadow:
+      0 0 60px 40px #fff9e0,
+      0 0 100px 50px #fff9e0,
+      0 0 140px 30px #100f21;
+  }
+  50% {
+    box-shadow:
+      0 0 20px 10px #fff9e0,
+      0 0 50px 30px #fff9e0,
+      0 0 100px 30px #100f21;
+  }
+}
+
+.heroGlow {
+  position: absolute;
+  top: 60%;
+  left: 50%;
+  width: 0px;
+  height: 60px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow:
+    0 0 60px 40px #fff9e0,
+    0 0 100px 50px #fff9e0,
+    0 0 140px 30px #100f21;
+  opacity: 1;
+  animation: pulse 5s ease infinite;
+  z-index: 1;
+  mix-blend-mode: overlay;
+}
+
+/**
+HERO BODY
+**/
+
+.bodyPart,
+.bodyShift,
+.heroUndies,
+.heroUndies img,
+.heroEyes,
+.heroEyes img,
+.heroEyes svg,
+.hair,
+.hair img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: rotate(0deg);
+}
+
+.bodyPart img,
+.bodyPart svg,
+.hair img,
+.hair svg,
+.heroUndies img,
+.attachment2 {
+  width: calc(30px * 4);
+  height: calc(45px * 4);
+}
+
+.bodyPart .shadow,
+.bodyPart .highlight,
+.bodyPart .clothing,
+.bodyPart .heroUndies {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.bodyPart .shadow {
+  z-index: 2;
+}
+
+.bodyPart .highlight {
+  opacity: 0.6;
+  z-index: 3;
+}
+
+/*** HEAD AND EYES ***/
+
+.heroHead {
+  z-index: 7;
+}
+
+.heroHeadContainer {
+  position: relative;
+}
+
+.heroEyes {
+  z-index: 8;
+  top: 64px;
+  left: 48px;
+  height: 12px;
+  /* 3px * 4 */
+  width: 20px;
+  overflow: hidden;
+  animation: blink 5s ease infinite;
+}
+
+.male .heroEyes {
+  top: 60px;
+  animation: blink2 5s ease infinite;
+}
+
+.heroEyes svg,
+.heroEyes img {
+  width: calc(5px * 4);
+  height: calc(3px * 4);
+}
+
+.heroEyes .shadow {
+  z-index: 1;
+}
+
+.heroHairFront {
+  z-index: 10;
+}
+
+.heroHairBack {
+  z-index: 3;
+}
+
+.hair .shadow,
+.hair .highlight {
+  z-index: 5;
+}
+
+/*** BODY ***/
+
+.heroBody {
+  z-index: 6;
+}
+
+.heroBehind {
+  z-index: 2;
+}
+
+.heroLegLeft,
+.heroUndies {
+  z-index: 5;
+}
+
+.heroLeftArm,
+.heroArmLeftTop,
+.heroArmLeftBtm {
+  z-index: 6;
+}
+
+.heroFootRight,
+.heroFootLeft,
+.heroLegLeftBtm,
+.heroLegRightBtm,
+.heroLegRight,
+.heroRightArm {
+  z-index: 3;
+}
+
+/**
+CLOTHING
+**/
+
+.clothing {
+  z-index: 6;
+}
+
+/**
+WEAPONS
+**/
+
+.heroWeapon {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  left: 0;
+}
+
+.priest .heroWeapon,
+.archer .heroWeapon {
+  top: 0;
+  left: 0;
+}
+
+.priest .heroWeapon img {
+  top: 24px;
+  left: 20px;
+}
+
+.priest.female .heroWeapon img {
+  left: 18px;
+}
+
+.archer .heroWeapon img {
+  transform: rotate(-90deg);
+  top: 44px;
+  left: 24px;
+}
+
+.archer .heroWeapon img {
+  width: calc(6px * 4);
+  height: calc(36px * 4);
+}
+
+.priest .heroWeapon img {
+  width: calc(7px * 4);
+  height: calc(39px * 4);
+}
+
+.thief .heroWeapon {
+  z-index: 0;
+}
+
+.thief .heroWeapon img {
+  width: calc(13px * 4);
+  height: calc(5px * 4);
+  top: 103px;
+  left: -13px;
+  transform: rotate(25deg);
+}
+
+.thief.female .heroWeapon img {
+  top: 107px;
+}
+
+.monk .heroWeapon {
+  z-index: 2;
+}
+
+.monk .heroWeapon img {
+  width: calc(6px * 4);
+  height: calc(5px * 4);
+  top: 124px;
+  left: 72px;
+}
+
+.male.monk .heroWeapon img {
+  top: 116px;
+  left: 76px;
+}
+
+.wizard .heroWeapon img {
+  width: calc(2px * 4);
+  height: calc(34px * 4);
+  transform: rotate(-10deg);
+  top: 45px;
+  left: 30px;
+}
+
+.wizard.female .heroWeapon img {
+  left: 26px;
+}
+
+.warrior .heroWeapon,
+.wizard .heroWeapon {
+  z-index: -1;
+}
+
+.warrior .heroWeapon img {
+  width: calc(25px * 4);
+  height: calc(5px * 4);
+  transform: rotate(40deg);
+  top: 96px;
+  left: -44px;
+}
+
+.male.warrior .heroWeapon img {
+  top: 90px;
+  left: -42px;
+}
+
+.knight .heroWeapon {
+  z-index: 0;
+}
+
+.knight .heroWeapon img {
+  width: calc(36px * 4);
+  height: calc(7px * 4);
+  transform: rotate(40deg);
+  top: 76px;
+  left: -80px;
+}
+
+.male.knight .heroWeapon img {
+  top: 74px;
+  left: -80px;
+}
+
+.pirate .heroWeapon img {
+  width: calc(16px * 4);
+  height: calc(18px * 4);
+  transform: rotate(-30deg);
+  top: 91px;
+  left: -20px;
+}
+
+.male.pirate .heroWeapon img {
+  top: 85px;
+  left: -16px;
+}
+
+.pirate .heroWeapon {
+  z-index: -1;
+}
+
+/* ADVANCED */
+
+.paladin .heroWeapon img {
+  width: calc(36px * 4);
+  height: calc(8px * 4);
+  transform: rotate(-20deg);
+  top: 128px;
+  left: -82px;
+}
+
+.male.paladin .heroWeapon img {
+  top: 122px;
+  left: -80px;
+}
+
+.paladin .heroWeapon {
+  z-index: -1;
+}
+
+.darkKnight .heroWeapon img {
+  width: calc(32px * 4);
+  height: calc(8px * 4);
+  transform: rotate(-28deg);
+  top: 130px;
+  left: -68px;
+}
+
+.male.darkKnight .heroWeapon img {
+  top: 125px;
+  left: -66px;
+}
+
+.darkKnight .heroWeapon {
+  z-index: -1;
+}
+
+.summoner .heroWeapon img {
+  width: calc(7px * 4);
+  height: calc(7px * 4);
+  top: 85px;
+  left: 0px;
+}
+
+.ninja .heroWeapon img {
+  width: calc(20px * 4);
+  height: calc(4px * 4);
+  transform: rotate(28deg);
+  top: 106px;
+  left: -37px;
+}
+
+.male.ninja .heroWeapon img {
+  top: 99px;
+  left: -33px;
+}
+
+.ninja .heroWeapon {
+  z-index: -1;
+}
+
+/* ELITE */
+
+.dragoon .heroWeapon img {
+  width: calc(5px * 4);
+  height: calc(46px * 4);
+  transform: rotate(0deg);
+  top: -4px;
+  left: 20px;
+}
+
+.dragoon .heroWeapon {
+  z-index: -1;
+}
+
+.sage .heroWeapon img {
+  width: calc(3px * 4);
+  height: calc(10px * 4);
+  transform: rotate(-10deg);
+  top: 102px;
+  left: 23px;
+}
+
+.male.sage .heroWeapon img {
+  transform: rotate(-15deg);
+  top: 98px;
+  left: 25px;
+}
+
+.sage .heroWeapon {
+  z-index: -1;
+}
+
+/* LEGENDARY */
+
+.dreadKnight .heroWeapon img {
+  width: calc(55px * 4);
+  height: calc(8px * 4);
+  transform: rotate(-15deg);
+  top: 133px;
+  left: -153px;
+}
+
+.male.dreadKnight .heroWeapon img {
+  top: 131px;
+  left: -150px;
+}
+
+.dreadKnight .heroWeapon {
+  z-index: -1;
+}
+
+/**
+APPENDAGES
+MARKINGS
+EXTRAS
+**/
+
+/*** HEAD APPENDAGES ***/
+
+.headAppendage,
+.headGear {
+  position: absolute;
+  top: 0;
+  left: -36px;
+  z-index: 10;
+  width: calc(59px * 4);
+  height: calc(45px * 4);
+}
+
+.male .headAppendage,
+.male .headGear {
+  top: -4px;
+}
+
+.headAppendage svg,
+.headAppendage .overlay,
+.headGear svg,
+.headGear .overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(59px * 4);
+  height: calc(45px * 4);
+}
+
+.headAppendage .overlay,
+.headGear .overlay {
+  z-index: 1;
+}
+
+/*** HEAD MARKINGS ***/
+
+.headMarking {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
+.headMarking img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(30px * 4);
+  height: calc(45px * 4);
+}
+
+/*** BACK APPENDAGES ***/
+
+.backAppendage {
+  position: absolute;
+  top: 0;
+  left: -36px;
+  z-index: 1;
+  width: calc(59px * 4);
+  height: calc(45px * 4);
+}
+
+.backAppendage svg,
+.backAppendage .overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(59px * 4);
+  height: calc(45px * 4);
+}
+
+.backAppendage .overlay {
+  z-index: 2;
+}
+
+/*** ATTACHMENTS ***/
+
+.attachment2 {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+}
+
+.attachment2 .wings {
+  position: relative;
+  left: -37px;
+  width: calc(59px * 4);
+  height: calc(45px * 4);
+}
+
+/**
+HERO INFO
+**/
+
+.heroInfo {
+  position: relative;
+  z-index: 3;
+  color: #100f21;
+  padding: 8px 6px 5px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  line-height: 125%;
+}
+
+.heroInfo .class,
+.heroInfo .level {
+  font-family: 'Lora', serif;
+  padding-top: 1px;
+}
+
+.heroInfo .class {
+  text-align: left;
+  font-size: 16px;
+}
+
+.heroInfo .subClass {
+  font-size: 11px;
+  font-family: 'Poppins', sans-serif;
+  display: block;
+  margin-top: -6px;
+  opacity: 0.8;
+}
+
+.heroInfo .level {
+  text-align: right;
+  font-size: 14px;
+}
+
+.heroInfo .class,
+.heroName span {
+  text-transform: capitalize;
+}
+
+/**
+HERO STATS
+AND BARS
+**/
+
+.heroStats {
+  z-index: 3;
+}
+
+.heroStats .heroFrame {
+  padding: 6px 10px;
+}
+
+.heroStats .row {
+  justify-content: space-between;
+}
+
+.heroStats .heroNumber,
+.heroStats .heroGen {
+  color: #fbe375;
+  font-family: 'Lora', serif;
+  font-size: 12px;
+}
+
+.heroStats .statStamina,
+.heroStats .statHp,
+.heroStats .statMp,
+.heroStats .statXp,
+.heroStats .statSummons {
+  font-family: 'Lora', serif;
+  font-size: 12px;
+  padding: 2px 0px;
+  line-height: 100%;
+}
+
+.heroStats .amount {
+  font-size: 8px;
+  font-family: 'Poppins', sans-serif;
+}
+
+.heroStats .bar {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 20px;
+  height: 5px;
+  width: 100%;
+  overflow: hidden;
+  margin: 0 6px;
+}
+
+.heroStats .statHp .bar,
+.heroStats .statMp .bar {
+  width: 40px;
+}
+
+.heroStats .bar .staminaBar,
+.heroStats .bar .hpBar,
+.heroStats .bar .mpBar,
+.heroStats .bar .xpBar,
+.heroStats .bar .summonsBar {
+  height: 100%;
+  border-radius: 20px;
+}
+
+.heroStats .bar .staminaBar {
+  position: relative;
+  width: 100%;
+  background-color: #f59e3f;
+  transition: 0.2s width ease-in-out;
+}
+
+.heroStats .bar .staminaBar .staminaLoading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 0.6rem,
+    rgba(255, 255, 255, 0.4) 0.6rem,
+    rgba(255, 255, 255, 0.4) 1.25rem
+  );
+  background-size: 200% 200%;
+  animation: loading 10s linear infinite reverse;
+}
+
+.heroStats .statStaminaWrapper > div {
+  display: block;
+  width: 100%;
+  cursor: pointer;
+}
+
+.heroStats .statStamina span {
+  color: #f59e3f;
+}
+
+.heroStats .statStaminaWrapper > div {
+  display: flex;
+  align-items: center; /* Align items vertically in the center */
+  justify-content: space-between; /* Space out the child elements */
+  width: 100%;
+  cursor: pointer;
+}
+
+.heroStats .statHp span {
+  color: #14c25a;
+}
+
+.heroStats .statMp span {
+  color: #f6a99f;
+}
+
+.heroStats .bar .hpBar {
+  width: 100%;
+  background-color: #14c25a;
+}
+
+.heroStats .bar .mpBar,
+.heroStats .bar .summonsBar {
+  width: 100%;
+  background-color: #b44d94;
+}
+
+.heroStats .bar .xpBar {
+  width: 100%;
+  background-color: #3c6fd0;
+}
+
+.heroStats .stat-refresh {
+  text-transform: uppercase;
+}
+
+/**
+STAT LIST
+SKILL LIST
+**/
+
+.heroStatsList .statList,
+.heroStatsList .skillList {
+  grid-gap: 10px 20px;
+}
+
+.heroStatsList .statList .statName,
+.heroStatsList .skillList .skillName {
+  font-size: 16px;
+}
+
+.heroStatsList .statList .statPoint,
+.heroStatsList .skillList .skillLevel {
+  font-size: 14px;
+}
+
+.heroStats h3,
+.saleHistory h3 {
+  border-bottom: 2px solid #f0b859;
+  position: relative;
+  padding-bottom: 10px;
+  font-size: 18px;
+  font-family: 'Lora', serif;
+  font-weight: normal;
+}
+
+.heroStats h3:first-of-type,
+.saleHistory h3:first-of-type {
+  margin-top: 0px;
+}
+
+.heroStats h3:before,
+.saleHistory h3:before {
+  content: '';
+  background-image: url('./assets/images/hero/icons/mid-jewel.png');
+  display: block;
+  background-repeat: no-repeat;
+  background-size: cover;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: pixelated;
+  width: 16px;
+  height: 16px;
+  position: absolute;
+  bottom: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.heroStatsList .heroStats h3 {
+  font-size: 20px;
+}
+
+.heroStatsList .heroStats h4 {
+  margin: 1em 0 0.5em;
+  font-size: 16px;
+  position: relative;
+  padding-bottom: 5px;
+  border-bottom: 1px solid #f0b85950;
+}
+
+.heroStatsList .heroStats h4:before {
+  content: '';
+  background-image: url('./assets/images/hero/icons/mid-jewel.png');
+  display: block;
+  background-repeat: no-repeat;
+  background-size: cover;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: pixelated;
+  width: 8px;
+  height: 8px;
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.statList {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  grid-gap: 2px;
+  column-gap: 20px;
+  margin-top: 10px;
+}
+
+.statList > div {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.skillList {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  align-items: center;
+  grid-gap: 2px;
+  column-gap: 16px;
+  margin-top: 10px;
+}
+
+.statList .statName,
+.skillList .skillName {
+  font-family: 'Lora', serif;
+  color: #fbe375;
+  position: relative;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.statList .statName .tooltip,
+.skillList .chosen .tooltip {
+  top: 50%;
+  left: 80%;
+  transform: translateY(-50%);
+}
+
+.statList .statName:hover .tooltip,
+.skillList .chosen:hover .tooltip {
+  left: 100%;
+  visibility: visible;
+  opacity: 1;
+}
+
+.statList .statBoost {
+  color: #14c25a;
+}
+
+.statList .statBoost2 {
+  color: #21ccff;
+}
+
+.statList .statBoostDouble {
+  color: #f800f8;
+}
+
+.statList .statPoint {
+  font-size: 12px;
+  line-height: 20px;
+  font-family: 'Lora', serif;
+}
+
+.statList .statPoint span {
+  color: #14c25a;
+  font-weight: bold;
+}
+
+.statList .statName,
+.skillList .skillName {
+  line-height: 20px;
+  text-align: left;
+}
+
+.statList .statPoint,
+.skillList .skillLevel {
+  font-size: 12px;
+  line-height: 20px;
+  text-align: right;
+  font-family: 'Lora', serif;
+}
+
+.skillList .chosen {
+  color: #14c25a;
+}
+
+.skillName.craftProfTitle {
+  grid-column: span 3;
+}
+
+.skillName.craftProf2 {
+  color: #21ccff;
+}
+
+.heroOwner {
+  opacity: 0.6;
+  font-size: 12px;
+  line-height: 1;
+  text-align: center;
+  align-self: end;
+  margin-bottom: 1em;
+}
+
+.heroHash {
+  opacity: 0.6;
+  font-size: 7px;
+  line-height: 1;
+  text-align: center;
+  align-self: start;
+  margin-top: -0.5em;
+}
+
+.statsToggle {
+  display: flex;
+  position: absolute;
+  z-index: 10;
+  bottom: 6px;
+  height: 27px;
+  left: 0px;
+  width: 80%;
+  margin-left: 10%;
+  flex-flow: row nowrap;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+}
+
+.statsToggleButton {
+  font-size: 9px;
+  border: 1px solid transparent;
+  background: none;
+  line-height: 1;
+  margin: 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  position: relative;
+}
+
+.statsToggleButton .tooltip {
+  top: -200%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 8px;
+}
+
+.statsToggleButton:hover .tooltip {
+  top: -160%;
+  visibility: visible;
+  opacity: 1;
+}
+
+.statsToggleButtonImage {
+  width: 20px;
+  height: 20px;
+  overflow: hidden;
+  background-position: top left;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: pixelated;
+  background-size: cover;
+  background-repeat: no-repeat;
+  opacity: 0.8;
+  cursor: pointer;
+}
+
+.statsToggleButtonImageActiveCursor {
+  cursor: url('./assets/images/gui/click-cursor-2x.png'), auto;
+}
+
+.statsToggleButtonImage:hover {
+  filter: invert(100%);
+}
+
+.statsToggleButtonImageActive {
+  background-position: top right;
+}
+
+.statsToggleButtonImageActive:hover {
+  filter: invert(0%);
+}
+
+.sliderToggle {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  opacity: 0.65;
+  line-height: 1;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: -12px;
+  cursor: pointer;
+}
+
+.sliderToggleCursor {
+  cursor: url('./assets/images/gui/click-cursor-2x.png'), auto;
+}
+
+.sliderToggle:hover,
+.sliderToggle:focus,
+.sliderToggle:active {
+  opacity: 0.85;
+}
+
+.sliderLeft {
+  left: 2px;
+}
+
+.sliderRight {
+  right: 2px;
+}
+
+/***
+SHINY AND SPARKLES
+CARD EFFECTS
+***/
+
+.heroCard.mythic .heroCardFrame:after {
+  content: '';
+  background-image: url('./assets/images/hero/shiny/sparkles.gif');
+  background-size: 400% 400%;
+  background-blend-mode: soft-light;
+  filter: brightness(1) contrast(1);
+  mix-blend-mode: color-dodge;
+  display: block;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.heroCard.shiny .heroCardFront:after,
+.heroCard.shiny .heroCardBack:after {
+  content: '';
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0.6;
+  display: block;
+  mix-blend-mode: soft-light;
+  background-position: center;
+  visibility: visible;
+  transition: all 0.2s ease-in-out;
+}
+
+.heroCard.shiny:hover .heroCardFront:after,
+.heroCard.shiny:hover .heroCardBack:after {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.heroCard.shiny0 .heroCardFront:after,
+.heroCard.shiny0 .heroCardBack:after {
+  background-image: url('./assets/images/hero/shiny/shiny00-min.png');
+}
+
+.heroCard.shiny1 .heroCardFront:after,
+.heroCard.shiny1 .heroCardBack:after {
+  background-image: url('./assets/images/hero/shiny/shiny01-min.png');
+}
+
+.heroCard.shiny2 .heroCardFront:after,
+.heroCard.shiny2 .heroCardBack:after {
+  background-image: url('./assets/images/hero/shiny/shiny02-min.png');
+}
+
+.heroCard.shiny3 .heroCardFront:after,
+.heroCard.shiny3 .heroCardBack:after {
+  background-image: url('./assets/images/hero/shiny/shiny03-min.png');
+}
+
+.heroCard.shiny4 .heroCardFront:after,
+.heroCard.shiny4 .heroCardBack:after {
+  background-image: url('./assets/images/hero/shiny/shiny04-min.png');
+}
+
+.heroCard.shiny5 .heroCardFront:after,
+.heroCard.shiny5 .heroCardBack:after {
+  background-image: url('./assets/images/hero/shiny/shiny05-min.png');
+}
+
+.heroCard.shiny6 .heroCardFront:after,
+.heroCard.shiny6 .heroCardBack:after {
+  background-image: url('./assets/images/hero/shiny/shiny06-min.png');
+}
+
+.heroCard.shiny7 .heroCardFront:after,
+.heroCard.shiny7 .heroCardBack:after {
+  background-image: url('./assets/images/hero/shiny/shiny07-min.png');
+}
+
+.heroCard.shiny8 .heroCardFront:after,
+.heroCard.shiny8 .heroCardBack:after {
+  background-image: url('./assets/images/hero/shiny/shiny08-min.png');
+}
+
+.heroCard.shiny9 .heroCardFront:after,
+.heroCard.shiny9 .heroCardBack:after {
+  background-image: url('./assets/images/hero/shiny/shiny09-min.png');
+}
+
+.heroCard.shiny10 .heroCardFront:after,
+.heroCard.shiny10 .heroCardBack:after {
+  background-image: url('./assets/images/hero/shiny/shiny10-min.png');
+}
+
+.heroCard.shiny11 .heroCardFront:after,
+.heroCard.shiny11 .heroCardBack:after {
+  background-image: url('./assets/images/hero/shiny/shiny11-min.png');
+}
+
+.heroCard.shiny12 .heroCardFront:after,
+.heroCard.shiny12 .heroCardBack:after {
+  background-image: url('./assets/images/hero/shiny/shiny12-min.png');
+}
+
+.heroCard.shiny13 .heroCardFront:after,
+.heroCard.shiny13 .heroCardBack:after {
+  background-image: url('./assets/images/hero/shiny/shiny13-min.png');
+}
+
+.heroCard.shiny14 .heroCardFront:after,
+.heroCard.shiny14 .heroCardBack:after {
+  background-image: url('./assets/images/hero/shiny/shiny14-min.png');
+}
+
+.heroCard.shiny .heroCardFront:before,
+.heroCard.shiny .heroCardBack:before {
+  content: '';
+  background-size: 120% 120%;
+  z-index: 1;
+  display: none;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  mix-blend-mode: soft-light;
+  opacity: 0;
+  background-position: center;
+}
+
+.heroCard.shiny:hover .heroCardFront:before,
+.heroCard.shiny:hover .heroCardBack:before {
+  opacity: 0.75;
+  display: block;
+}
+
+.heroCard.shiny0 .heroCardFront:before,
+.heroCard.shiny0 .heroCardBack:before {
+  background-image: url('./assets/images/hero/shiny/shiny00.gif');
+}
+
+.heroCard.shiny1 .heroCardFront:before,
+.heroCard.shiny1 .heroCardBack:before {
+  background-image: url('./assets/images/hero/shiny/shiny01.gif');
+}
+
+.heroCard.shiny2 .heroCardFront:before,
+.heroCard.shiny2 .heroCardBack:before {
+  background-image: url('./assets/images/hero/shiny/shiny02.gif');
+}
+
+.heroCard.shiny3 .heroCardFront:before,
+.heroCard.shiny3 .heroCardBack:before {
+  background-image: url('./assets/images/hero/shiny/shiny03.gif');
+}
+
+.heroCard.shiny4 .heroCardFront:before,
+.heroCard.shiny4 .heroCardBack:before {
+  background-image: url('./assets/images/hero/shiny/shiny04.gif');
+}
+
+.heroCard.shiny5 .heroCardFront:before,
+.heroCard.shiny5 .heroCardBack:before {
+  background-image: url('./assets/images/hero/shiny/shiny05.gif');
+}
+
+.heroCard.shiny6 .heroCardFront:before,
+.heroCard.shiny6 .heroCardBack:before {
+  background-image: url('./assets/images/hero/shiny/shiny06.gif');
+}
+
+.heroCard.shiny7 .heroCardFront:before,
+.heroCard.shiny7 .heroCardBack:before {
+  background-image: url('./assets/images/hero/shiny/shiny07.gif');
+}
+
+.heroCard.shiny8 .heroCardFront:before,
+.heroCard.shiny8 .heroCardBack:before {
+  background-image: url('./assets/images/hero/shiny/shiny08.gif');
+}
+
+.heroCard.shiny9 .heroCardFront:before,
+.heroCard.shiny9 .heroCardBack:before {
+  background-image: url('./assets/images/hero/shiny/shiny09.gif');
+}
+
+.heroCard.shiny10 .heroCardFront:before,
+.heroCard.shiny10 .heroCardBack:before {
+  background-image: url('./assets/images/hero/shiny/shiny10.gif');
+}
+
+.heroCard.shiny11 .heroCardFront:before,
+.heroCard.shiny11 .heroCardBack:before {
+  background-image: url('./assets/images/hero/shiny/shiny11.gif');
+}
+
+.heroCard.shiny12 .heroCardFront:before,
+.heroCard.shiny12 .heroCardBack:before {
+  background-image: url('./assets/images/hero/shiny/shiny12.gif');
+}
+
+.heroCard.shiny13 .heroCardFront:before,
+.heroCard.shiny13 .heroCardBack:before {
+  background-image: url('./assets/images/hero/shiny/shiny13.gif');
+}
+
+.heroCard.shiny14 .heroCardFront:before,
+.heroCard.shiny14 .heroCardBack:before {
+  background-image: url('./assets/images/hero/shiny/shiny14.gif');
+}
+
+/**
+CHANGE CARD BORDERS
+BASED ON RARITY OR PARTNERSHIPS
+**/
+
+/*** UNCOMMON ***/
+
+.uncommon .heroCardFront,
+.uncommon .heroCardBack {
+  background-image: url(./assets/images/hero/cards/uncommonCardBackground.png);
+}
+
+.uncommon .heroCardFront .heroCardFrame:before {
+  background-image: url(./assets/images/hero/cards/uncommonCardBorder.png),
+    url(./assets/images/hero/cards/uncommonCardBorderInside.png);
+}
+
+.uncommon .heroCardBack .heroCardFrame:before {
+  background-image: url(./assets/images/hero/cards/uncommonCardBorder.png),
+    url(./assets/images/hero/cards/uncommonCardBackFrame.png);
+}
+
+.uncommon .heroName span {
+  background-image: url(./assets/images/hero/cards/uncommonCardTab.png);
+}
+
+.uncommon .heroName span:before {
+  background-image: url(./assets/images/hero/cards/uncommonCardTabCorner2.png);
+}
+
+.uncommon .heroName span:after {
+  background-image: url(./assets/images/hero/cards/uncommonCardTabCorner1.png);
+}
+
+.uncommon .heroPreview:before {
+  background: url(./assets/images/hero/cards/uncommonCardFrame.png);
+}
+
+.uncommon .heroHealth,
+.uncommon .heroMana,
+.uncommon .heroFrame,
+.uncommon .heroID,
+.uncommon .heroName span,
+.uncommon .sliderToggle {
+  color: #c4e3d0;
+}
+
+/*** RARE ***/
+
+.rare .heroCardFront,
+.rare .heroCardBack {
+  background-image: url(./assets/images/hero/cards/rareCardBackground.png);
+}
+
+.rare .heroCardFront .heroCardFrame:before {
+  background-image: url(./assets/images/hero/cards/rareCardBorder.png),
+    url(./assets/images/hero/cards/rareCardBorderInside.png);
+}
+
+.rare .heroCardBack .heroCardFrame:before {
+  background-image: url(./assets/images/hero/cards/rareCardBorder.png),
+    url(./assets/images/hero/cards/rareCardBackFrame.png);
+}
+
+.rare .heroName span {
+  background-image: url(./assets/images/hero/cards/rareCardTab.png);
+}
+
+.rare .heroName span:before {
+  background-image: url(./assets/images/hero/cards/rareCardTabCorner2.png);
+}
+
+.rare .heroName span:after {
+  background-image: url(./assets/images/hero/cards/rareCardTabCorner1.png);
+}
+
+.rare .heroPreview:before {
+  background: url(./assets/images/hero/cards/rareCardFrame.png);
+}
+
+.rare .heroHealth,
+.rare .heroMana,
+.rare .heroFrame,
+.rare .heroID,
+.rare .heroName span,
+.rare .sliderToggle {
+  color: #bff3ed;
+}
+
+/*** LEGENDARY ***/
+
+.legendary .heroCardFront,
+.legendary .heroCardBack {
+  background-image: url(./assets/images/hero/cards/legendaryCardBackground.png);
+}
+
+.legendary .heroCardFront .heroCardFrame:before {
+  background-image: url(./assets/images/hero/cards/legendaryCardBorder.png),
+    url(./assets/images/hero/cards/legendaryCardBorderInside.png);
+}
+
+.legendary .heroCardBack .heroCardFrame:before {
+  background-image: url(./assets/images/hero/cards/legendaryCardBorder.png),
+    url(./assets/images/hero/cards/legendaryCardBackFrame.png);
+}
+
+.legendary .heroName span {
+  background-image: url(./assets/images/hero/cards/legendaryCardTab.png);
+}
+
+.legendary .heroName span:before {
+  background-image: url(./assets/images/hero/cards/legendaryCardTabCorner2.png);
+}
+
+.legendary .heroName span:after {
+  background-image: url(./assets/images/hero/cards/legendaryCardTabCorner1.png);
+}
+
+.legendary .heroPreview:before {
+  background: url(./assets/images/hero/cards/legendaryCardFrame.png);
+}
+
+.legendary .heroHealth,
+.legendary .heroMana,
+.legendary .heroFrame,
+.legendary .heroID,
+.legendary .heroName span,
+.legendary .sliderToggle {
+  color: #ffca72;
+}
+
+/*** MYTHIC ***/
+
+.mythic .heroCardFront,
+.mythic .heroCardBack {
+  background-image: url(./assets/images/hero/cards/mythicCardBackground.png);
+}
+
+.mythic .heroCardFront .heroCardFrame:before {
+  background-image: url(./assets/images/hero/cards/mythicCardBorder.png),
+    url(./assets/images/hero/cards/mythicCardBorderInside.png);
+}
+
+.mythic .heroCardBack .heroCardFrame:before {
+  background-image: url(./assets/images/hero/cards/mythicCardBorder.png),
+    url(./assets/images/hero/cards/mythicCardBackFrame.png);
+}
+
+.mythic .heroName span {
+  background-image: url(./assets/images/hero/cards/mythicCardTab.png);
+}
+
+.mythic .heroName span:before {
+  background-image: url(./assets/images/hero/cards/mythicCardTabCorner2.png);
+}
+
+.mythic .heroName span:after {
+  background-image: url(./assets/images/hero/cards/mythicCardTabCorner1.png);
+}
+
+.mythic .heroPreview:before {
+  background: url(./assets/images/hero/cards/mythicCardFrame.png);
+}
+
+.mythic .heroHealth,
+.mythic .heroMana,
+.mythic .heroFrame,
+.mythic .heroID,
+.mythic .heroName span,
+.mythic .sliderToggle {
+  color: #f7dcff;
+}
+
+.button-container {
+  display: grid;
+  grid-template-rows: auto auto;
+  row-gap: 10px;
+  justify-items: center;
+  margin-top: 10px;
+}
+
+.button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  background-color: #f0a500;
+  color: white;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition:
+    background-color 0.3s,
+    transform 0.1s;
+  margin: 0 4px;
+}
+
+/* Checkbox Enhancements */
+.filter-checkbox input[type='checkbox'] {
+  accent-color: #4c51bf; /* Apply a custom color to checkboxes */
+}
+
+.filter-checkbox label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.filter-checkbox label:hover {
+  color: #a0aec0;
+}
+
+.filter-checkbox input[type='checkbox']:checked + span {
+  font-weight: bold;
+  color: #a0aec0;
+}
+
+/* Button Styling */
+.button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  background-color: #f0a500;
+  color: white;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition:
+    background-color 0.3s,
+    transform 0.1s;
+  margin: 0 4px; /* Adds margin to the left and right of each button */
+}
+
+.button:hover {
+  background-color: #d98e00;
+  transform: translateY(-2px);
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+/* Navbar Styling */
+.navbar {
+  padding: 0px 16px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.nav-link {
+  color: white;
+  padding: 8px 12px;
+  text-decoration: none;
+  font-weight: bold;
+  transition:
+    background-color 0.3s ease,
+    color 0.3s ease;
+  border-radius: 5px;
+  display: block;
+}
+
+.nav-link:hover {
+  background-color: #5865f2;
+  color: white;
+}
+
+.nav-link.active {
+  color: #5865f2; /* Active link color */
+  border-radius: 4px 4px 0 0;
+}
+
+/* Styling for the sorting form to match the navbar */
+.filter-sort-form {
+  padding: 16px;
+  border-radius: 8px;
+  margin-top: -4px; /* Negative margin to pull the form up, overlapping the navbar bottom border */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* Shadow to lift the form above the navbar */
+  z-index: 10; /* Ensures the form overlaps the navbar when scrolling */
+  position: relative;
+}
+
+/* Style adjustments for the sorting options, such as select and range sliders */
+.select-input,
+.range-input {
+  background-color: #202225;
+  color: white;
+  margin: 0 5px;
+}
+
+.range-input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  background: transparent;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  background: transparent;
+  margin-bottom: 16px;
+}
+
+input[type='range']:focus {
+  outline: none;
+}
+
+.range-input::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 8px;
+  cursor: pointer;
+  background: #4a5568;
+  border-radius: 4px;
+}
+
+.range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #f0a500;
+  cursor: pointer;
+  margin-top: -6px;
+  position: relative;
+  z-index: 2;
+}
+
+.range-input::-moz-range-track {
+  width: 100%;
+  height: 8px;
+  cursor: pointer;
+  background: #4a5568;
+  border-radius: 4px;
+}
+
+.range-input::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #f0a500;
+  cursor: pointer;
+  position: relative;
+  z-index: 2;
+}
+
+.range-labels span {
+  width: auto;
+  padding-left: 8px;
+  padding-right: 8px;
+  margin-right: -10px;
+}
+
+input[type='range']::-ms-track {
+  width: 100%;
+  height: 8px;
+  cursor: pointer;
+  background: transparent;
+  border-color: transparent;
+  color: transparent;
+}
+
+input[type='range']::-ms-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #f0a500;
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.3);
+}
+
+input[type='range']::-ms-fill-lower {
+  background: #4a5568;
+  border-radius: 4px;
+}
+
+input[type='range']::-ms-fill-upper {
+  background: #4a5568;
+  border-radius: 4px;
+}
+
+.form-inactive {
+  border-bottom: none;
+}
+
+/* Price Container Styling */
+.price-container {
+  display: flex;
+  align-items: center;
+  padding: 10px 40px 10px 40px;
+  background-color: #202225;
+  border-radius: 10px;
+}
+
+.price-text {
+  font-size: 1.25rem; /* Adjust as needed */
+  color: white;
+}
+
+/* General Aesthetic Enhancements */
+.bg-gray-900 {
+  background-color: #1a202c;
+}
+
+.text-gray-300 {
+  color: #e2e8f0;
+}
+
+.shadow-lg {
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* Animation on Sidebar Toggle */
+.transition-all {
+  transition: all 0.3s ease;
+}
+
+/* Loading Indicator */
+.loading-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(240, 165, 0, 0.9); /* Using the gold color with high opacity */
+  color: #1a202c; /* Dark text for contrast */
+  padding: 20px 30px;
+  border-radius: 10px;
+  z-index: 1000;
+  text-align: center;
+  box-shadow:
+    0 4px 6px rgba(0, 0, 0, 0.1),
+    0 0 0 3px rgba(255, 255, 255, 0.5);
+}
+
+/* Custom scrollbar styles */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #4a5568 #2d3748;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #2d3748;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #4a5568;
+  border-radius: 4px;
+  border: 2px solid #2d3748;
+}
+
+/* Ensure sidebar appears over content */
+.z-50 {
+  z-index: 50;
+}
+
+.spinner {
+  border: 4px solid rgba(26, 32, 44, 0.3);
+  border-top: 4px solid #1a202c;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* Add this new style for the loading text */
+.loading-text {
+  font-weight: bold;
+  font-size: 1.1rem;
+  text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.1);
+}
+
+/* Checkbox Styles */
+input[type='checkbox'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1px solid #5865f2;
+  border-radius: 3px;
+  outline: none;
+  transition: 0.2s;
+  cursor: pointer;
+  position: relative;
+}
+
+input[type='checkbox']:checked {
+  background-color: #5865f2;
+}
+
+input[type='checkbox']:checked::before {
+  content: '\2713';
+  font-size: 12px;
+  color: white;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.range-slider {
+  position: relative;
+  width: 100%;
+  height: 8px;
+  margin: 20px 0;
+}
+
+.range-slider-fill {
+  position: absolute;
+  height: 8px;
+  background-color: #f0a500;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.quest-warning {
+  font-family: 'Lora', serif;
 }

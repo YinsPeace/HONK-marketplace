@@ -1,70 +1,94 @@
-# Getting Started with Create React App
+# HONK Hero Marketplace
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+HONK Hero Marketplace is a decentralized application (dApp) for trading DFK Heroes using HONK tokens on the DFK Chain Testnet.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- List DFK Heroes for sale
+- Purchase listed Heroes using HONK tokens
+- View and manage your listed Heroes
+- Responsive design for desktop and mobile use
 
-### `npm start`
+## Technologies Used
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- React.js
+- Web3.js
+- Apollo Client (for GraphQL queries)
+- Tailwind CSS
+- Express.js (for serving the production build)
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Prerequisites
 
-### `npm test`
+- Node.js (v14 or later recommended)
+- npm or yarn
+- MetaMask browser extension
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+## Installation
 
-### `npm run build`
+1. Clone the repository:
+   ```
+   git clone https://github.com/your-username/hero-marketplace-ui.git
+   cd hero-marketplace-ui
+   ```
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+2. Install dependencies:
+   ```
+   npm install
+   ```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+3. Set up environment variables:
+   - Copy the `.env.example` file to a new file named `.env`:
+     ```
+     cp .env.example .env
+     ```
+   - Open the `.env` file and fill in the appropriate values for your environment:
+     ```
+     REACT_APP_HONK_TOKEN_ADDRESS=0x2F511575AA738Db96597e86B41bb0aB634689266
+     REACT_APP_HONK_MARKETPLACE_ADDRESS=0x7482eFaE2EB545DA06dED1D26a22870C94E0d568
+     REACT_APP_DFK_HERO_ADDRESS=0x3bcaCBeAFefed260d877dbE36378008D4e714c8E
+     REACT_APP_DFK_TESTNET_RPC=https://subnets.avax.network/defi-kingdoms/dfk-chain-testnet/rpc
+     REACT_APP_FEE_RECIPIENT=your_fee_recipient_address
+     ```
+   - Replace `your_fee_recipient_address` with the actual address you want to use as the fee recipient.
+   - If you're deploying contracts, make sure to set a secure mnemonic:
+     ```
+     REACT_APP_MNEMONIC=your secure mnemonic phrase
+     ```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+   Note: Never commit your `.env` file to version control. It's included in `.gitignore` for your protection.
 
-### `npm run eject`
+## Running the Application
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+For development:
+```
+npm start
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+For production build:
+```
+npm run build
+npm run serve
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## Connecting to DFK Chain Testnet
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+Ensure your MetaMask is connected to the DFK Chain Testnet. If not already added, you can add it with the following details:
 
-## Learn More
+- Network Name: DFK Chain Testnet
+- RPC URL: https://subnets.avax.network/defi-kingdoms/dfk-chain-testnet/rpc
+- Chain ID: 335
+- Currency Symbol: JEWEL
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## Contract Addresses (DFK Chain Testnet)
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+- HONK Token: 0x2F511575AA738Db96597e86B41bb0aB634689266
+- HONK Marketplace: 0x7482eFaE2EB545DA06dED1D26a22870C94E0d568
+- DFK Hero: 0x3bcaCBeAFefed260d877dbE36378008D4e714c8E
 
-### Code Splitting
+## Contributing
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-### Analyzing the Bundle Size
+## License
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

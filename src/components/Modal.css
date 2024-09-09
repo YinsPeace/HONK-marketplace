@@ -1,0 +1,263 @@
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-container {
+  background: #2d3748;
+  color: #e2e8f0;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 800px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.modal-close-button {
+  background: none;
+  border: none;
+  color: #f0a500;
+  font-size: 24px;
+  font-weight: bold;
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 1001;
+  font-family: 'VT323', monospace;
+  text-shadow: 2px 2px 0px rgba(0, 0, 0, 0.5);
+  line-height: 1;
+  padding: 0;
+}
+
+.modal-close-button:hover {
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+.modal-close-button:active {
+  transform: scale(0.95);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: row;
+  padding: 20px;
+}
+
+.modal-hero-image {
+  flex: 1;
+  padding: 20px;
+}
+
+.modal-hero-image img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.hero-details {
+  flex: 2;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.hero-details h2 {
+  margin-bottom: 10px;
+  text-align: center;
+  color: white;
+}
+
+.hero-details h3 {
+  margin-top: 10px;
+  font-size: 1.2rem;
+  text-align: center;
+  color: white;
+}
+
+.stat-grid {
+  display: flex;
+  flex-direction: row;
+}
+
+.stat-col {
+  flex: 1;
+  margin-right: 10px;
+}
+
+.stat-col ul {
+  list-style: none;
+  padding: 0;
+}
+
+.stat-col li {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.stat-label {
+  color: #fbe375;
+}
+
+.stat-value {
+  color: #ffffff;
+}
+
+.profession-grid {
+  display: flex;
+  flex-direction: row;
+}
+
+.profession-col {
+  flex: 1;
+  margin-right: 10px;
+}
+
+.profession-col ul {
+  list-style: none;
+  padding: 0;
+}
+
+.profession-col li {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 5px;
+}
+
+.profession-label {
+  color: #fbe375;
+}
+
+.profession-value {
+  color: #ffffff;
+}
+
+.section-title {
+  text-align: center;
+  font-size: 1.5rem;
+  margin-top: 1rem;
+  color: #ffffff;
+  font-weight: bold;
+  padding-bottom: 5px;
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid #e2e8f0;
+  margin: 0.5rem 0 1rem 0;
+  padding: 5px;
+}
+
+.modal-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  border-radius: 10px;
+  margin-top: 20px;
+  background: #202225;
+}
+
+.price-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.price-text {
+  font-size: 1.25rem;
+  color: #e2e8f0;
+}
+
+.modal-buttons {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.modal-button {
+  flex: 1;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
+  background-color: #f0a500;
+  color: white;
+  font-weight: bold;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  transition:
+    background-color 0.3s,
+    transform 0.1s;
+  margin: 0 4px;
+}
+
+.modal-button:hover {
+  background-color: #d98e00;
+  transform: translateY(-2px);
+}
+
+.modal-button:active {
+  transform: translateY(1px);
+}
+
+.fee-details {
+  margin-top: 10px;
+  text-align: center;
+  color: #e2e8f0;
+}
+
+.fee-details p {
+  margin: 5px 0;
+}
+
+.disclaimer {
+  margin-top: 20px;
+  padding: 10px;
+  background-color: rgba(240, 165, 0, 0.1);
+  border-radius: 5px;
+  font-size: 0.9rem;
+  color: #e2e8f0;
+  text-align: center;
+}
+
+/* Adjust the input style for consistency */
+.modal-footer input[type='number'] {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  background-color: #2d3748;
+  color: #e2e8f0;
+}
+
+input[type='number'] {
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  appearance: none;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
