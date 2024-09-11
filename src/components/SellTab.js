@@ -30,12 +30,12 @@ const SellTab = ({ userAddress, filters, sortOrder }) => {
   const [currentWarnings, setCurrentWarnings] = useState([]);
   const [heroToList, setHeroToList] = useState(null);
   const [priceToList, setPriceToList] = useState(null);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [listingHeroId, setListingHeroId] = useState(null);
   const [cancellingHeroId, setCancellingHeroId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isWalletConnected, setIsWalletConnected] = useState(false);
 
   const observer = useRef();
 
@@ -70,33 +70,49 @@ const SellTab = ({ userAddress, filters, sortOrder }) => {
   );
 
   useEffect(() => {
-    const checkStoredConnection = async () => {
-      const walletConnected = localStorage.getItem('walletConnected');
-      const storedAddress = localStorage.getItem('connectedAddress');
-      if (walletConnected === 'true' && storedAddress) {
-        const networkIsValid = await checkNetwork();
-        if (networkIsValid) {
-          fetchHeroes(storedAddress);
-        } else {
-          setError('Please connect to the DFK Testnet to view your heroes.');
-        }
+    const checkContractsAndFetchHeroes = async () => {
+      if (!DFKHeroContract || !HONKMarketplaceContract) {
+        console.error('Contracts not initialized');
+        setError('Contracts not initialized. Please try refreshing the page.');
+        return;
+      }
+
+      if (!HONKMarketplaceContract.methods.getHero) {
+        console.error('getHero method not found in HONKMarketplaceContract');
+        setError('Contract method not found. Please check the contract ABI.');
+        return;
+      }
+
+      if (!userAddress) {
+        checkStoredConnection();
+      } else {
+        fetchHeroes(userAddress);
       }
     };
 
-    if (!userAddress) {
-      checkStoredConnection();
-    } else {
-      fetchHeroes(userAddress);
-    }
+    checkContractsAndFetchHeroes();
   }, [userAddress]);
+
+  const checkStoredConnection = async () => {
+    const walletConnected = localStorage.getItem('walletConnected');
+    const storedAddress = localStorage.getItem('connectedAddress');
+    if (walletConnected === 'true' && storedAddress) {
+      const networkIsValid = await checkNetwork();
+      if (networkIsValid) {
+        fetchHeroes(storedAddress);
+      } else {
+        setError('Please connect to the DFK Testnet to view your heroes.');
+      }
+    }
+  };
 
   useEffect(() => {
     const applyFilters = () => {
       console.log('Applying filters. Current state:', { allHeroes, filters, sortOrder });
-
       if (allHeroes.length > 0) {
         try {
           const filtered = applyFiltersAndSort(allHeroes, filters, sortOrder);
+          console.log('Filtered heroes:', filtered);
           setFilteredHeroes(filtered);
           setDisplayedHeroes(filtered.slice(0, HEROES_PER_PAGE));
           setHasMore(filtered.length > HEROES_PER_PAGE);
@@ -110,19 +126,25 @@ const SellTab = ({ userAddress, filters, sortOrder }) => {
         setHasMore(false);
       }
       setLoading(false);
-      setIsInitialLoad(false);
     };
 
     applyFilters();
   }, [allHeroes, filters, sortOrder]);
 
+  useEffect(() => {
+    console.log('Filters changed in SellTab:', filters);
+  }, [filters]);
+
   const fetchHeroes = async (address) => {
     try {
       setIsLoading(true);
       setError(null);
+      console.log('Fetching hero IDs for address:', address);
       const heroIds = await fetchHeroIds(address);
+      console.log('Fetched hero IDs:', heroIds);
 
       if (heroIds.length === 0) {
+        console.log('No heroes found for this address');
         setAllHeroes([]);
         setFilteredHeroes([]);
         setDisplayedHeroes([]);
@@ -130,12 +152,26 @@ const SellTab = ({ userAddress, filters, sortOrder }) => {
         return;
       }
 
-      const marketplaceHeroes = await HONKMarketplaceContract.methods
-        .getMultipleHeroes(heroIds)
-        .call();
+      console.log('Fetching marketplace heroes individually');
+      const marketplaceHeroes = await Promise.all(
+        heroIds.map(async (heroId) => {
+          try {
+            const hero = await HONKMarketplaceContract.methods.getHero(heroId).call();
+            console.log(`Fetched hero ${heroId}:`, hero);
+            return hero;
+          } catch (error) {
+            console.error(`Error fetching hero ${heroId}:`, error);
+            return null;
+          }
+        })
+      );
+      const validMarketplaceHeroes = marketplaceHeroes.filter((hero) => hero !== null);
+      console.log('Fetched valid marketplace heroes:', validMarketplaceHeroes);
 
+      console.log('Processing hero data');
       const heroesData = await Promise.all(
-        marketplaceHeroes.map(async (hero) => {
+        validMarketplaceHeroes.map(async (hero) => {
+          console.log('Processing hero:', hero.id);
           const heroData = await getHeroData(hero.id);
           const processedHero = processHeroData(heroData);
           const heroState = await DFKHeroContract.methods.getHeroState(hero.id).call();
@@ -150,14 +186,19 @@ const SellTab = ({ userAddress, filters, sortOrder }) => {
           };
         })
       );
+      console.log('Processed hero data:', heroesData);
 
       setAllHeroes(heroesData);
+      console.log('All heroes set in state:', heroesData);
     } catch (error) {
       console.error('Error fetching heroes:', error);
+      console.error('Error details:', error.message);
+      if (error.response) {
+        console.error('Error response:', error.response);
+      }
       setError(error.message || 'Failed to fetch heroes. Please try again later.');
     } finally {
       setIsLoading(false);
-      setIsInitialLoad(false);
     }
   };
 
@@ -187,7 +228,7 @@ const SellTab = ({ userAddress, filters, sortOrder }) => {
   };
 
   const listHeroForSale = async (heroId, price) => {
-    if (!userAddress) {
+    if (!isWalletConnected) {
       toast.error('Please connect your wallet to list a hero.');
       return;
     }
@@ -367,43 +408,99 @@ const SellTab = ({ userAddress, filters, sortOrder }) => {
     }
   };
 
+  const handleFiltersChange = (filterKey, value) => {
+    setFilters((prevFilters) => ({
+      ...prevFilters,
+      [filterKey]: value,
+    }));
+  };
+
+  console.log('Heroes being passed to HeroGrid:', displayedHeroes);
+
+  useEffect(() => {
+    checkWalletConnection();
+  }, [userAddress]);
+
+  const checkWalletConnection = async () => {
+    if (window.ethereum) {
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        setIsWalletConnected(accounts.length > 0);
+      } catch (error) {
+        console.error('Failed to check wallet connection:', error);
+        setIsWalletConnected(false);
+      }
+    } else {
+      setIsWalletConnected(false);
+    }
+  };
+
+  const connectWallet = async () => {
+    if (window.ethereum) {
+      try {
+        await window.ethereum.request({ method: 'eth_requestAccounts' });
+        checkWalletConnection();
+      } catch (error) {
+        console.error('Failed to connect wallet:', error);
+        toast.error('Failed to connect wallet. Please try again.');
+      }
+    } else {
+      toast.error('MetaMask is not installed. Please install it to use this feature.');
+    }
+  };
+
   return (
     <div>
-      {isLoading ? (
-        <LoadingIndicator />
-      ) : error ? (
-        <div className="mt-4 text-center text-red-500">Error: {error}</div>
-      ) : displayedHeroes.length === 0 ? (
+      {!isWalletConnected && (
         <div className="mt-4 text-center">
-          <p>No heroes to display</p>
-          <p>No heroes match your current filters.</p>
+          <p>Please connect your wallet to view and list your heroes.</p>
+          <button
+            onClick={connectWallet}
+            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            Connect Wallet
+          </button>
         </div>
-      ) : (
+      )}
+      {isWalletConnected && (
         <>
-          <HeroGrid
-            heroes={displayedHeroes}
-            isBuyPage={false}
-            honkLogo={honkLogo}
-            onList={listHeroForSale}
-            onCancelListing={cancelListing}
-            onUpdatePrice={updatePrice}
-            formatPrice={formatPrice}
-            lastHeroRef={lastHeroElementRef}
-            listingHeroId={listingHeroId}
-            cancellingHeroId={cancellingHeroId}
-          />
-          {isLoadingMore && <LoadingIndicator />}
-          {!isLoadingMore && !hasMore && displayedHeroes.length > 0 && (
-            <p className="mt-4 text-center">No more heroes to load.</p>
+          {isLoading ? (
+            <LoadingIndicator />
+          ) : error ? (
+            <div className="mt-4 text-center text-red-500">Error: {error}</div>
+          ) : displayedHeroes.length === 0 ? (
+            <div className="mt-4 text-center">
+              <p>No heroes to display</p>
+              <p>No heroes match your current filters.</p>
+            </div>
+          ) : (
+            <>
+              <HeroGrid
+                heroes={displayedHeroes}
+                isBuyPage={false}
+                honkLogo={honkLogo}
+                onList={listHeroForSale}
+                onCancelListing={cancelListing}
+                onUpdatePrice={updatePrice}
+                formatPrice={formatPrice}
+                lastHeroRef={lastHeroElementRef}
+                listingHeroId={listingHeroId}
+                cancellingHeroId={cancellingHeroId}
+              />
+              {isLoadingMore && <LoadingIndicator />}
+              {!isLoadingMore && !hasMore && displayedHeroes.length > 0 && (
+                <p className="mt-4 text-center">No more heroes to load.</p>
+              )}
+            </>
           )}
+          <WarningModal
+            isOpen={warningModalOpen}
+            onClose={handleWarningClose}
+            onConfirm={handleWarningConfirm}
+            warnings={currentWarnings}
+          />
         </>
       )}
-      <WarningModal
-        isOpen={warningModalOpen}
-        onClose={handleWarningClose}
-        onConfirm={handleWarningConfirm}
-        warnings={currentWarnings}
-      />
     </div>
   );
 };

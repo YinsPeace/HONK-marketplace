@@ -1,102 +1,84 @@
 export const applyFiltersAndSort = (heroes, filters, sortOrder) => {
-  console.log('Applying filters to heroes:', heroes, 'with filters:', filters);
+  console.log('Applying filters to heroes:', heroes);
+  console.log('Filters:', filters);
+  console.log('Sort order:', sortOrder);
 
-  const rarityToNumber = {
-    Common: 0,
-    Uncommon: 1,
-    Rare: 2,
-    Legendary: 3,
-    Mythic: 4,
-  };
+  const filteredHeroes = heroes.filter((hero) => {
+    console.log('Filtering hero:', hero.id);
+    const heroAttributes = {
+      heroClass: hero.attributes.find((attr) => attr.trait_type === 'Class')?.value,
+      heroSubClass: hero.attributes.find((attr) => attr.trait_type === 'Sub Class')?.value,
+      heroProfession: hero.attributes.find((attr) => attr.trait_type === 'Profession')?.value,
+      heroCraft1: hero.attributes.find((attr) => attr.trait_type === 'Crafting 1')?.value,
+      heroCraft2: hero.attributes.find((attr) => attr.trait_type === 'Crafting 2')?.value,
+      heroRarity: hero.attributes.find((attr) => attr.trait_type === 'Rarity')?.value,
+      heroRarityNumber: ['Common', 'Uncommon', 'Rare', 'Legendary', 'Mythic'].indexOf(
+        hero.attributes.find((attr) => attr.trait_type === 'Rarity')?.value
+      ),
+      heroGeneration: parseInt(
+        hero.attributes.find((attr) => attr.trait_type === 'Generation')?.value
+      ),
+      heroLevel: parseInt(hero.attributes.find((attr) => attr.trait_type === 'Level')?.value),
+    };
+    console.log('Hero attributes:', heroAttributes);
 
-  let filtered = heroes.filter((hero) => {
-    const heroClass = hero.attributes.find((attr) => attr.trait_type === 'Class')?.value || '';
-    const heroSubClass =
-      hero.attributes.find((attr) => attr.trait_type === 'Sub Class')?.value || '';
-    const heroLevel =
-      parseInt(hero.attributes.find((attr) => attr.trait_type === 'Level')?.value) || 0;
-    const heroProfession =
-      hero.attributes.find((attr) => attr.trait_type === 'Profession')?.value || '';
-    const heroRarity = hero.attributes.find((attr) => attr.trait_type === 'Rarity')?.value || '';
-    const heroRarityNumber = rarityToNumber[heroRarity] || 0;
-    const heroGeneration =
-      parseInt(hero.attributes.find((attr) => attr.trait_type === 'Generation')?.value) || 0;
-    const heroCraft1 =
-      hero.attributes.find((attr) => attr.trait_type === 'Crafting 1')?.value || '';
-    const heroCraft2 =
-      hero.attributes.find((attr) => attr.trait_type === 'Crafting 2')?.value || '';
+    let matches = true;
 
-    console.log('Hero attributes:', {
-      heroClass,
-      heroSubClass,
-      heroLevel,
-      heroProfession,
-      heroRarity,
-      heroRarityNumber,
-      heroGeneration,
-      heroCraft1,
-      heroCraft2,
+    // Apply checkbox filters
+    const checkboxFilters = ['class', 'subclass', 'profession', 'crafting1', 'crafting2'];
+    checkboxFilters.forEach((filterType) => {
+      if (filters[filterType] && filters[filterType].length > 0) {
+        const heroValue =
+          heroAttributes[`hero${filterType.charAt(0).toUpperCase() + filterType.slice(1)}`];
+        if (!filters[filterType].includes(heroValue)) {
+          matches = false;
+        }
+      }
     });
 
-    const matchesClass = filters.class.length === 0 || filters.class.includes(heroClass);
-    const matchesSubclass =
-      filters.subclass.length === 0 || filters.subclass.includes(heroSubClass);
-    const matchesProfession =
-      filters.profession.length === 0 ||
-      filters.profession.some((prof) => prof.toLowerCase() === heroProfession.toLowerCase());
-    const matchesCraft1 = filters.crafting1.length === 0 || filters.crafting1.includes(heroCraft1);
-    const matchesCraft2 = filters.crafting2.length === 0 || filters.crafting2.includes(heroCraft2);
-    const matchesRarity =
-      heroRarityNumber >= filters.rarityMin && heroRarityNumber <= filters.rarityMax;
-    const matchesGeneration =
-      heroGeneration >= filters.generationMin && heroGeneration <= filters.generationMax;
-    const matchesLevel = heroLevel >= filters.levelMin && heroLevel <= filters.levelMax;
-    const matchesQuesting = !filters.hideQuesting || !hero.isOnQuest;
-    const matchesListed = !filters.hideListedHeroes || !hero.isForSale;
+    // Apply range filters
+    if (
+      heroAttributes.heroRarityNumber < filters.rarityMin ||
+      heroAttributes.heroRarityNumber > filters.rarityMax
+    ) {
+      matches = false;
+    }
+    if (
+      heroAttributes.heroGeneration < filters.generationMin ||
+      heroAttributes.heroGeneration > filters.generationMax
+    ) {
+      matches = false;
+    }
+    if (
+      heroAttributes.heroLevel < filters.levelMin ||
+      heroAttributes.heroLevel > filters.levelMax
+    ) {
+      matches = false;
+    }
 
-    console.log('Filter matches:', {
-      matchesClass,
-      matchesSubclass,
-      matchesProfession,
-      matchesCraft1,
-      matchesCraft2,
-      matchesRarity,
-      matchesGeneration,
-      matchesLevel,
-      matchesQuesting,
-      matchesListed,
-    });
+    // Apply hide options
+    if (filters.hideQuesting && hero.isOnQuest) {
+      matches = false;
+    }
+    if (filters.hideListedHeroes && hero.isForSale) {
+      matches = false;
+    }
 
-    return (
-      matchesClass &&
-      matchesSubclass &&
-      matchesProfession &&
-      matchesCraft1 &&
-      matchesCraft2 &&
-      matchesRarity &&
-      matchesGeneration &&
-      matchesLevel &&
-      matchesQuesting &&
-      matchesListed
-    );
+    console.log(`Hero ${hero.id} matches filters:`, matches);
+    return matches;
   });
 
-  console.log('Filtered heroes:', filtered);
+  console.log('Filtered heroes:', filteredHeroes);
 
-  // Sorting logic
-  filtered.sort((a, b) => {
-    const priceA = typeof a.price === 'bigint' ? a.price : BigInt(a.price || '0');
-    const priceB = typeof b.price === 'bigint' ? b.price : BigInt(b.price || '0');
-
+  const sortedHeroes = filteredHeroes.sort((a, b) => {
     if (sortOrder === 'price-asc') {
-      return priceA > priceB ? 1 : priceA < priceB ? -1 : 0;
+      return parseFloat(a.price) - parseFloat(b.price);
     } else if (sortOrder === 'price-desc') {
-      return priceB > priceA ? 1 : priceB < priceA ? -1 : 0;
+      return parseFloat(b.price) - parseFloat(a.price);
     }
     return 0;
   });
 
-  console.log('Sorted heroes:', filtered);
-
-  return filtered;
+  console.log('Sorted heroes:', sortedHeroes);
+  return sortedHeroes;
 };

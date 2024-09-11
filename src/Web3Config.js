@@ -1,126 +1,84 @@
 import Web3 from 'web3';
-import HeroCoreDiamondABI from './HeroCoreDiamond.json';
+import HeroCoreDiamondABIFile from './HeroCoreDiamond.json';
 import HONKMarketplaceABIFile from './HONKMarketplaceABI.json';
 import HONKTokenABIFile from './HONKTokenABI.json';
-import contractAddresses from './contractAddresses.json';
 
 let web3;
 let DFKHeroContract;
 let HONKMarketplaceContract;
 let HONKTokenContract;
+let isInitialized = false;
 
 const DFK_TESTNET_CHAIN_ID = 335;
-const DFK_TESTNET_RPC = process.env.REACT_APP_DFK_TESTNET_RPC || 'https://subnets.avax.network/defi-kingdoms/dfk-chain-testnet/rpc';
+const DFK_TESTNET_RPC = process.env.REACT_APP_DFK_TESTNET_RPC;
 
 const initWeb3 = async () => {
-  // Check if MetaMask is installed
   if (typeof window.ethereum !== 'undefined') {
-    try {
-      // Request account access
-      await window.ethereum.request({ method: 'eth_requestAccounts' });
-      web3 = new Web3(window.ethereum);
-
-      // Check if we're connected to the correct network
-      const chainId = await web3.eth.getChainId();
-      if (chainId !== DFK_TESTNET_CHAIN_ID) {
-        try {
-          // Try to switch to the DFK Testnet
-          await window.ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: Web3.utils.toHex(DFK_TESTNET_CHAIN_ID) }],
-          });
-        } catch (switchError) {
-          // This error code indicates that the chain has not been added to MetaMask
-          if (switchError.code === 4902) {
-            try {
-              await window.ethereum.request({
-                method: 'wallet_addEthereumChain',
-                params: [{
-                  chainId: Web3.utils.toHex(DFK_TESTNET_CHAIN_ID),
-                  chainName: 'DFK Chain Testnet',
-                  nativeCurrency: {
-                    name: 'Jewel',
-                    symbol: 'JEWEL',
-                    decimals: 18
-                  },
-                  rpcUrls: [DFK_TESTNET_RPC],
-                  blockExplorerUrls: ['https://subnets-test.avax.network/defi-kingdoms/']
-                }],
-              });
-            } catch (addError) {
-              console.error('Failed to add the DFK Testnet:', addError);
-            }
-          } else {
-            console.error('Failed to switch to the DFK Testnet:', switchError);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Failed to connect to MetaMask:', error);
-    }
+    web3 = new Web3(window.ethereum);
   } else {
-    console.log('MetaMask not detected. Falling back to read-only mode with default provider.');
     web3 = new Web3(new Web3.providers.HttpProvider(DFK_TESTNET_RPC));
   }
   return web3;
 };
 
 const initializeContracts = async () => {
+  if (isInitialized) return;
+
   if (!web3) {
     web3 = await initWeb3();
   }
 
-  const DFKHeroAddress = process.env.REACT_APP_DFK_HERO_ADDRESS || '0x3bcaCBeAFefed260d877dbE36378008D4e714c8E';
-  const HONKMarketplaceAddress = process.env.REACT_APP_HONK_MARKETPLACE_ADDRESS || contractAddresses.HONKMarketplace;
-  const HONKTokenAddress = process.env.REACT_APP_HONK_TOKEN_ADDRESS || contractAddresses.HONKToken;
+  const DFKHeroAddress = process.env.REACT_APP_DFK_HERO_ADDRESS;
+  const HONKMarketplaceAddress = process.env.REACT_APP_HONK_MARKETPLACE_ADDRESS;
+  const HONKTokenAddress = process.env.REACT_APP_HONK_TOKEN_ADDRESS;
 
-  DFKHeroContract = new web3.eth.Contract(HeroCoreDiamondABI, DFKHeroAddress);
-  HONKMarketplaceContract = new web3.eth.Contract(HONKMarketplaceABIFile, HONKMarketplaceAddress);
-  HONKTokenContract = new web3.eth.Contract(HONKTokenABIFile, HONKTokenAddress);
-};
+  if (!DFKHeroAddress || !HONKMarketplaceAddress || !HONKTokenAddress) {
+    throw new Error('One or more contract addresses are not set in environment variables');
+  }
 
-export const reinitializeContracts = async () => {
+  console.log('Initializing contracts with addresses:');
+  console.log('DFKHeroAddress:', DFKHeroAddress);
+  console.log('HONKMarketplaceAddress:', HONKMarketplaceAddress);
+  console.log('HONKTokenAddress:', HONKTokenAddress);
+
   try {
-    await initializeWeb3();
-    await initializeContracts();
-    console.log('Contracts reinitialized successfully');
+    const HeroCoreDiamondABI = HeroCoreDiamondABIFile.abi || HeroCoreDiamondABIFile;
+    const HONKMarketplaceABI = HONKMarketplaceABIFile.abi || HONKMarketplaceABIFile;
+    const HONKTokenABI = HONKTokenABIFile.abi || HONKTokenABIFile;
+
+    DFKHeroContract = new web3.eth.Contract(HeroCoreDiamondABI, DFKHeroAddress);
+    HONKMarketplaceContract = new web3.eth.Contract(HONKMarketplaceABI, HONKMarketplaceAddress);
+    HONKTokenContract = new web3.eth.Contract(HONKTokenABI, HONKTokenAddress);
+
+    console.log('Contracts initialized. Checking addresses:');
+    console.log('DFKHeroContract address:', DFKHeroContract.options.address);
+    console.log('HONKMarketplaceContract address:', HONKMarketplaceContract.options.address);
+    console.log('HONKTokenContract address:', HONKTokenContract.options.address);
+
+    if (
+      !DFKHeroContract.options.address ||
+      !HONKMarketplaceContract.options.address ||
+      !HONKTokenContract.options.address
+    ) {
+      throw new Error('One or more contracts failed to initialize properly');
+    }
+
+    isInitialized = true;
+    console.log('All contracts initialized successfully');
   } catch (error) {
-    console.error('Error reinitializing contracts:', error);
+    console.error('Error initializing contracts:', error);
     throw error;
   }
 };
 
-export const formatPrice = (price) => {
-  if (!price) return 'N/A';
+const checkNetwork = async () => {
   try {
-    const priceInEther = web3.utils.fromWei(price.toString(), 'ether');
-    const formattedPrice = Number(priceInEther).toFixed(1);
-    return formattedPrice.endsWith('.0') ? formattedPrice.slice(0, -2) : formattedPrice;
-  } catch (error) {
-    console.error('Error formatting price:', error);
-    return price;
-  }
-};
-
-export const toBN = (value) => BigInt(value);
-
-export const compareBN = (a, b) => {
-  const aBN = toBN(a);
-  const bBN = toBN(b);
-  return aBN < bBN ? -1 : aBN > bBN ? 1 : 0;
-};
-
-export const checkNetwork = async () => {
-  try {
+    if (!web3) {
+      web3 = await initWeb3();
+    }
     const chainId = await web3.eth.getChainId();
-    console.log('Current chain ID:', chainId);
-    // Convert chainId to a number if it's a BigInt
     const chainIdNumber = typeof chainId === 'bigint' ? Number(chainId) : chainId;
     const isCorrectNetwork = chainIdNumber === DFK_TESTNET_CHAIN_ID;
-    console.log(
-      `DFK Testnet Chain ID: ${DFK_TESTNET_CHAIN_ID}, Current Chain ID: ${chainIdNumber}`
-    );
-    console.log(isCorrectNetwork ? 'Connected to DFK Testnet' : 'Not connected to DFK Testnet');
     return isCorrectNetwork;
   } catch (error) {
     console.error('Error checking network:', error);
@@ -128,7 +86,7 @@ export const checkNetwork = async () => {
   }
 };
 
-export const validateContracts = () => {
+const validateContracts = () => {
   if (!HONKMarketplaceContract || !HONKTokenContract || !DFKHeroContract) {
     console.error('One or more contracts are not initialized correctly');
     return false;
@@ -136,17 +94,7 @@ export const validateContracts = () => {
   return true;
 };
 
-export const getCurrentAccount = async () => {
-  try {
-    const accounts = await web3.eth.getAccounts();
-    return accounts[0];
-  } catch (error) {
-    console.error('Error getting current account:', error);
-    return null;
-  }
-};
-
-export const checkMetaMaskConnection = async () => {
+const checkMetaMaskConnection = async () => {
   if (typeof window.ethereum !== 'undefined') {
     try {
       const accounts = await window.ethereum.request({ method: 'eth_accounts' });
@@ -161,4 +109,55 @@ export const checkMetaMaskConnection = async () => {
   }
 };
 
-export { initWeb3, initializeContracts, web3, DFKHeroContract, HONKMarketplaceContract, HONKTokenContract };
+const reinitializeContracts = async () => {
+  try {
+    await initWeb3();
+    await initializeContracts();
+  } catch (error) {
+    console.error('Error reinitializing contracts:', error);
+    throw error;
+  }
+};
+
+// Remove or export unused functions:
+export const formatPrice = (price) => {
+  /* ... */
+};
+export const compareBN = (a, b) => {
+  /* ... */
+};
+export const getHONKTokenAddress = () => {
+  /* ... */
+};
+export const checkNetworkStatus = async () => {
+  /* ... */
+};
+export const checkBlockSyncing = async () => {
+  /* ... */
+};
+export const getLatestBlock = async () => {
+  /* ... */
+};
+export const checkGasPrice = async () => {
+  /* ... */
+};
+
+// If these functions are not needed elsewhere, you can remove them entirely
+
+// Single export statement at the end of the file
+export {
+  initWeb3,
+  initializeContracts,
+  checkNetwork,
+  validateContracts,
+  checkMetaMaskConnection,
+  reinitializeContracts,
+  web3,
+  HONKTokenContract,
+  DFKHeroContract,
+  HONKMarketplaceContract,
+  isInitialized, // Export this variable
+};
+
+// Use the new function instead of directly accessing the contract
+// console.log('HONK Token Address:', getHONKTokenAddress());

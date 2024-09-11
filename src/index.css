@@ -2299,6 +2299,10 @@ input[type='range']::-ms-fill-upper {
   }
 }
 
+.spin-animation {
+  animation: spin 1s linear;
+}
+
 /* Add this new style for the loading text */
 .loading-text {
   font-weight: bold;

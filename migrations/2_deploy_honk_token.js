@@ -1,15 +1,16 @@
 const HONKToken = artifacts.require("HONKToken");
-const fs = require('fs');
+const { getAddress, saveAddress } = require('./addressManager');
 
-module.exports = async function(deployer) {
-  await deployer.deploy(HONKToken, web3.utils.toWei('1000000', 'ether'));
-  const honkToken = await HONKToken.deployed();
-  
-  // Save the address
-  let addresses = {};
-  if (fs.existsSync('contractAddresses.json')) {
-    addresses = JSON.parse(fs.readFileSync('contractAddresses.json'));
+module.exports = async function(deployer, network) {
+  let honkTokenAddress = getAddress('HONKToken');
+
+  if (!honkTokenAddress || network === 'development' || network === 'test') {
+    await deployer.deploy(HONKToken, web3.utils.toWei('1000000', 'ether'));
+    const honkToken = await HONKToken.deployed();
+    honkTokenAddress = honkToken.address;
+    saveAddress('HONKToken', honkTokenAddress);
+    console.log('HONKToken deployed at:', honkTokenAddress);
+  } else {
+    console.log('Using existing HONKToken at:', honkTokenAddress);
   }
-  addresses.HONKToken = honkToken.address;
-  fs.writeFileSync('contractAddresses.json', JSON.stringify(addresses, null, 2));
 };

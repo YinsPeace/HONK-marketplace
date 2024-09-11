@@ -7,7 +7,6 @@ const WalletConnect = ({ onConnect }) => {
 
   useEffect(() => {
     const checkIfWalletIsConnected = async () => {
-      console.log('Checking if wallet is connected...');
       const walletConnected = localStorage.getItem('walletConnected');
       const storedAddress = localStorage.getItem('connectedAddress');
 
@@ -23,7 +22,6 @@ const WalletConnect = ({ onConnect }) => {
           setIsConnected(true);
           setUserAddress(storedAddress);
           onConnect(storedAddress);
-          console.log('Wallet reconnected from localStorage:', storedAddress);
         } catch (error) {
           console.error('Failed to reinitialize contracts:', error);
           setError('Failed to reconnect. Please try again.');
@@ -44,7 +42,6 @@ const WalletConnect = ({ onConnect }) => {
             onConnect(accounts[0]);
             localStorage.setItem('walletConnected', 'true');
             localStorage.setItem('connectedAddress', accounts[0]);
-            console.log('Wallet already connected:', accounts[0]);
           }
         } catch (error) {
           console.error('Error checking connected accounts:', error);
@@ -79,13 +76,11 @@ const WalletConnect = ({ onConnect }) => {
   }, [onConnect]);
 
   const connectWallet = async () => {
-    console.log('Attempting to connect wallet...');
     if (window.ethereum) {
       try {
         await window.ethereum.request({ method: 'eth_requestAccounts' });
         await reinitializeContracts();
         const accounts = await web3.eth.getAccounts();
-        console.log('Connected accounts:', accounts);
         if (accounts.length > 0) {
           const networkIsValid = await checkNetwork();
           if (!networkIsValid) {
@@ -98,7 +93,6 @@ const WalletConnect = ({ onConnect }) => {
           onConnect(accounts[0]);
           localStorage.setItem('walletConnected', 'true');
           localStorage.setItem('connectedAddress', accounts[0]);
-          console.log('Wallet connected successfully:', accounts[0]);
         } else {
           setError('No accounts found after connection request');
         }
@@ -107,7 +101,6 @@ const WalletConnect = ({ onConnect }) => {
         setError('Failed to connect. Please check your MetaMask and try again.');
       }
     } else {
-      console.log('Ethereum object not found, install MetaMask.');
       setError('MetaMask is not installed. Please install it to use this app.');
     }
   };

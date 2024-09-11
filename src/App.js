@@ -12,11 +12,12 @@ import {
   reinitializeContracts,
   web3,
   HONKTokenContract,
+  initWeb3,
+  initializeContracts,
 } from './Web3Config';
 import { debounce } from 'lodash';
 import LoadingIndicator from './components/LoadingIndicator';
 import Sidebar from './components/Sidebar';
-import { initWeb3, initializeContracts } from './Web3Config';
 
 const BuyTab = lazy(() => import('./components/BuyTab'));
 const SellTab = lazy(() => import('./components/SellTab'));
@@ -28,46 +29,79 @@ const ConnectionStatus = ({
   honkBalance,
   onConnect,
   onSwitchNetwork,
-}) => (
-  <div className="absolute top-2 right-4 text-right">
-    {isConnected ? (
-      <div className="flex flex-col items-end">
-        <div className="flex items-center mb-2">
-          <span
-            className={`inline-block w-2 h-2 ${
-              isCorrectNetwork ? 'bg-green-400' : 'bg-yellow-400'
-            } rounded-full mr-2`}
-          ></span>
-          <span className="text-sm mr-4">
-            {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
-          </span>
-          {!isCorrectNetwork && (
+  onRefreshBalance,
+}) => {
+  const [isSpinning, setIsSpinning] = useState(false);
+
+  const handleRefreshClick = async () => {
+    setIsSpinning(true);
+    await onRefreshBalance();
+    setTimeout(() => setIsSpinning(false), 1000); // Stop spinning after 1 second
+  };
+
+  return (
+    <div className="absolute top-2 right-4 text-right">
+      {isConnected ? (
+        <div className="flex flex-col items-end">
+          <div className="flex items-center mb-2">
+            <span
+              className={`inline-block w-2 h-2 ${
+                isCorrectNetwork ? 'bg-green-400' : 'bg-yellow-400'
+              } rounded-full mr-2`}
+            ></span>
+            <span className="text-sm mr-4">
+              {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+            </span>
+            {!isCorrectNetwork && (
+              <button
+                onClick={onSwitchNetwork}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs"
+              >
+                Switch Network
+              </button>
+            )}
+          </div>
+          <div className="text-sm flex items-center">
             <button
-              onClick={onSwitchNetwork}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs"
+              onClick={handleRefreshClick}
+              className="mr-2 p-1 bg-gray-600 hover:bg-gray-700 text-white rounded"
+              aria-label="Refresh balance"
+              disabled={isSpinning}
             >
-              Switch Network
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className={`h-4 w-4 ${isSpinning ? 'spin-animation' : ''}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
             </button>
-          )}
+            Balance: {web3 ? formatBalance(honkBalance) : '0'}
+            <img src={honkLogo} alt="HONK" className="ml-1 w-6 h-6" />
+          </div>
         </div>
-        <div className="text-sm flex items-center">
-          Balance: {formatBalance(web3.utils.fromWei(honkBalance, 'ether'))}
-          <img src={honkLogo} alt="HONK" className="ml-1 w-8 h-8" />
-        </div>
-      </div>
-    ) : (
-      <button
-        onClick={onConnect}
-        className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-sm"
-      >
-        Connect Wallet
-      </button>
-    )}
-  </div>
-);
+      ) : (
+        <button
+          onClick={onConnect}
+          className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-sm"
+        >
+          Connect Wallet
+        </button>
+      )}
+    </div>
+  );
+};
 
 const formatBalance = (balance) => {
-  const num = parseFloat(balance);
+  if (!web3 || !balance) return '0';
+  const num = parseFloat(web3.utils.fromWei(balance, 'ether'));
   if (num >= 1000000) {
     return (num / 1000000).toFixed(1) + 'M';
   } else if (num >= 1000) {
@@ -77,24 +111,14 @@ const formatBalance = (balance) => {
   }
 };
 
-const debouncedToast = debounce(
-  (message, type) => {
-    toast[type](message);
-  },
-  1000,
-  { leading: true, trailing: false }
-);
-
 function App() {
   const navigate = useNavigate();
   const [connectedAddress, setConnectedAddress] = useState(null);
   const [isCorrectNetwork, setIsCorrectNetwork] = useState(false);
-  const [areContractsValid, setAreContractsValid] = useState(false);
   const [isMetaMaskInstalled, setIsMetaMaskInstalled] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [honkBalance, setHonkBalance] = useState('0');
 
@@ -117,12 +141,31 @@ function App() {
 
   const location = useLocation();
 
+  const debouncedToast = useCallback((message, type) => {
+    debounce((msg, t) => toast(msg, { type: t }), 300)(message, type);
+  }, []);
+
   useEffect(() => {
-    const initializeWeb3 = async () => {
+    const initializeWeb3AndContracts = async () => {
       setIsLoading(true);
       try {
-        await reinitializeContracts();
+        if (!isInitialized) {
+          const initializedWeb3 = await initWeb3();
+          if (!initializedWeb3) {
+            throw new Error('Failed to initialize Web3');
+          }
+
+          await initializeContracts();
+        }
+
+        const contractsValid = validateContracts();
+
+        if (!contractsValid) {
+          throw new Error('Contracts failed to initialize correctly');
+        }
+
         const isCorrectNetwork = await checkNetwork();
+
         if (!isCorrectNetwork) {
           debouncedToast('Please connect to the DFK Testnet', 'warn');
           setIsCorrectNetwork(false);
@@ -131,18 +174,19 @@ function App() {
         }
         setIsInitialized(true);
       } catch (error) {
-        console.error('Failed to initialize Web3:', error);
+        console.error('Failed to initialize:', error);
+        console.error('Error stack:', error.stack);
         debouncedToast(`Failed to initialize: ${error.message}`, 'error');
       } finally {
         setIsLoading(false);
       }
     };
 
-    initializeWeb3();
-  }, []);
+    initializeWeb3AndContracts();
+  }, [debouncedToast]);
 
   const checkHONKBalance = useCallback(async () => {
-    if (connectedAddress && HONKTokenContract) {
+    if (connectedAddress && HONKTokenContract && HONKTokenContract.methods) {
       try {
         const balance = await HONKTokenContract.methods.balanceOf(connectedAddress).call();
         setHonkBalance(balance);
@@ -158,22 +202,39 @@ function App() {
     }
   }, [isConnected, isCorrectNetwork, checkHONKBalance]);
 
+  const refreshBalance = useCallback(async () => {
+    if (isConnected && isCorrectNetwork && connectedAddress) {
+      try {
+        const balance = await HONKTokenContract.methods.balanceOf(connectedAddress).call();
+        setHonkBalance(balance);
+        debouncedToast('Balance updated successfully', 'success');
+      } catch (error) {
+        console.error('Error refreshing HONK balance:', error);
+        debouncedToast('Failed to update balance. Please try again.', 'error');
+      }
+    }
+  }, [isConnected, isCorrectNetwork, connectedAddress, debouncedToast]);
+
   useEffect(() => {
     const checkNetworkStatus = async () => {
       if (isConnected) {
+        console.log('Checking network status...');
         const networkCheck = await checkNetwork();
         console.log('Network check result:', networkCheck);
         setIsCorrectNetwork(networkCheck);
         if (!networkCheck) {
+          console.log('Incorrect network detected');
           debouncedToast('Please connect to the DFK Testnet.', 'warn');
         } else {
-          console.log('Connected to correct network');
+          console.log('Correct network detected');
         }
+      } else {
+        console.log('Not connected, skipping network check');
       }
     };
 
     checkNetworkStatus();
-  }, [isConnected]);
+  }, [isConnected, debouncedToast]);
 
   useEffect(() => {
     const checkMetaMask = () => {
@@ -212,7 +273,6 @@ function App() {
       }
 
       const contractsValid = validateContracts();
-      setAreContractsValid(contractsValid);
       if (!contractsValid) {
         debouncedToast(
           'There was an issue with contract validation. Please contact support.',
@@ -246,13 +306,14 @@ function App() {
         const networkCheck = await checkNetwork();
         setIsCorrectNetwork(networkCheck);
         if (!networkCheck) {
-          setError('Connected to the wrong network. Please switch to the DFK Testnet.');
-        } else {
-          setError(null);
+          debouncedToast(
+            'Connected to the wrong network. Please switch to the DFK Testnet.',
+            'error'
+          );
         }
       } catch (error) {
         console.error('Failed to reinitialize contracts after network change:', error);
-        setError('Network change detected. Please refresh the page.');
+        debouncedToast('Network change detected. Please refresh the page.', 'error');
       }
     };
 
@@ -283,7 +344,7 @@ function App() {
         window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
       }
     };
-  }, [isMetaMaskInstalled, navigate]);
+  }, [isMetaMaskInstalled, navigate, debouncedToast]);
 
   const handleConnect = async () => {
     if (typeof window.ethereum !== 'undefined') {
@@ -291,11 +352,13 @@ function App() {
         await window.ethereum.request({ method: 'eth_requestAccounts' });
         await reinitializeContracts();
         const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        console.log('Connected accounts:', accounts);
         if (accounts.length > 0) {
           const networkIsValid = await checkNetwork();
           if (!networkIsValid) {
-            setError('Connected to the wrong network. Please switch to the DFK Testnet.');
+            debouncedToast(
+              'Connected to the wrong network. Please switch to the DFK Testnet.',
+              'error'
+            );
             return;
           }
 
@@ -303,17 +366,15 @@ function App() {
           setConnectedAddress(accounts[0]);
           localStorage.setItem('walletConnected', 'true');
           localStorage.setItem('connectedAddress', accounts[0]);
-          console.log('Wallet connected successfully:', accounts[0]);
         } else {
-          setError('No accounts found after connection request');
+          debouncedToast('No accounts found after connection request', 'error');
         }
       } catch (error) {
         console.error('Failed to connect to MetaMask', error);
-        setError('Failed to connect. Please check your MetaMask and try again.');
+        debouncedToast('Failed to connect. Please check your MetaMask and try again.', 'error');
       }
     } else {
-      console.log('Ethereum object not found, install MetaMask.');
-      setError('MetaMask is not installed. Please install it to use this app.');
+      debouncedToast('MetaMask is not installed. Please install it to use this app.', 'error');
     }
   };
 
@@ -323,9 +384,7 @@ function App() {
         method: 'wallet_switchEthereumChain',
         params: [{ chainId: '0x14f' }], // DFK Testnet chain ID in hex (lowercase)
       });
-      console.log('Network switch requested');
       const networkCheck = await checkNetwork();
-      console.log('Post-switch network check:', networkCheck);
       if (networkCheck) {
         setIsCorrectNetwork(true);
         debouncedToast('Successfully switched to DFK Testnet!', 'success');
@@ -384,13 +443,16 @@ function App() {
     setSortOrder(value);
   };
 
-  useEffect(() => {
-    const init = async () => {
-      await initWeb3();
-      await initializeContracts();
-    };
-    init();
-  }, []);
+  const updateBalance = useCallback(async () => {
+    if (connectedAddress && HONKTokenContract && HONKTokenContract.methods) {
+      try {
+        const balance = await HONKTokenContract.methods.balanceOf(connectedAddress).call();
+        setHonkBalance(balance);
+      } catch (error) {
+        console.error('Error updating HONK balance:', error);
+      }
+    }
+  }, [connectedAddress]);
 
   if (isLoading) {
     return <LoadingIndicator />;
@@ -421,6 +483,7 @@ function App() {
             honkBalance={honkBalance}
             onConnect={handleConnect}
             onSwitchNetwork={handleSwitchNetwork}
+            onRefreshBalance={refreshBalance}
           />
           <div className="container mx-auto p-4 flex justify-center items-center">
             <img
@@ -453,6 +516,7 @@ function App() {
                         honkLogo={honkLogo}
                         filters={filters}
                         sortOrder={sortOrder}
+                        onBalanceChange={updateBalance}
                       />
                     }
                   />

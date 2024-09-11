@@ -30,7 +30,8 @@ module.exports = {
   migrations_directory: './migrations/',
   
   plugins: [
-    'truffle-plugin-verify'
+    'truffle-plugin-verify',
+    '@openzeppelin/truffle-upgrades'
   ],
   api_keys: {
   },

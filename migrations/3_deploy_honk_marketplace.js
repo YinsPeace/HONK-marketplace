@@ -1,42 +1,43 @@
-const { deployProxy } = require('@openzeppelin/truffle-upgrades');
+const { deployProxy, upgradeProxy } = require('@openzeppelin/truffle-upgrades');
 const HONKMarketplace = artifacts.require("HONKMarketplace");
-const HONKToken = artifacts.require("HONKToken");
-const fs = require('fs');
-const path = require('path');
+const { getAddress, saveAddress } = require('./addressManager');  // Import utility functions
 require('dotenv').config();
 
-module.exports = async function(deployer, network, accounts) {
+module.exports = async function (deployer, network, accounts) {
   try {
-    // Deploy HONKToken if it hasn't been deployed yet
-    if (network === 'development' || network === 'test') {
-      await deployer.deploy(HONKToken);
-    }
-    
-    const honkTokenAddress = process.env.REACT_APP_HONK_TOKEN_ADDRESS || (await HONKToken.deployed()).address;
+    // Get environment variables or fallback to provided accounts
+    const honkTokenAddress = process.env.REACT_APP_HONK_TOKEN_ADDRESS;
     const dfkHeroContractAddress = process.env.REACT_APP_DFK_HERO_ADDRESS;
     const feeRecipient = process.env.REACT_APP_FEE_RECIPIENT || accounts[0];
 
-    console.log('Deploying HONKMarketplace...');
-    const honkMarketplace = await deployProxy(HONKMarketplace, 
-      [honkTokenAddress, dfkHeroContractAddress, feeRecipient], 
-      { deployer, initializer: 'initialize' }
-    );
+    // Get the saved contract address (if already deployed)
+    let honkMarketplaceAddress = getAddress('HONKMarketplace');
 
-    console.log('HONKMarketplace deployed at:', honkMarketplace.address);
-    console.log('HONKToken address used:', honkTokenAddress);
-    console.log('DFKHeroContract address used:', dfkHeroContractAddress);
-    console.log('Fee recipient address:', feeRecipient);
+    let honkMarketplace;
+    
+    if (!honkMarketplaceAddress) {
+      // First-time deployment (Proxy pattern)
+      console.log('Deploying a new HONKMarketplace contract...');
+      honkMarketplace = await deployProxy(HONKMarketplace, 
+        [honkTokenAddress, dfkHeroContractAddress, feeRecipient], 
+        { deployer, initializer: 'initialize' }
+      );
+      honkMarketplaceAddress = honkMarketplace.address;
 
-    // Save addresses to file
-    let addresses = {};
-    const addressesFile = path.join(__dirname, '..', 'src', 'contractaddresses.json');
-    if (fs.existsSync(addressesFile)) {
-      addresses = JSON.parse(fs.readFileSync(addressesFile));
+      // Save the new proxy contract address
+      saveAddress('HONKMarketplace', honkMarketplaceAddress);
+      console.log('HONKMarketplace deployed at:', honkMarketplaceAddress);
+    } else {
+      // Upgrade existing contract
+      console.log('Upgrading existing HONKMarketplace contract at:', honkMarketplaceAddress);
+      honkMarketplace = await upgradeProxy(honkMarketplaceAddress, HONKMarketplace, { deployer });
+      console.log('HONKMarketplace upgraded at:', honkMarketplaceAddress);
     }
-    addresses.HONKMarketplace = honkMarketplace.address;
-    addresses.HONKToken = honkTokenAddress;
-    fs.writeFileSync(addressesFile, JSON.stringify(addresses, null, 2));
-    console.log('Contract addresses saved to', addressesFile);
+
+    // Optionally log the initial fee recipient and other parameters
+    console.log('HONKToken address:', honkTokenAddress);
+    console.log('DFKHeroContract address:', dfkHeroContractAddress);
+    console.log('Fee recipient address:', feeRecipient);
 
   } catch (error) {
     console.error('Error in migration:', error);

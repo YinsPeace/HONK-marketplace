@@ -54,6 +54,11 @@
       "address": "0xCFA4345Fe84393b5292B849efff73D8ce8C924C8",
       "txHash": "0xe5adf1f98cc8e967b47b370cd8f17f1d7bf587711c1d30e39f76dad0cabc403b",
       "kind": "transparent"
+    },
+    {
+      "address": "0x09D3F995f3a44369b4F0293D8dD0bec913647776",
+      "txHash": "0x61a4edf1b50a072b32d38301551d31158ae316924ccff012c5bf0f4e3110f23c",
+      "kind": "transparent"
     }
   ],
   "impls": {
@@ -1497,6 +1502,171 @@
           }
         },
         "namespaces": {
+          "erc7201:openzeppelin.storage.ReentrancyGuard": [
+            {
+              "contract": "ReentrancyGuardUpgradeable",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\utils\\ReentrancyGuardUpgradeable.sol:40"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:24"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:69"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:73"
+            }
+          ]
+        }
+      }
+    },
+    "d731ab15b7b42c10d0f9b73f42e0b87b3f711a96d188c3db54c261a8504dc9b4": {
+      "address": "0x9Fc0A433C70D524db514bdDAdc52E775edc406d7",
+      "txHash": "0xc92aa0ca9727b7b98c812e82fa49071b3a27b6148c19647436f38e8c2fbca4a2",
+      "layout": {
+        "solcVersion": "0.8.20",
+        "storage": [
+          {
+            "contract": "HONKMarketplace",
+            "label": "honkToken",
+            "type": "t_contract(IERC20)1677",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:23"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "dfkHeroContract",
+            "type": "t_contract(IHeroCoreDiamond)2463",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:24"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "feeRecipient",
+            "type": "t_address",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:26"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "FEE_PERCENTAGE",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:27"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "proposedFeePercentage",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:31"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "proposedFeePercentageTimestamp",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:32"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroes",
+            "type": "t_mapping(t_uint256,t_struct(Hero)2503_storage)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:57"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroCount",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:58"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroIdToIndex",
+            "type": "t_mapping(t_uint256,t_uint256)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:59"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "isHeroListed",
+            "type": "t_mapping(t_uint256,t_bool)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:60"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "listedHeroCount",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:61"
+          }
+        ],
+        "types": {
+          "t_contract(IERC20)1677": {
+            "label": "contract IERC20"
+          },
+          "t_contract(IHeroCoreDiamond)2463": {
+            "label": "contract IHeroCoreDiamond"
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_mapping(t_uint256,t_struct(Hero)2503_storage)": {
+            "label": "mapping(uint256 => struct HONKMarketplace.Hero)"
+          },
+          "t_struct(Hero)2503_storage": {
+            "label": "struct HONKMarketplace.Hero",
+            "members": [
+              {
+                "label": "id",
+                "type": "t_uint256"
+              },
+              {
+                "label": "owner",
+                "type": "t_address"
+              },
+              {
+                "label": "price",
+                "type": "t_uint256"
+              },
+              {
+                "label": "isForSale",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_bool": {
+            "label": "bool"
+          },
+          "t_mapping(t_uint256,t_uint256)": {
+            "label": "mapping(uint256 => uint256)"
+          },
+          "t_mapping(t_uint256,t_bool)": {
+            "label": "mapping(uint256 => bool)"
+          },
+          "t_uint64": {
+            "label": "uint64"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\utils\\PausableUpgradeable.sol:21"
+            }
+          ],
           "erc7201:openzeppelin.storage.ReentrancyGuard": [
             {
               "contract": "ReentrancyGuardUpgradeable",
