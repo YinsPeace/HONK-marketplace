@@ -18,6 +18,8 @@ import {
 import { debounce } from 'lodash';
 import LoadingIndicator from './components/LoadingIndicator';
 import Sidebar from './components/Sidebar';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faDonate } from '@fortawesome/free-solid-svg-icons';
 
 const BuyTab = lazy(() => import('./components/BuyTab'));
 const SellTab = lazy(() => import('./components/SellTab'));
@@ -109,6 +111,37 @@ const formatBalance = (balance) => {
   } else {
     return num.toFixed(2);
   }
+};
+
+const CreditsIcon = () => {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const donationAddress = '0xd72730C437f4B044e57DbBE4Acf2A61201Dc9F6b';
+
+  const handleClick = () => {
+    navigator.clipboard.writeText(donationAddress);
+    toast.success('Donation address copied to clipboard!');
+  };
+
+  return (
+    <div className="fixed bottom-4 right-4 z-50">
+      <div
+        className="bg-gray-800 rounded-full p-2 cursor-pointer"
+        onMouseEnter={() => setShowTooltip(true)}
+        onMouseLeave={() => setShowTooltip(false)}
+        onClick={handleClick}
+      >
+        <FontAwesomeIcon icon={faDonate} className="text-gray-300 w-5 h-5" />
+      </div>
+      {showTooltip && (
+        <div className="absolute bottom-full right-0 mb-2 p-4 bg-gray-800 text-gray-300 rounded shadow-lg w-64">
+          <p>Created by: Yin | Team Goose</p>
+          <p>Donations to:</p>
+          <p className="text-xs">{donationAddress}</p>
+          <p className="text-xs mt-1">(click icon to copy wallet address)</p>
+        </div>
+      )}
+    </div>
+  );
 };
 
 function App() {
@@ -545,6 +578,7 @@ function App() {
           pauseOnHover
           theme="dark"
         />
+        <CreditsIcon />
       </div>
     </div>
   );
