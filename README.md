@@ -2,8 +2,8 @@
 
 HONK Hero Marketplace is an open-source decentralized application (dApp) for trading DFK Heroes using HONK tokens on the DFK Chain Testnet. This project is initially developed for and owned by Team Goose.
 
-## Like this project? Consider supporting future developments by:
-Making a donation to 0xd72730C437f4B044e57DbBE4Acf2A61201Dc9F6b
+## Like this project? 
+Consider supporting future developments by making a donation to: 0xd72730C437f4B044e57DbBE4Acf2A61201Dc9F6b
 
 ## Purpose
 
@@ -97,9 +97,9 @@ Ensure your MetaMask is connected to the DFK Chain Testnet. If not already added
 
 ## Contract Addresses (DFK Chain Testnet)
 
-- HONK Token: 0x2F511575AA738Db96597e86B41bb0aB634689266
-- HONK Marketplace: 0x7482eFaE2EB545DA06dED1D26a22870C94E0d568
-- DFK Hero: 0x3bcaCBeAFefed260d877dbE36378008D4e714c8E
+- HONK Token: 0x0d6B08F4223D169590C33FEbED5F0E3d2bAf8790
+- HONK Marketplace: 0x09D3F995f3a44369b4F0293D8dD0bec913647776
+- Official DFK Hero Contract (Testnet): 0x3bcaCBeAFefed260d877dbE36378008D4e714c8E
 
 ## Contributing
 
@@ -130,9 +130,7 @@ This project is provided as-is, and while we strive for reliability and security
 
 You can download pre-packaged executables for different operating systems:
 
-- [Windows](https://github.com/YinsPeace/HONK-marketplace/releases/download/v1.0.0/HONK-Marketplace-win.exe)
-- [macOS](https://github.com/YinsPeace/HONK-marketplace/releases/download/v1.0.0/HONK-Marketplace-mac)
-- [Linux](https://github.com/YinsPeace/HONK-marketplace/releases/download/v1.0.0/HONK-Marketplace-linux)
+- [Releases]([https://github.com/YinsPeace/HONK-marketplace/releases/download/v1.0.0/HONK-Marketplace-win.exe](https://github.com/YinsPeace/HONK-marketplace/releases/tag/v1.0.0))
 
 For detailed instructions on how to run the application on your specific operating system, please download and refer to the [README.txt](https://github.com/YinsPeace/HONK-marketplace/releases/download/v1.0.0/README.txt) file included in the release.
 
