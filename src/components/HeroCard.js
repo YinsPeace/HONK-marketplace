@@ -45,6 +45,7 @@ const HeroCard = React.memo(
     inModal = false,
     isListing = false,
     isCancelling = false,
+    isMetaMaskLoggedIn,
   }) => {
     const [isOnQuest, setIsOnQuest] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -61,7 +62,7 @@ const HeroCard = React.memo(
     }, [hero.id]);
 
     const handleBuy = useCallback(async () => {
-      if (isBuying) return;
+      if (isBuying || !isMetaMaskLoggedIn) return;
       setIsBuying(true);
       try {
         await onBuy(hero.id);
@@ -71,7 +72,7 @@ const HeroCard = React.memo(
       } finally {
         setIsBuying(false);
       }
-    }, [hero.id, onBuy, isBuying]);
+    }, [hero.id, onBuy, isBuying, isMetaMaskLoggedIn]);
 
     const handleList = useCallback(async () => {
       if (isListing) return;
@@ -521,7 +522,12 @@ const HeroCard = React.memo(
                   />
                   <span className="price-text">{formatPriceForDisplay(hero.price)}</span>
                 </div>
-                <button className="button" onClick={handleBuy} disabled={isBuying}>
+                <button
+                  className={`button ${!isMetaMaskLoggedIn ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  onClick={handleBuy}
+                  disabled={isBuying || !isMetaMaskLoggedIn}
+                  title={!isMetaMaskLoggedIn ? 'Connect wallet to buy heroes' : ''}
+                >
                   {isBuying ? 'Buying...' : 'Buy'}
                 </button>
               </>

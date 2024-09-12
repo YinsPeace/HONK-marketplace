@@ -18,6 +18,7 @@ const HEROES_PER_PAGE = 8;
 const MAX_UINT256 =
   '115792089237316195423570985008687907853269984665640564039457584007913129639935';
 
+// eslint-disable-next-line no-unused-vars
 const checkTokenApproval = async (connectedAddress, requiredAmount) => {
   try {
     const allowance = await HONKTokenContract.methods
@@ -38,6 +39,7 @@ const checkTokenApproval = async (connectedAddress, requiredAmount) => {
   }
 };
 
+// eslint-disable-next-line no-unused-vars
 const checkFeePercentage = async () => {
   try {
     const feePercentage = await HONKMarketplaceContract.methods.getFeePercentage().call();
@@ -88,6 +90,7 @@ const getListedHeroes = async (userAddress) => {
   }
 };
 
+// eslint-disable-next-line no-unused-vars
 const approveMarketplaceForNFTTransfers = async (connectedAddress) => {
   try {
     const tx = await DFKHeroContract.methods
@@ -101,13 +104,21 @@ const approveMarketplaceForNFTTransfers = async (connectedAddress) => {
   }
 };
 
-const BuyTab = ({ connectedAddress, honkLogo, filters, sortOrder, onBalanceChange }) => {
+const BuyTab = ({
+  connectedAddress,
+  honkLogo,
+  filters,
+  sortOrder,
+  onBalanceChange,
+  isMetaMaskLoggedIn,
+}) => {
   const [heroes, setHeroes] = useState([]);
   const [filteredHeroes, setFilteredHeroes] = useState([]);
   const [displayedHeroes, setDisplayedHeroes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState(null);
+  // eslint-disable-next-line no-unused-vars
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -283,6 +294,7 @@ const BuyTab = ({ connectedAddress, honkLogo, filters, sortOrder, onBalanceChang
   const checkHONKBalance = useCallback(async () => {
     try {
       const balance = await HONKTokenContract.methods.balanceOf(connectedAddress).call();
+      // eslint-disable-next-line no-unused-vars
       const balanceInEther = web3.utils.fromWei(balance, 'ether');
       return balance;
     } catch (error) {
@@ -294,11 +306,13 @@ const BuyTab = ({ connectedAddress, honkLogo, filters, sortOrder, onBalanceChang
   useEffect(() => {
     const fetchBalance = async () => {
       if (!connectedAddress) return;
+      // eslint-disable-next-line no-unused-vars
       const balance = await checkHONKBalance();
     };
     fetchBalance();
   }, [connectedAddress, checkHONKBalance]);
 
+  // eslint-disable-next-line no-unused-vars
   const approveHONKTokens = async (amount) => {
     try {
       console.log('Approving HONK tokens...');
@@ -483,6 +497,7 @@ const BuyTab = ({ connectedAddress, honkLogo, filters, sortOrder, onBalanceChang
           formatPrice={formatPrice}
           onBuy={buyHero}
           lastHeroRef={lastHeroElementRef}
+          isMetaMaskLoggedIn={isMetaMaskLoggedIn}
         />
         {isLoadingMore && <LoadingIndicator />}
         {!isLoadingMore && !hasMore && displayedHeroes.length > 0 && (

@@ -14,6 +14,7 @@ const HeroGrid = ({
   lastHeroRef,
   listingHeroId,
   cancellingHeroId,
+  isMetaMaskLoggedIn,
 }) => {
   const [selectedHero, setSelectedHero] = useState(null);
   const [price, setPrice] = useState('');
@@ -64,6 +65,7 @@ const HeroGrid = ({
               formatPrice={formatPrice}
               isListing={listingHeroId === hero.id}
               isCancelling={cancellingHeroId === hero.id}
+              isMetaMaskLoggedIn={isMetaMaskLoggedIn}
             />
           </div>
         ))}

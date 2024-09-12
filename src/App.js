@@ -183,7 +183,7 @@ function App() {
     };
 
     initializeWeb3AndContracts();
-  }, [debouncedToast]);
+  }, [debouncedToast, isInitialized]);
 
   const checkHONKBalance = useCallback(async () => {
     if (connectedAddress && HONKTokenContract && HONKTokenContract.methods) {

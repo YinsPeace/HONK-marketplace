@@ -69,6 +69,19 @@ const SellTab = ({ userAddress, filters, sortOrder }) => {
     [loading, isLoadingMore, hasMore, loadMoreHeroes]
   );
 
+  const checkStoredConnection = useCallback(async () => {
+    const walletConnected = localStorage.getItem('walletConnected');
+    const storedAddress = localStorage.getItem('connectedAddress');
+    if (walletConnected === 'true' && storedAddress) {
+      const networkIsValid = await checkNetwork();
+      if (networkIsValid) {
+        fetchHeroes(storedAddress);
+      } else {
+        setError('Please connect to the DFK Testnet to view your heroes.');
+      }
+    }
+  }, []);
+
   useEffect(() => {
     const checkContractsAndFetchHeroes = async () => {
       if (!DFKHeroContract || !HONKMarketplaceContract) {
@@ -91,20 +104,7 @@ const SellTab = ({ userAddress, filters, sortOrder }) => {
     };
 
     checkContractsAndFetchHeroes();
-  }, [userAddress]);
-
-  const checkStoredConnection = async () => {
-    const walletConnected = localStorage.getItem('walletConnected');
-    const storedAddress = localStorage.getItem('connectedAddress');
-    if (walletConnected === 'true' && storedAddress) {
-      const networkIsValid = await checkNetwork();
-      if (networkIsValid) {
-        fetchHeroes(storedAddress);
-      } else {
-        setError('Please connect to the DFK Testnet to view your heroes.');
-      }
-    }
-  };
+  }, [userAddress, checkStoredConnection]);
 
   useEffect(() => {
     const applyFilters = () => {
@@ -204,8 +204,6 @@ const SellTab = ({ userAddress, filters, sortOrder }) => {
 
   const checkHeroStatus = async (heroId) => {
     const heroState = await DFKHeroContract.methods.getHeroState(heroId).call();
-
-    const heroInfo = await DFKHeroContract.methods.getHeroInfo(heroId).call();
 
     const heroEquipment = await DFKHeroContract.methods.getHeroEquipmentV2(heroId).call();
 
@@ -408,6 +406,7 @@ const SellTab = ({ userAddress, filters, sortOrder }) => {
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleFiltersChange = (filterKey, value) => {
     setFilters((prevFilters) => ({
       ...prevFilters,

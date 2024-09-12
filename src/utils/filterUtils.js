@@ -28,10 +28,20 @@ export const applyFiltersAndSort = (heroes, filters, sortOrder) => {
     const checkboxFilters = ['class', 'subclass', 'profession', 'crafting1', 'crafting2'];
     checkboxFilters.forEach((filterType) => {
       if (filters[filterType] && filters[filterType].length > 0) {
-        const heroValue =
-          heroAttributes[`hero${filterType.charAt(0).toUpperCase() + filterType.slice(1)}`];
+        let heroValue;
+        if (filterType === 'subclass') {
+          heroValue = heroAttributes.heroSubClass;
+        } else {
+          heroValue =
+            heroAttributes[`hero${filterType.charAt(0).toUpperCase() + filterType.slice(1)}`];
+        }
+        console.log(`Checking ${filterType}:`, {
+          filterValues: filters[filterType],
+          heroValue: heroValue,
+        });
         if (!filters[filterType].includes(heroValue)) {
           matches = false;
+          console.log(`${filterType} doesn't match`);
         }
       }
     });
@@ -71,12 +81,50 @@ export const applyFiltersAndSort = (heroes, filters, sortOrder) => {
   console.log('Filtered heroes:', filteredHeroes);
 
   const sortedHeroes = filteredHeroes.sort((a, b) => {
-    if (sortOrder === 'price-asc') {
-      return parseFloat(a.price) - parseFloat(b.price);
-    } else if (sortOrder === 'price-desc') {
-      return parseFloat(b.price) - parseFloat(a.price);
+    const getAttributeValue = (hero, attribute) => {
+      return hero.attributes.find((attr) => attr.trait_type === attribute)?.value;
+    };
+
+    switch (sortOrder) {
+      case 'price-asc':
+        return parseFloat(a.price) - parseFloat(b.price);
+      case 'price-desc':
+        return parseFloat(b.price) - parseFloat(a.price);
+      case 'generation-asc':
+        return (
+          parseInt(getAttributeValue(a, 'Generation')) -
+          parseInt(getAttributeValue(b, 'Generation'))
+        );
+      case 'generation-desc':
+        return (
+          parseInt(getAttributeValue(b, 'Generation')) -
+          parseInt(getAttributeValue(a, 'Generation'))
+        );
+      case 'rarity-asc':
+        return (
+          ['Common', 'Uncommon', 'Rare', 'Legendary', 'Mythic'].indexOf(
+            getAttributeValue(a, 'Rarity')
+          ) -
+          ['Common', 'Uncommon', 'Rare', 'Legendary', 'Mythic'].indexOf(
+            getAttributeValue(b, 'Rarity')
+          )
+        );
+      case 'rarity-desc':
+        return (
+          ['Common', 'Uncommon', 'Rare', 'Legendary', 'Mythic'].indexOf(
+            getAttributeValue(b, 'Rarity')
+          ) -
+          ['Common', 'Uncommon', 'Rare', 'Legendary', 'Mythic'].indexOf(
+            getAttributeValue(a, 'Rarity')
+          )
+        );
+      case 'level-asc':
+        return parseInt(getAttributeValue(a, 'Level')) - parseInt(getAttributeValue(b, 'Level'));
+      case 'level-desc':
+        return parseInt(getAttributeValue(b, 'Level')) - parseInt(getAttributeValue(a, 'Level'));
+      default:
+        return 0;
     }
-    return 0;
   });
 
   console.log('Sorted heroes:', sortedHeroes);

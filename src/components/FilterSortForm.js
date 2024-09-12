@@ -3,7 +3,7 @@ import { classMapping } from '../utils/heroUtils';
 
 const sectionTitles = {
   class: 'Class',
-  subclass: 'Subclass',
+  subclass: 'Sub Class',
   profession: 'Profession',
   crafting1: 'Craft 1',
   crafting2: 'Craft 2',
@@ -14,6 +14,7 @@ const FilterSortForm = ({
   onSortChange,
   filters,
   sortOrder,
+  sortOptions,
   disabled,
   isBuyTab,
   activeTab,
@@ -87,7 +88,6 @@ const FilterSortForm = ({
   ];
 
   const renderCheckboxGroup = (filterType, options) => {
-    // Use 3 columns for Class and Subclass in Main tab, 2 columns for everything else
     const columnClass =
       activeTab === 'main' && (filterType === 'class' || filterType === 'subclass')
         ? 'grid-cols-3'
@@ -199,11 +199,37 @@ const FilterSortForm = ({
     updateRangeSliderFill('generation');
   }, [filters.rarityMin, filters.rarityMax, filters.generationMin, filters.generationMax]);
 
+  const handleClearFilters = () => {
+    onFiltersChange('class', []);
+    onFiltersChange('subclass', []);
+    onFiltersChange('profession', []);
+    onFiltersChange('crafting1', []);
+    onFiltersChange('crafting2', []);
+    onFiltersChange('rarityMin', 0);
+    onFiltersChange('rarityMax', 4);
+    onFiltersChange('generationMin', 0);
+    onFiltersChange('generationMax', 11);
+    onFiltersChange('levelMin', 1);
+    onFiltersChange('levelMax', 100);
+    onFiltersChange('hideQuesting', false);
+    onFiltersChange('hideListedHeroes', false);
+    onSortChange('price-asc');
+  };
+
   return (
-    <form className="space-y-4">
+    <form className="space-y-4 relative">
+      <button
+        type="button"
+        onClick={handleClearFilters}
+        className="absolute top-0 right-0 mt-[-1rem] px-2 py-1 bg-gray-700 text-gray-300 text-sm rounded hover:bg-gray-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+        title="Clear all filters"
+      >
+        Clear
+      </button>
+
       {activeTab === 'main' ? renderMainFilters() : renderProfessionFilters()}
 
-      <div className="space-y-2 mb-6">
+      <div className="space-y-2 mb-4">
         <label className="block text-sm font-medium text-gray-300">Sort By</label>
         <select
           onChange={(e) => onSortChange(e.target.value)}
@@ -211,8 +237,11 @@ const FilterSortForm = ({
           disabled={disabled}
           className="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="price-asc">Price: Low to High</option>
-          <option value="price-desc">Price: High to Low</option>
+          {sortOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
         </select>
       </div>
 
