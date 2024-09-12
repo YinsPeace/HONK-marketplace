@@ -2,7 +2,7 @@
 
 HONK Hero Marketplace is an open-source decentralized application (dApp) for trading DFK Heroes using HONK tokens on the DFK Chain Testnet. This project is initially developed for and owned by Team Goose.
 
-** Like this project? Consider supporting future developments by:
+## Like this project? Consider supporting future developments by:
 Making a donation to 0xd72730C437f4B044e57DbBE4Acf2A61201Dc9F6b
 
 ## Purpose
