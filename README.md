@@ -134,22 +134,7 @@ You can download pre-packaged executables for different operating systems:
 - [macOS](https://github.com/YinsPeace/HONK-marketplace/releases/download/v1.0.0/HONK-Marketplace-mac)
 - [Linux](https://github.com/YinsPeace/HONK-marketplace/releases/download/v1.0.0/HONK-Marketplace-linux)
 
-## Running the Application
-
-### Windows
-1. Download HONK-Marketplace-win.exe and HONK_Marketplace.bat
-2. Place both files in the same directory
-3. Double-click HONK_Marketplace.bat to start the application
-
-### macOS and Linux
-1. Download the appropriate executable (HONK-Marketplace-mac or HONK-Marketplace-linux) and HONK_Marketplace.sh
-2. Place both files in the same directory
-3. Open a terminal, navigate to the directory, and run:
-   ```
-   chmod +x HONK-Marketplace-mac  # or HONK-Marketplace-linux
-   chmod +x HONK_Marketplace.sh
-   ./HONK_Marketplace.sh
-   ```
+For detailed instructions on how to run the application on your specific operating system, please download and refer to the [README.txt](https://github.com/YinsPeace/HONK-marketplace/releases/download/v1.0.0/README.txt) file included in the release.
 
 ## Packaging the Application
 
