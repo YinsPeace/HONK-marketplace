@@ -136,7 +136,7 @@ This project is provided as-is, and while we strive for reliability and security
 
 You can download pre-packaged executables for different operating systems:
 
-- [Releases](<[https://github.com/YinsPeace/HONK-marketplace/releases/download/v1.0.0/HONK-Marketplace-win.exe](https://github.com/YinsPeace/HONK-marketplace/releases/tag/v1.0.0)>)
+- [Releases](https://github.com/YinsPeace/HONK-marketplace/releases/tag/v1.0.1)
 
 For detailed instructions on how to run the application on your specific operating system, please download and refer to the [README.txt](https://github.com/YinsPeace/HONK-marketplace/releases/download/v1.0.0/README.txt) file included in the release.
 
