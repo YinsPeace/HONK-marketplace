@@ -1,23 +1,15 @@
 import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
-import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Route, Routes, useLocation } from 'react-router-dom';
 import honkLogo from './assets/images/honk/honkCoin.webp';
 import './index.css';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './components/customToastStyles.css';
-import {
-  checkNetwork,
-  validateContracts,
-  checkMetaMaskConnection,
-  reinitializeContracts,
-  web3,
-  HONKTokenContract,
-  initWeb3,
-  initializeContracts,
-} from './Web3Config';
+import { useWallet } from './hooks/useWallet';
+import { validateContracts, initWeb3, initializeContracts, web3 } from './Web3Config';
 import { debounce } from 'lodash';
 import LoadingIndicator from './components/LoadingIndicator';
-import Sidebar from './components/Sidebar';
+import SidebarWithFilters from './components/SidebarWithFilters';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDonate } from '@fortawesome/free-solid-svg-icons';
 
@@ -38,7 +30,15 @@ const ConnectionStatus = ({
   const handleRefreshClick = async () => {
     setIsSpinning(true);
     await onRefreshBalance();
-    setTimeout(() => setIsSpinning(false), 1000); // Stop spinning after 1 second
+    setTimeout(() => setIsSpinning(false), 1000);
+  };
+
+  const handleConnect = async () => {
+    await onConnect();
+  };
+
+  const handleSwitchNetwork = async () => {
+    await onSwitchNetwork();
   };
 
   return (
@@ -56,7 +56,7 @@ const ConnectionStatus = ({
             </span>
             {!isCorrectNetwork && (
               <button
-                onClick={onSwitchNetwork}
+                onClick={handleSwitchNetwork}
                 className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs"
               >
                 Switch Network
@@ -91,7 +91,7 @@ const ConnectionStatus = ({
         </div>
       ) : (
         <button
-          onClick={onConnect}
+          onClick={handleConnect}
           className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-sm"
         >
           Connect Wallet
@@ -144,16 +144,18 @@ const CreditsIcon = () => {
   );
 };
 
-function App() {
-  const navigate = useNavigate();
-  const [connectedAddress, setConnectedAddress] = useState(null);
-  const [isCorrectNetwork, setIsCorrectNetwork] = useState(false);
-  const [isMetaMaskInstalled, setIsMetaMaskInstalled] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [honkBalance, setHonkBalance] = useState('0');
+const App = () => {
+  const {
+    isConnected,
+    isCorrectNetwork,
+    connectedAddress,
+    honkBalance,
+    error,
+    connect,
+    switchNetwork,
+    updateBalance,
+    clearError,
+  } = useWallet();
 
   const [filters, setFilters] = useState({
     class: [],
@@ -171,12 +173,36 @@ function App() {
     hideListedHeroes: false,
   });
   const [sortOrder, setSortOrder] = useState('price-asc');
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const location = useLocation();
 
   const debouncedToast = useCallback((message, type) => {
     debounce((msg, t) => toast(msg, { type: t }), 300)(message, type);
   }, []);
+
+  useEffect(() => {
+    if (error) {
+      debouncedToast(error, 'error');
+      clearError();
+    }
+  }, [error, debouncedToast, clearError]);
+
+  const handleConnect = async () => {
+    const success = await connect();
+    if (success) {
+      debouncedToast('Successfully connected', 'success');
+    }
+  };
+
+  const handleSwitchNetwork = async () => {
+    const success = await switchNetwork();
+    if (success) {
+      debouncedToast('Successfully switched network', 'success');
+    }
+  };
 
   useEffect(() => {
     const initializeWeb3AndContracts = async () => {
@@ -197,14 +223,6 @@ function App() {
           throw new Error('Contracts failed to initialize correctly');
         }
 
-        const isCorrectNetwork = await checkNetwork();
-
-        if (!isCorrectNetwork) {
-          debouncedToast('Please connect to the DFK Testnet', 'warn');
-          setIsCorrectNetwork(false);
-        } else {
-          setIsCorrectNetwork(true);
-        }
         setIsInitialized(true);
       } catch (error) {
         console.error('Failed to initialize:', error);
@@ -218,253 +236,6 @@ function App() {
     initializeWeb3AndContracts();
   }, [debouncedToast, isInitialized]);
 
-  const checkHONKBalance = useCallback(async () => {
-    if (connectedAddress && HONKTokenContract && HONKTokenContract.methods) {
-      try {
-        const balance = await HONKTokenContract.methods.balanceOf(connectedAddress).call();
-        setHonkBalance(balance);
-      } catch (error) {
-        console.error('Error checking HONK balance:', error);
-      }
-    }
-  }, [connectedAddress]);
-
-  useEffect(() => {
-    if (isConnected && isCorrectNetwork) {
-      checkHONKBalance();
-    }
-  }, [isConnected, isCorrectNetwork, checkHONKBalance]);
-
-  const refreshBalance = useCallback(async () => {
-    if (isConnected && isCorrectNetwork && connectedAddress) {
-      try {
-        const balance = await HONKTokenContract.methods.balanceOf(connectedAddress).call();
-        setHonkBalance(balance);
-        debouncedToast('Balance updated successfully', 'success');
-      } catch (error) {
-        console.error('Error refreshing HONK balance:', error);
-        debouncedToast('Failed to update balance. Please try again.', 'error');
-      }
-    }
-  }, [isConnected, isCorrectNetwork, connectedAddress, debouncedToast]);
-
-  useEffect(() => {
-    const checkNetworkStatus = async () => {
-      if (isConnected) {
-        console.log('Checking network status...');
-        const networkCheck = await checkNetwork();
-        console.log('Network check result:', networkCheck);
-        setIsCorrectNetwork(networkCheck);
-        if (!networkCheck) {
-          console.log('Incorrect network detected');
-          debouncedToast('Please connect to the DFK Testnet.', 'warn');
-        } else {
-          console.log('Correct network detected');
-        }
-      } else {
-        console.log('Not connected, skipping network check');
-      }
-    };
-
-    checkNetworkStatus();
-  }, [isConnected, debouncedToast]);
-
-  useEffect(() => {
-    const checkMetaMask = () => {
-      if (typeof window.ethereum !== 'undefined') {
-        setIsMetaMaskInstalled(true);
-        if (window.ethereum.isMetaMask !== true) {
-          debouncedToast(
-            "It seems you're using a different wallet. This dApp is optimized for MetaMask.",
-            'warn'
-          );
-        }
-      } else {
-        setIsMetaMaskInstalled(false);
-        debouncedToast('Please install MetaMask to use this dApp!', 'error');
-      }
-    };
-
-    const initializeWeb3 = async () => {
-      setIsLoading(true);
-      checkMetaMask();
-
-      if (!isMetaMaskInstalled) {
-        setIsLoading(false);
-        return;
-      }
-
-      const isMetaMaskConnected = await checkMetaMaskConnection();
-      if (isMetaMaskConnected) {
-        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        if (accounts.length > 0) {
-          setConnectedAddress(accounts[0]);
-          setIsConnected(true);
-          localStorage.setItem('walletConnected', 'true');
-          localStorage.setItem('connectedAddress', accounts[0]);
-        }
-      }
-
-      const contractsValid = validateContracts();
-      if (!contractsValid) {
-        debouncedToast(
-          'There was an issue with contract validation. Please contact support.',
-          'error'
-        );
-      }
-
-      const networkCheck = await checkNetwork();
-      setIsCorrectNetwork(networkCheck);
-      if (!networkCheck) {
-        debouncedToast('Please connect to the DFK Testnet.', 'warn');
-      }
-
-      setIsLoading(false);
-    };
-
-    initializeWeb3();
-
-    // Check localStorage on component mount
-    const walletConnected = localStorage.getItem('walletConnected');
-    const storedAddress = localStorage.getItem('connectedAddress');
-    if (walletConnected === 'true' && storedAddress) {
-      setIsConnected(true);
-      setConnectedAddress(storedAddress);
-      checkNetwork().then(setIsCorrectNetwork);
-    }
-
-    const handleChainChanged = async () => {
-      try {
-        await reinitializeContracts();
-        const networkCheck = await checkNetwork();
-        setIsCorrectNetwork(networkCheck);
-        if (!networkCheck) {
-          debouncedToast(
-            'Connected to the wrong network. Please switch to the DFK Testnet.',
-            'error'
-          );
-        }
-      } catch (error) {
-        console.error('Failed to reinitialize contracts after network change:', error);
-        debouncedToast('Network change detected. Please refresh the page.', 'error');
-      }
-    };
-
-    const handleAccountsChanged = (accounts) => {
-      if (accounts.length > 0) {
-        setConnectedAddress(accounts[0]);
-        setIsConnected(true);
-        localStorage.setItem('walletConnected', 'true');
-        localStorage.setItem('connectedAddress', accounts[0]);
-      } else {
-        setConnectedAddress(null);
-        setIsConnected(false);
-        localStorage.removeItem('walletConnected');
-        localStorage.removeItem('connectedAddress');
-        debouncedToast('Wallet disconnected.', 'info');
-        navigate('/'); // Redirect to home page when disconnected
-      }
-    };
-
-    if (window.ethereum) {
-      window.ethereum.on('chainChanged', handleChainChanged);
-      window.ethereum.on('accountsChanged', handleAccountsChanged);
-    }
-
-    return () => {
-      if (window.ethereum && window.ethereum.removeListener) {
-        window.ethereum.removeListener('chainChanged', handleChainChanged);
-        window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
-      }
-    };
-  }, [isMetaMaskInstalled, navigate, debouncedToast]);
-
-  const handleConnect = async () => {
-    if (typeof window.ethereum !== 'undefined') {
-      try {
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        await reinitializeContracts();
-        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-        if (accounts.length > 0) {
-          const networkIsValid = await checkNetwork();
-          if (!networkIsValid) {
-            debouncedToast(
-              'Connected to the wrong network. Please switch to the DFK Testnet.',
-              'error'
-            );
-            return;
-          }
-
-          setIsConnected(true);
-          setConnectedAddress(accounts[0]);
-          localStorage.setItem('walletConnected', 'true');
-          localStorage.setItem('connectedAddress', accounts[0]);
-        } else {
-          debouncedToast('No accounts found after connection request', 'error');
-        }
-      } catch (error) {
-        console.error('Failed to connect to MetaMask', error);
-        debouncedToast('Failed to connect. Please check your MetaMask and try again.', 'error');
-      }
-    } else {
-      debouncedToast('MetaMask is not installed. Please install it to use this app.', 'error');
-    }
-  };
-
-  const handleSwitchNetwork = async () => {
-    try {
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0x14f' }], // DFK Testnet chain ID in hex (lowercase)
-      });
-      const networkCheck = await checkNetwork();
-      if (networkCheck) {
-        setIsCorrectNetwork(true);
-        debouncedToast('Successfully switched to DFK Testnet!', 'success');
-      } else {
-        debouncedToast("Network switch didn't work as expected. Please try manually.", 'error');
-      }
-    } catch (error) {
-      console.error('Failed to switch network', error);
-      if (error.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [
-              {
-                chainId: '0x14f', // Lowercase hex
-                chainName: 'DFK Chain Testnet',
-                nativeCurrency: {
-                  name: 'JEWEL',
-                  symbol: 'JEWEL',
-                  decimals: 18,
-                },
-                rpcUrls: ['https://subnets.avax.network/defi-kingdoms/dfk-chain-testnet/rpc'],
-                blockExplorerUrls: ['https://subnets-test.avax.network/defi-kingdoms/'],
-              },
-            ],
-          });
-          // Check network again after adding
-          const addedNetworkCheck = await checkNetwork();
-          if (addedNetworkCheck) {
-            setIsCorrectNetwork(true);
-            debouncedToast('Successfully added and switched to DFK Testnet!', 'success');
-          } else {
-            debouncedToast(
-              "Added DFK Testnet, but switch didn't work. Please try manually.",
-              'warn'
-            );
-          }
-        } catch (addError) {
-          console.error('Failed to add network', addError);
-          debouncedToast('Failed to add DFK Testnet. Please add it manually.', 'error');
-        }
-      } else {
-        debouncedToast('Failed to switch network. Please try manually.', 'error');
-      }
-    }
-  };
-
   const handleFiltersChange = (filterType, value) => {
     setFilters((prev) => ({
       ...prev,
@@ -476,17 +247,6 @@ function App() {
     setSortOrder(value);
   };
 
-  const updateBalance = useCallback(async () => {
-    if (connectedAddress && HONKTokenContract && HONKTokenContract.methods) {
-      try {
-        const balance = await HONKTokenContract.methods.balanceOf(connectedAddress).call();
-        setHonkBalance(balance);
-      } catch (error) {
-        console.error('Error updating HONK balance:', error);
-      }
-    }
-  }, [connectedAddress]);
-
   if (isLoading) {
     return <LoadingIndicator />;
   }
@@ -497,11 +257,21 @@ function App() {
 
   return (
     <div className="relative min-h-screen bg-gray-900 text-gray-300">
-      <Sidebar
+      <SidebarWithFilters
         onFiltersChange={handleFiltersChange}
         onSortChange={handleSortChange}
         filters={filters}
         sortOrder={sortOrder}
+        sortOptions={[
+          { value: 'price-asc', label: 'Price: Low to High' },
+          { value: 'price-desc', label: 'Price: High to Low' },
+          { value: 'level-asc', label: 'Level: Low to High' },
+          { value: 'level-desc', label: 'Level: High to Low' },
+          { value: 'rarity-asc', label: 'Rarity: Common to Mythic' },
+          { value: 'rarity-desc', label: 'Rarity: Mythic to Common' },
+          { value: 'generation-asc', label: 'Generation: Low to High' },
+          { value: 'generation-desc', label: 'Generation: High to Low' },
+        ]}
         disabled={!isConnected || !isCorrectNetwork}
         isBuyTab={location.pathname === '/'}
         isOpen={isSidebarOpen}
@@ -512,11 +282,11 @@ function App() {
           <ConnectionStatus
             isConnected={isConnected}
             isCorrectNetwork={isCorrectNetwork}
-            walletAddress={connectedAddress || ''}
+            walletAddress={connectedAddress}
             honkBalance={honkBalance}
             onConnect={handleConnect}
             onSwitchNetwork={handleSwitchNetwork}
-            onRefreshBalance={refreshBalance}
+            onRefreshBalance={updateBalance}
           />
           <div className="container mx-auto p-4 flex justify-center items-center">
             <img
@@ -550,6 +320,7 @@ function App() {
                         filters={filters}
                         sortOrder={sortOrder}
                         onBalanceChange={updateBalance}
+                        isConnected={isConnected}
                       />
                     }
                   />
@@ -582,6 +353,6 @@ function App() {
       </div>
     </div>
   );
-}
+};
 
 export default App;

@@ -1,4 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { classMapping } from '../utils/heroUtils';
 
 const sectionTitles = {
@@ -9,7 +11,7 @@ const sectionTitles = {
   crafting2: 'Craft 2',
 };
 
-const FilterSortForm = ({
+const SidebarWithFilters = ({
   onFiltersChange,
   onSortChange,
   filters,
@@ -17,8 +19,28 @@ const FilterSortForm = ({
   sortOptions,
   disabled,
   isBuyTab,
-  activeTab,
+  isOpen,
+  setIsOpen,
 }) => {
+  const [activeTab, setActiveTab] = useState('main');
+  const location = useLocation();
+
+  const toggleSidebar = () => setIsOpen(!isOpen);
+
+  const isActiveTab = (tabName) => {
+    return location.pathname === (tabName === 'buy' ? '/' : '/sell');
+  };
+
+  const handleFilterChange = (filterKey, value) => {
+    console.log('Filter changed in Sidebar:', filterKey, value);
+    onFiltersChange(filterKey, value);
+  };
+
+  const handleSortChange = (value) => {
+    console.log('Sort changed in Sidebar:', value);
+    onSortChange(value);
+  };
+
   const renderDualRangeSlider = (
     filterType,
     min,
@@ -38,7 +60,7 @@ const FilterSortForm = ({
           max={max}
           step={step}
           value={filters[minFilterKey]}
-          onChange={(e) => onFiltersChange(minFilterKey, parseInt(e.target.value))}
+          onChange={(e) => handleFilterChange(minFilterKey, parseInt(e.target.value))}
           disabled={disabled}
           className="range-input range-input-min w-full"
         />
@@ -48,7 +70,7 @@ const FilterSortForm = ({
           max={max}
           step={step}
           value={filters[maxFilterKey]}
-          onChange={(e) => onFiltersChange(maxFilterKey, parseInt(e.target.value))}
+          onChange={(e) => handleFilterChange(maxFilterKey, parseInt(e.target.value))}
           disabled={disabled}
           className="range-input range-input-max w-full"
         />
@@ -106,7 +128,7 @@ const FilterSortForm = ({
                   const updatedFilter = filters[filterType].includes(option)
                     ? filters[filterType].filter((item) => item !== option)
                     : [...filters[filterType], option];
-                  onFiltersChange(filterType, updatedFilter);
+                  handleFilterChange(filterType, updatedFilter);
                 }}
                 disabled={disabled}
                 className="mr-2"
@@ -149,7 +171,7 @@ const FilterSortForm = ({
             min="1"
             max="100"
             value={filters.levelMin}
-            onChange={(e) => onFiltersChange('levelMin', parseInt(e.target.value))}
+            onChange={(e) => handleFilterChange('levelMin', parseInt(e.target.value))}
             disabled={disabled}
             className="w-1/2 p-2 bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
@@ -159,7 +181,7 @@ const FilterSortForm = ({
             min="1"
             max="100"
             value={filters.levelMax}
-            onChange={(e) => onFiltersChange('levelMax', parseInt(e.target.value))}
+            onChange={(e) => handleFilterChange('levelMax', parseInt(e.target.value))}
             disabled={disabled}
             className="w-1/2 p-2 bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
@@ -217,60 +239,140 @@ const FilterSortForm = ({
   };
 
   return (
-    <form className="space-y-4 relative">
-      <button
-        type="button"
-        onClick={handleClearFilters}
-        className="absolute top-0 right-0 mt-[-1rem] px-2 py-1 bg-gray-700 text-gray-300 text-sm rounded hover:bg-gray-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
-        title="Clear all filters"
-      >
-        Clear
-      </button>
-
-      {activeTab === 'main' ? renderMainFilters() : renderProfessionFilters()}
-
-      <div className="space-y-2 mb-4">
-        <label className="block text-sm font-medium text-gray-300">Sort By</label>
-        <select
-          onChange={(e) => onSortChange(e.target.value)}
-          value={sortOrder}
-          disabled={disabled}
-          className="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {sortOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="space-y-2">
-        <label className="flex items-center">
-          <input
-            type="checkbox"
-            checked={filters.hideQuesting}
-            onChange={(e) => onFiltersChange('hideQuesting', e.target.checked)}
-            disabled={disabled}
-            className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-          />
-          <span className="text-sm font-medium text-gray-300">Hide Questing Heroes</span>
-        </label>
-        {!isBuyTab && (
-          <label className="flex items-center">
-            <input
-              type="checkbox"
-              checked={filters.hideListedHeroes}
-              onChange={(e) => onFiltersChange('hideListedHeroes', e.target.checked)}
-              disabled={disabled}
-              className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-            />
-            <span className="text-sm font-medium text-gray-300">Hide Listed Heroes</span>
-          </label>
+    <div
+      className={`fixed top-0 left-0 h-full bg-gray-900 text-gray-300 transition-all duration-300 ease-in-out ${
+        isOpen ? 'w-96' : 'w-16'
+      } flex flex-col z-50 shadow-lg`}
+    >
+      <div className="sticky top-0 bg-gray-800 w-full">
+        <div className="p-2 flex justify-between items-center">
+          <button
+            onClick={toggleSidebar}
+            className={`p-2 rounded-full bg-gray-700 hover:bg-gray-600 text-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              isOpen ? '' : 'w-full flex flex-col items-center'
+            }`}
+          >
+            {isOpen ? (
+              <FaChevronLeft />
+            ) : (
+              <>
+                <FaChevronRight />
+                <span className="text-xs mt-1 filters-expand">Filter</span>
+              </>
+            )}
+          </button>
+          {isOpen && (
+            <div className="flex space-x-4">
+              <Link
+                to="/"
+                className={`py-2 px-4 rounded ${
+                  isActiveTab('buy')
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                Buy Heroes
+              </Link>
+              <Link
+                to="/sell"
+                className={`py-2 px-4 rounded ${
+                  isActiveTab('sell')
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                Sell Heroes
+              </Link>
+            </div>
+          )}
+        </div>
+        {isOpen && (
+          <div className="flex w-full">
+            <button
+              onClick={() => setActiveTab('main')}
+              className={`flex-1 py-2 px-4 ${
+                activeTab === 'main'
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600 rounded-tl-lg rounded-tr-lg'
+              } ${activeTab === 'main' ? 'rounded-tl-lg rounded-tr-lg' : ''}`}
+            >
+              Main
+            </button>
+            <button
+              onClick={() => setActiveTab('profession')}
+              className={`flex-1 py-2 px-4 ${
+                activeTab === 'profession'
+                  ? 'bg-gray-900 text-white'
+                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600 rounded-tl-lg rounded-tr-lg'
+              } ${activeTab === 'profession' ? 'rounded-tl-lg rounded-tr-lg' : ''}`}
+            >
+              Profession
+            </button>
+          </div>
         )}
       </div>
-    </form>
+      {isOpen && (
+        <div
+          className="bg-gray-900 p-4 flex-grow overflow-y-scroll custom-scrollbar"
+          style={{ height: 'calc(100vh - 116px)' }}
+        >
+          <form className="space-y-4 relative">
+            <button
+              type="button"
+              onClick={handleClearFilters}
+              className="absolute top-0 right-0 mt-[-1rem] px-2 py-1 bg-gray-700 text-gray-300 text-sm rounded hover:bg-gray-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+              title="Clear all filters"
+            >
+              Clear
+            </button>
+
+            {activeTab === 'main' ? renderMainFilters() : renderProfessionFilters()}
+
+            <div className="space-y-2 mb-4">
+              <label className="block text-sm font-medium text-gray-300">Sort By</label>
+              <select
+                onChange={(e) => handleSortChange(e.target.value)}
+                value={sortOrder}
+                disabled={disabled}
+                className="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {sortOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={filters.hideQuesting}
+                  onChange={(e) => handleFilterChange('hideQuesting', e.target.checked)}
+                  disabled={disabled}
+                  className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <span className="text-sm font-medium text-gray-300">Hide Questing Heroes</span>
+              </label>
+              {!isBuyTab && (
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={filters.hideListedHeroes}
+                    onChange={(e) => handleFilterChange('hideListedHeroes', e.target.checked)}
+                    disabled={disabled}
+                    className="mr-2 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                  <span className="text-sm font-medium text-gray-300">Hide Listed Heroes</span>
+                </label>
+              )}
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
   );
 };
 
-export default FilterSortForm;
+export default SidebarWithFilters;

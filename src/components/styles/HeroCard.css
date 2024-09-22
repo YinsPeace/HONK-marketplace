@@ -1,0 +1,27 @@
+.hero-card-price-input {
+  width: auto; /* Changed from 100% */
+  flex: 1; /* Added to allow the input to grow */
+  padding: 10px;
+  margin-right: 10px; /* Added to give some space between input and button */
+  border: 1px solid #e2e8f0;
+  border-radius: 5px;
+  background-color: #2d3748;
+  color: #e2e8f0;
+  -webkit-appearance: none;
+  -moz-appearance: textfield;
+  appearance: none;
+}
+
+.hero-card-price-input::-webkit-inner-spin-button,
+.hero-card-price-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+/* New class for the price editing container */
+.hero-card-price-edit-container {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}

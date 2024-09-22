@@ -39,21 +39,6 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
         bool isForSale;
     }
 
-    /// @notice Structure for debug information about a hero
-    struct HeroDebugInfo {
-        uint256 id;
-        address owner;
-        uint256 price;
-        bool isForSale;
-    }
-
-    /// @notice Structure for detailed debug information about the marketplace
-    struct DetailedDebugInfo {
-        uint256 heroCount;
-        uint256 listedCount;
-        HeroDebugInfo[] heroDetails;
-    }
-
     mapping(uint256 => Hero) public heroes;
     uint256 public heroCount;
     mapping(uint256 => uint256) public heroIdToIndex;
@@ -178,12 +163,10 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
     /// @notice Lists a hero for sale in the marketplace
     /// @param _heroId The ID of the hero to be listed
     /// @param _price The price in HONK tokens for which the hero is being listed
+    /// @dev This function can only be called by the owner of the hero
     function listHero(uint256 _heroId, uint256 _price) external whenNotPaused nonReentrant {
         require(_price > 0, "Price must be greater than zero");
         require(dfkHeroContract.ownerOf(_heroId) == msg.sender, "You don't own this hero");
-        require(dfkHeroContract.getApproved(_heroId) == address(this) || 
-                dfkHeroContract.isApprovedForAll(msg.sender, address(this)), 
-                "Contract not approved to transfer hero");
 
         uint256 index = heroIdToIndex[_heroId];
         if (index == 0) {
@@ -201,6 +184,7 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
     /// @notice Cancels the listing of a hero
     /// @param _heroId The ID of the hero to unlist
+    /// @dev This function can only be called by the owner of the hero
     function cancelListing(uint256 _heroId) external whenNotPaused nonReentrant {
         uint256 index = heroIdToIndex[_heroId];
         require(index != 0, "Hero does not exist");
@@ -208,16 +192,14 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
         require(hero.owner == msg.sender, "You don't own this hero");
         require(hero.isForSale, "Hero is not listed for sale");
 
-        hero.isForSale = false;
-        hero.price = 0;
-        isHeroListed[_heroId] = false;
-        listedHeroCount--;
+        _removeHeroFromMarketplace(index, _heroId);
 
         emit HeroUnlisted(_heroId, msg.sender);
     }
 
     /// @notice Bulk cancels the listings of multiple heroes
     /// @param _heroIds An array of hero IDs to unlist
+    /// @dev This function can only be called by the owner of the heroes
     function bulkCancelListings(uint256[] calldata _heroIds) external whenNotPaused nonReentrant {
         for (uint256 i = 0; i < _heroIds.length; i++) {
             uint256 heroId = _heroIds[i];
@@ -227,10 +209,7 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
             require(hero.owner == msg.sender, "You don't own this hero");
             require(hero.isForSale, "Hero is not listed for sale");
 
-            hero.isForSale = false;
-            hero.price = 0;
-            isHeroListed[heroId] = false;
-            listedHeroCount--;
+            _removeHeroFromMarketplace(index, heroId);
 
             emit HeroUnlisted(heroId, msg.sender);
         }
@@ -239,6 +218,7 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
     /// @notice Updates the price of a listed hero
     /// @param _heroId The ID of the hero
     /// @param _newPrice The new price in HONK tokens
+    /// @dev Only the owner of the hero can update its price
     function updatePrice(uint256 _heroId, uint256 _newPrice) external whenNotPaused {
         uint256 index = heroIdToIndex[_heroId];
         require(index != 0, "Hero does not exist");
@@ -254,6 +234,7 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
     /// @notice Allows a user to purchase a listed hero
     /// @param heroId The ID of the hero to be purchased
+    /// @dev This function handles the transfer of HONK tokens and the hero NFT
     function buyHero(uint256 heroId) external whenNotPaused nonReentrant {
         uint256 index = heroIdToIndex[heroId];
         require(index != 0, "BH1: Hero does not exist");
@@ -268,52 +249,46 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
         uint256 sellerAmount = price - fee;
 
         uint256 buyerBalance = honkToken.balanceOf(msg.sender);
-        emit DebugLog("Buyer balance", buyerBalance);
         require(buyerBalance >= price, "BH4: Insufficient HONK balance");
-
-        uint256 allowance = honkToken.allowance(msg.sender, address(this));
-        emit DebugLog("Buyer allowance", allowance);
-        require(allowance >= price, "BH5: Insufficient HONK allowance");
 
         // Transfer HONK tokens
         bool transferToSellerSuccess = honkToken.transferFrom(msg.sender, seller, sellerAmount);
-        emit DebugLog("Transfer to seller success", transferToSellerSuccess ? 1 : 0);
         require(transferToSellerSuccess, "BH6: Failed to transfer HONK to seller");
 
         bool transferFeeSuccess = honkToken.transferFrom(msg.sender, feeRecipient, fee);
-        emit DebugLog("Transfer fee success", transferFeeSuccess ? 1 : 0);
         require(transferFeeSuccess, "BH7: Failed to transfer fee");
 
         // Transfer the hero
         address currentOwner = dfkHeroContract.ownerOf(heroId);
-        emit DebugLog("Current hero owner", uint256(uint160(currentOwner)));
         require(currentOwner == seller, "BH8: Seller no longer owns the hero");
         
         try dfkHeroContract.transferHeroAndEquipmentFrom(seller, msg.sender, heroId) {
-            emit DebugLog("Hero transfer success", 1);
         } catch Error(string memory reason) {
-            emit DebugLog("Hero transfer failed with reason", 0);
             revert(string(abi.encodePacked("BH9: Hero transfer failed: ", reason)));
         } catch {
-            emit DebugLog("Hero transfer failed without reason", 0);
             revert("BH10: Hero transfer failed");
         }
 
-        _updateMarketplaceState(index, heroId, msg.sender);
+        _removeHeroFromMarketplace(index, heroId);
 
         emit HeroPurchased(heroId, msg.sender, seller, price);
     }
 
-    event DebugLog(string message, uint256 value);
-
-    function _updateMarketplaceState(uint256 index, uint256 heroId, address newOwner) private {
-        Hero storage hero = heroes[index];
-        hero.isForSale = false;
-        hero.owner = newOwner;
-        hero.price = 0;
+    /// @notice Removes a hero from the marketplace
+    /// @dev This function should be called when a hero is sold or its listing is cancelled
+    /// @param index The index of the hero in the heroes mapping
+    /// @param heroId The ID of the hero to be removed
+    function _removeHeroFromMarketplace(uint256 index, uint256 heroId) private {
+        delete heroes[index];
+        delete heroIdToIndex[heroId];
         isHeroListed[heroId] = false;
         listedHeroCount--;
+        // If this was the last hero, reduce heroCount
+        if (index == heroCount) {
+            heroCount--;
+        }
     }
+
     /// @notice Retrieves the details of a specific hero
     /// @param _heroId The ID of the hero
     /// @return Hero The hero details
@@ -347,46 +322,6 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
         }
 
         return (listedHeroes, heroCount);
-    }
-
-    /// @notice Retrieves detailed debug information about all heroes
-    /// @return DetailedDebugInfo Struct containing debug information
-    function getDetailedDebugInfo() external view returns (DetailedDebugInfo memory) {
-        HeroDebugInfo[] memory heroDetails = new HeroDebugInfo[](heroCount);
-        uint256 listedCount = 0;
-
-        for (uint256 i = 1; i <= heroCount; i++) {
-            Hero storage hero = heroes[i];
-            heroDetails[i-1] = HeroDebugInfo(hero.id, hero.owner, hero.price, hero.isForSale);
-            if (hero.isForSale) {
-                listedCount++;
-            }
-        }
-
-        return DetailedDebugInfo(heroCount, listedCount, heroDetails);
-    }
-
-    /// @notice Retrieves all heroes owned by a specific address
-    /// @param _owner The address of the owner
-    /// @return Hero[] An array of heroes owned by the specified address
-    function getHeroesByOwner(address _owner) external view returns (Hero[] memory) {
-        uint256 ownerHeroCount = 0;
-        for (uint256 i = 1; i <= heroCount; i++) {
-            if (heroes[i].owner == _owner) {
-                ownerHeroCount++;
-            }
-        }
-
-        Hero[] memory result = new Hero[](ownerHeroCount);
-        uint256 index = 0;
-        for (uint256 i = 1; i <= heroCount; i++) {
-            if (heroes[i].owner == _owner) {
-                result[index] = heroes[i];
-                index++;
-            }
-        }
-
-        return result;
     }
 
     /// @notice Retrieves a paginated list of listed heroes
@@ -449,11 +384,10 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
         return super.paused();
     }
 
+
+    /// @notice Gets the current fee percentage
+    /// @return The fee percentage in basis points (e.g., 100 = 1%)
     function getFeePercentage() public view returns (uint256) {
         return FEE_PERCENTAGE;
-    }
-
-    function checkAllowance(address owner, address spender) public view returns (uint256) {
-        return honkToken.allowance(owner, spender);
     }
 }

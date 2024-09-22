@@ -1,6 +1,6 @@
 const { deployProxy, upgradeProxy } = require('@openzeppelin/truffle-upgrades');
-const HONKMarketplace = artifacts.require("HONKMarketplace");
-const { getAddress, saveAddress } = require('./addressManager');  // Import utility functions
+const HONKMarketplace = artifacts.require('HONKMarketplace');
+const { getAddress, saveAddress } = require('./addressManager'); // Import utility functions
 require('dotenv').config();
 
 module.exports = async function (deployer, network, accounts) {
@@ -14,12 +14,13 @@ module.exports = async function (deployer, network, accounts) {
     let honkMarketplaceAddress = getAddress('HONKMarketplace');
 
     let honkMarketplace;
-    
+
     if (!honkMarketplaceAddress) {
       // First-time deployment (Proxy pattern)
       console.log('Deploying a new HONKMarketplace contract...');
-      honkMarketplace = await deployProxy(HONKMarketplace, 
-        [honkTokenAddress, dfkHeroContractAddress, feeRecipient], 
+      honkMarketplace = await deployProxy(
+        HONKMarketplace,
+        [honkTokenAddress, dfkHeroContractAddress, feeRecipient],
         { deployer, initializer: 'initialize' }
       );
       honkMarketplaceAddress = honkMarketplace.address;
@@ -38,7 +39,6 @@ module.exports = async function (deployer, network, accounts) {
     console.log('HONKToken address:', honkTokenAddress);
     console.log('DFKHeroContract address:', dfkHeroContractAddress);
     console.log('Fee recipient address:', feeRecipient);
-
   } catch (error) {
     console.error('Error in migration:', error);
   }

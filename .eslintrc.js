@@ -3,7 +3,7 @@ module.exports = {
     'react-app',
     'react-app/jest',
     'plugin:react/recommended',
-    'plugin:prettier/recommended'
+    'plugin:prettier/recommended',
   ],
   plugins: ['react', 'prettier'],
   parserOptions: {
@@ -13,9 +13,19 @@ module.exports = {
     es2020: true,
   },
   rules: {
-    'no-undef': 'off', // Turn off no-undef for BigInt
+    'no-undef': 'off',
     'react/prop-types': 'off',
     'react/react-in-jsx-scope': 'off',
-    'prettier/prettier': 'error'
+    'prettier/prettier': [
+      'error',
+      {
+        endOfLine: 'auto',
+      },
+    ],
+  },
+  settings: {
+    react: {
+      version: 'detect',
+    },
   },
 };

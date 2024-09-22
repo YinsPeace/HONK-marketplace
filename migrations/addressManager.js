@@ -34,5 +34,5 @@ module.exports = {
   getAddresses,
   saveAddresses,
   getAddress,
-  saveAddress
+  saveAddress,
 };

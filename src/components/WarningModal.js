@@ -1,5 +1,5 @@
 import React from 'react';
-import './Modal.css'; // Keep this import for any useful base styles
+import './styles/Modal.css'; // Keep this import for any useful base styles
 
 const WarningModal = ({ isOpen, onClose, onConfirm, warnings }) => {
   if (!isOpen) return null;

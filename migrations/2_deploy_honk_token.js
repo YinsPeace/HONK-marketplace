@@ -1,7 +1,7 @@
-const HONKToken = artifacts.require("HONKToken");
+const HONKToken = artifacts.require('HONKToken');
 const { getAddress, saveAddress } = require('./addressManager');
 
-module.exports = async function(deployer, network) {
+module.exports = async function (deployer, network) {
   let honkTokenAddress = getAddress('HONKToken');
 
   if (!honkTokenAddress || network === 'development' || network === 'test') {

@@ -2,7 +2,8 @@
 
 HONK Hero Marketplace is an open-source decentralized application (dApp) for trading DFK Heroes using HONK tokens on the DFK Chain Testnet. This project is initially developed for and owned by Team Goose.
 
-## Like this project? 
+## Like this project?
+
 Consider supporting future developments by making a donation to: 0xd72730C437f4B044e57DbBE4Acf2A61201Dc9F6b
 
 ## Purpose
@@ -42,17 +43,20 @@ This project is open source and can be used as a starting point for your own mar
 ## Installation
 
 1. Clone the repository:
+
    ```
    git clone https://github.com/your-username/hero-marketplace-ui.git
    cd hero-marketplace-ui
    ```
 
 2. Install dependencies:
+
    ```
    npm install
    ```
 
 3. Set up environment variables:
+
    - Copy the `.env.example` file to a new file named `.env`:
      ```
      cp .env.example .env
@@ -76,11 +80,13 @@ This project is open source and can be used as a starting point for your own mar
 ## Running the Application
 
 For development:
+
 ```
 npm start
 ```
 
 For production build:
+
 ```
 npm run build
 npm run serve
@@ -130,7 +136,7 @@ This project is provided as-is, and while we strive for reliability and security
 
 You can download pre-packaged executables for different operating systems:
 
-- [Releases]([https://github.com/YinsPeace/HONK-marketplace/releases/download/v1.0.0/HONK-Marketplace-win.exe](https://github.com/YinsPeace/HONK-marketplace/releases/tag/v1.0.0))
+- [Releases](<[https://github.com/YinsPeace/HONK-marketplace/releases/download/v1.0.0/HONK-Marketplace-win.exe](https://github.com/YinsPeace/HONK-marketplace/releases/tag/v1.0.0)>)
 
 For detailed instructions on how to run the application on your specific operating system, please download and refer to the [README.txt](https://github.com/YinsPeace/HONK-marketplace/releases/download/v1.0.0/README.txt) file included in the release.
 

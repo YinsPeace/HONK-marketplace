@@ -1,7 +1,9 @@
-export const applyFiltersAndSort = (heroes, filters, sortOrder) => {
-  console.log('Applying filters to heroes:', heroes);
+export const applyFiltersAndSort = (heroes, filters, sortOrder, isSellTab = false) => {
+  console.log('Applying filters and sort:');
+  console.log('Heroes:', heroes);
   console.log('Filters:', filters);
   console.log('Sort order:', sortOrder);
+  console.log('Is Sell Tab:', isSellTab);
 
   const filteredHeroes = heroes.filter((hero) => {
     console.log('Filtering hero:', hero.id);
@@ -24,27 +26,33 @@ export const applyFiltersAndSort = (heroes, filters, sortOrder) => {
 
     let matches = true;
 
-    // Apply checkbox filters
-    const checkboxFilters = ['class', 'subclass', 'profession', 'crafting1', 'crafting2'];
-    checkboxFilters.forEach((filterType) => {
-      if (filters[filterType] && filters[filterType].length > 0) {
-        let heroValue;
-        if (filterType === 'subclass') {
-          heroValue = heroAttributes.heroSubClass;
-        } else {
-          heroValue =
-            heroAttributes[`hero${filterType.charAt(0).toUpperCase() + filterType.slice(1)}`];
-        }
-        console.log(`Checking ${filterType}:`, {
-          filterValues: filters[filterType],
-          heroValue: heroValue,
-        });
-        if (!filters[filterType].includes(heroValue)) {
-          matches = false;
-          console.log(`${filterType} doesn't match`);
-        }
-      }
-    });
+    // Apply class filter
+    if (filters.class && filters.class.length > 0) {
+      matches = matches && filters.class.includes(heroAttributes.heroClass);
+      console.log('Class filter applied:', matches);
+    }
+
+    // Apply subclass filter
+    if (filters.subclass && filters.subclass.length > 0) {
+      matches = matches && filters.subclass.includes(heroAttributes.heroSubClass);
+      console.log('Subclass filter applied:', matches);
+    }
+
+    // Apply profession filter
+    if (filters.profession && filters.profession.length > 0) {
+      matches = matches && filters.profession.includes(heroAttributes.heroProfession);
+      console.log('Profession filter applied:', matches);
+    }
+
+    // Apply crafting filters
+    if (filters.crafting1 && filters.crafting1.length > 0) {
+      matches = matches && filters.crafting1.includes(heroAttributes.heroCraft1);
+      console.log('Crafting1 filter applied:', matches);
+    }
+    if (filters.crafting2 && filters.crafting2.length > 0) {
+      matches = matches && filters.crafting2.includes(heroAttributes.heroCraft2);
+      console.log('Crafting2 filter applied:', matches);
+    }
 
     // Apply range filters
     if (
@@ -52,26 +60,31 @@ export const applyFiltersAndSort = (heroes, filters, sortOrder) => {
       heroAttributes.heroRarityNumber > filters.rarityMax
     ) {
       matches = false;
+      console.log('Rarity filter applied:', matches);
     }
     if (
       heroAttributes.heroGeneration < filters.generationMin ||
       heroAttributes.heroGeneration > filters.generationMax
     ) {
       matches = false;
+      console.log('Generation filter applied:', matches);
     }
     if (
       heroAttributes.heroLevel < filters.levelMin ||
       heroAttributes.heroLevel > filters.levelMax
     ) {
       matches = false;
+      console.log('Level filter applied:', matches);
     }
 
     // Apply hide options
     if (filters.hideQuesting && hero.isOnQuest) {
       matches = false;
+      console.log('Hide questing filter applied:', matches);
     }
     if (filters.hideListedHeroes && hero.isForSale) {
       matches = false;
+      console.log('Hide listed heroes filter applied:', matches);
     }
 
     console.log(`Hero ${hero.id} matches filters:`, matches);
@@ -81,6 +94,12 @@ export const applyFiltersAndSort = (heroes, filters, sortOrder) => {
   console.log('Filtered heroes:', filteredHeroes);
 
   const sortedHeroes = filteredHeroes.sort((a, b) => {
+    // Prioritize listed heroes in SellTab
+    if (isSellTab) {
+      if (a.isForSale && !b.isForSale) return -1;
+      if (!a.isForSale && b.isForSale) return 1;
+    }
+
     const getAttributeValue = (hero, attribute) => {
       return hero.attributes.find((attr) => attr.trait_type === attribute)?.value;
     };

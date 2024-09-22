@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { calculateRequiredXp, calculateRemainingStamina } from '../utils/stamExpCalc';
-import { statBoosts } from './HeroStatskills';
+import { statBoosts } from '../utils/heroStatskills';
 import { DFKHeroContract, web3 } from '../Web3Config';
+import '../components/styles/HeroCard.css';
 
 import femaleIcon from '../assets/images/hero/icons/icon-female.png';
 import maleIcon from '../assets/images/hero/icons/icon-male.png';
@@ -45,7 +46,7 @@ const HeroCard = React.memo(
     inModal = false,
     isListing = false,
     isCancelling = false,
-    isMetaMaskLoggedIn,
+    isConnected,
   }) => {
     const [isOnQuest, setIsOnQuest] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -62,7 +63,7 @@ const HeroCard = React.memo(
     }, [hero.id]);
 
     const handleBuy = useCallback(async () => {
-      if (isBuying || !isMetaMaskLoggedIn) return;
+      if (isBuying || !isConnected) return;
       setIsBuying(true);
       try {
         await onBuy(hero.id);
@@ -72,7 +73,7 @@ const HeroCard = React.memo(
       } finally {
         setIsBuying(false);
       }
-    }, [hero.id, onBuy, isBuying, isMetaMaskLoggedIn]);
+    }, [hero.id, onBuy, isBuying, isConnected]);
 
     const handleList = useCallback(async () => {
       if (isListing) return;
@@ -523,10 +524,10 @@ const HeroCard = React.memo(
                   <span className="price-text">{formatPriceForDisplay(hero.price)}</span>
                 </div>
                 <button
-                  className={`button ${!isMetaMaskLoggedIn ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  className={`button ${!isConnected ? 'opacity-50 cursor-not-allowed' : ''}`}
                   onClick={handleBuy}
-                  disabled={isBuying || !isMetaMaskLoggedIn}
-                  title={!isMetaMaskLoggedIn ? 'Connect wallet to buy heroes' : ''}
+                  disabled={isBuying || !isConnected}
+                  title={!isConnected ? 'Connect wallet to buy heroes' : ''}
                 >
                   {isBuying ? 'Buying...' : 'Buy'}
                 </button>
@@ -543,23 +544,27 @@ const HeroCard = React.memo(
                   <span className="price-text">{formatPriceForDisplay(hero.price)}</span>
                 </div>
                 {isEditing ? (
-                  <>
+                  <div className="hero-card-price-edit-container">
                     <input
-                      type="text"
+                      type="number"
                       value={price}
                       onChange={handlePriceChange}
                       placeholder="New price"
+                      className="hero-card-price-input"
                     />
                     <button
-                      className="button"
+                      className="modal-button update-price-button"
                       onClick={handleUpdatePrice}
                       disabled={!price || isNaN(parseFloat(price))}
                     >
-                      Update Price
+                      Update
                     </button>
-                  </>
+                  </div>
                 ) : (
-                  <button className="button" onClick={() => setIsEditing(true)}>
+                  <button
+                    className="modal-button edit-price-button"
+                    onClick={() => setIsEditing(true)}
+                  >
                     Edit Price
                   </button>
                 )}
