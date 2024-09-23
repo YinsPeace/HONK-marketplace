@@ -63,8 +63,8 @@ This project is open source and can be used as a starting point for your own mar
      ```
    - Open the `.env` file and fill in the appropriate values for your environment:
      ```
-     REACT_APP_HONK_TOKEN_ADDRESS=0x2F511575AA738Db96597e86B41bb0aB634689266
-     REACT_APP_HONK_MARKETPLACE_ADDRESS=0x7482eFaE2EB545DA06dED1D26a22870C94E0d568
+     REACT_APP_HONK_TOKEN_ADDRESS=0x0d6B08F4223D169590C33FEbED5F0E3d2bAf8790
+     REACT_APP_HONK_MARKETPLACE_ADDRESS=0x09D3F995f3a44369b4F0293D8dD0bec913647776
      REACT_APP_DFK_HERO_ADDRESS=0x3bcaCBeAFefed260d877dbE36378008D4e714c8E
      REACT_APP_DFK_TESTNET_RPC=https://subnets.avax.network/defi-kingdoms/dfk-chain-testnet/rpc
      REACT_APP_FEE_RECIPIENT=your_fee_recipient_address
