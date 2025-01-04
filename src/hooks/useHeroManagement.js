@@ -147,7 +147,7 @@ export const useHeroManagement = (
         await initializeContracts();
         const isNetworkCorrect = await checkNetwork();
         if (!isNetworkCorrect) {
-          setError('Please connect to the DFK Testnet.');
+          setError('Please connect to the DFK Mainnet.');
           return;
         }
         if (!validateContracts()) {

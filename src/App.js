@@ -344,7 +344,7 @@ const App = () => {
                 </Suspense>
               ) : (
                 <div className="text-center mt-10">
-                  <p>Please switch to the DFK Testnet to access the marketplace.</p>
+                  <p>Please switch to the DFK mainnet to access the marketplace.</p>
                 </div>
               )
             ) : (
