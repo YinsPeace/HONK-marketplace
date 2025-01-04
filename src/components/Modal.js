@@ -20,7 +20,11 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
 
   const getAttributeValue = (traitType) => {
     const attribute = hero.attributes.find((attr) => attr.trait_type === traitType);
-    return attribute ? attribute.value : 'N/A';
+    if (!attribute) return 'N/A';
+    
+    // Format profession values by dividing by 10
+    const isProfession = ['Mining', 'Gardening', 'Fishing', 'Foraging', 'Tailoring', 'Leatherworking'].includes(traitType);
+    return isProfession ? Math.floor(parseFloat(attribute.value) / 10).toString() : attribute.value;
   };
 
   const calculateSellerFee = (amount) => {
@@ -122,6 +126,26 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
               </ul>
             </div>
           </div>
+          <h3 className="section-title">Crafting Professions</h3>
+          <hr />
+          <div className="profession-grid">
+            <div className="profession-col">
+              <ul>
+                <li>
+                  <span className="profession-label">Tailoring:</span>
+                  <span className="profession-value">{getAttributeValue('Tailoring')}</span>
+                </li>
+              </ul>
+            </div>
+            <div className="profession-col">
+              <ul>
+                <li>
+                  <span className="profession-label">Leatherworking:</span>
+                  <span className="profession-value">{getAttributeValue('Leatherworking')}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
         </div>
         <div className="modal-footer">
           {isBuyPage ? (
@@ -151,19 +175,32 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="Price in HONK"
+                disabled={hero.isOnQuest}
+                className={hero.isOnQuest ? 'input-disabled' : ''}
+                title={hero.isOnQuest ? 'Hero is currently on a quest and cannot be listed' : ''}
               />
               <div className="fee-details">
                 <p>Marketplace Fee (1%): {calculateSellerFee(price).toFixed(2)} HONK</p>
                 <p>You will receive: {calculateSellerProceeds(price).toFixed(2)} HONK</p>
               </div>
               <div className="modal-buttons">
-                <button className="modal-button" onClick={handleAction}>
+                <button
+                  className={`modal-button ${hero.isOnQuest ? 'button-disabled' : ''}`}
+                  onClick={handleAction}
+                  disabled={hero.isOnQuest}
+                  title={hero.isOnQuest ? 'Hero is currently on a quest and cannot be listed' : ''}
+                >
                   List for Sale
                 </button>
                 <button className="modal-button" onClick={onClose}>
                   Cancel
                 </button>
               </div>
+              {hero.isOnQuest && (
+                <div className="quest-warning">
+                  <p>This hero is currently on a quest and cannot be listed</p>
+                </div>
+              )}
             </>
           )}
         </div>

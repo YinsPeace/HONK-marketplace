@@ -25,3 +25,114 @@
   align-items: center;
   width: 100%;
 }
+
+/* Quest indicator styles */
+.quest-indicator {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  background-color: #dc2626;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  cursor: help;
+}
+
+.quest-indicator span {
+  color: #ffffff;
+  font-weight: 400;
+  font-size: 24px;
+  line-height: 1;
+  margin-top: -1px;
+  margin-left: 2px;
+}
+
+.professions {
+  margin: 10px 0;
+}
+
+.professions h4 {
+  margin: 8px 0;
+  color: #888;
+  font-size: 0.9em;
+}
+
+.gathering-professions, .crafting-professions {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 5px 0;
+  width: 100%;
+  max-width: 250px;
+}
+
+.profession {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background-color: rgba(0, 0, 0, 0.1);
+  width: 100%;
+  overflow: hidden;
+}
+
+.profession.main-profession {
+  font-weight: bold;
+  color: #4ade80; /* Bright green color */
+  background-color: rgba(74, 222, 128, 0.1); /* Light green background */
+}
+
+.mainProfession {
+  color: #4ade80 !important; /* Bright green color */
+  font-weight: bold;
+}
+
+.profession-name {
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 70%;
+}
+
+.profession-level {
+  margin-left: 10px;
+  font-family: monospace;
+  flex-shrink: 0;
+}
+
+.skillList .skillName {
+  font-family: 'Lora', serif;
+  color: #fbe375;
+  position: relative;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: left;
+}
+
+.skillList .skillName.craftProfTitle {
+  color: #fbe375;
+}
+
+.skillList .skillName.craftProf2 {
+  color: #21ccff;
+}
+
+.heroStatsList .skillName {
+  font-size: 16px;
+}
+
+.statList .statName,
+.skillList .skillName {
+  font-family: 'Lora', serif;
+  color: #fbe375;
+  position: relative;
+  font-size: 13px;
+  line-height: 20px;
+  text-align: left;
+}

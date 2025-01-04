@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import HeroGrid from './HeroGrid';
 import honkLogo from '../assets/images/honk/honkCoin.webp';
 import { formatPrice } from '../utils/heroUtils';
@@ -8,29 +8,257 @@ import { useHeroManagement } from '../hooks/useHeroManagement';
 import { useWallet } from '../hooks/useWallet';
 import { useHeroListing } from '../hooks/useHeroListing';
 import { useHeroOperations } from '../hooks/useHeroOperations.js';
+import { useDFKTavernCheck } from '../hooks/useDFKTavernCheck';
 import { toast } from 'react-toastify';
+import { applyFiltersAndSort as applyFiltersAndSortUtil } from '../utils/filterUtils';
 
-const SellTab = ({ filters, sortOrder }) => {
+const SellTab = ({ filters, sortOrder, testHeroes }) => {
   const { isConnected, isCorrectNetwork, connectedAddress, connect, switchNetwork } = useWallet();
+  const [heroes, setHeroes] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const { listingHeroId, listHeroForSale, listedHeroes, fetchListedHeroes } = useHeroListing(
+    connectedAddress,
+    heroes,
+    setHeroes
+  );
+
+  const { 
+    cancelListing, 
+    updatePrice, 
+    pendingCancellations, 
+    pendingPriceUpdates 
+  } = useHeroOperations(connectedAddress, fetchListedHeroes, setHeroes);
+
+  // Keep track of tavern heroes separately
+  const [tavernHeroesState, setTavernHeroesState] = useState([]);
+  const [hasFetchedTavern, setHasFetchedTavern] = useState(false);
+
+  // Get hero management state
   const {
-    displayedHeroes,
-    loading,
-    error,
+    heroes: heroesFromManagement,
+    loading: loadingFromManagement,
+    isFullyLoaded,
     hasMore,
     isLoadingMore,
     lastHeroElementRef,
-    fetchHeroes,
-  } = useHeroManagement(connectedAddress, false, filters, sortOrder);
-  const { listingHeroId, listHeroForSale } = useHeroListing(connectedAddress, fetchHeroes);
-  const { cancellingHeroId, updatePrice, cancelListing } = useHeroOperations(
+    error
+  } = useHeroManagement(
     connectedAddress,
-    fetchHeroes
+    false, // isBuyTab 
+    filters,
+    sortOrder,
+    listedHeroes
   );
+
+  // Get tavern heroes using raw heroes
+  const { tavernListedHeroes, isChecking } = useDFKTavernCheck(
+    connectedAddress,
+    heroesFromManagement,
+    loadingFromManagement,
+    isFullyLoaded // Only start checking when heroes are fully loaded
+  );
+
+  // When tavern heroes are found, store them
+  useEffect(() => {
+    if (tavernListedHeroes?.length > 0) {
+      const tavernHeroesWithMarketplace = tavernListedHeroes.map(h => ({
+        ...h,
+        marketplace: 'dfk',
+        isDFKTavernListing: true
+      }));
+      setTavernHeroesState(tavernHeroesWithMarketplace);
+    }
+  }, [tavernListedHeroes]);
+
+  // Combine and filter heroes
+  const displayedHeroes = useMemo(() => {
+    // Handle initial loading state
+    if (!heroesFromManagement) {
+      return [];
+    }
+    
+    // Helper to get base hero ID by stripping any realm prefix
+    const getBaseHeroId = (heroId) => {
+      const id = String(heroId || '');
+      // Get the last 6 digits which is the actual hero ID
+      const baseId = id.slice(-6);
+      return baseId;
+    };
+
+    // Get list of base hero IDs that are on DFKTavern
+    const tavernHeroes = tavernHeroesState || [];
+    const tavernHeroIds = new Set(tavernHeroes.map(h => getBaseHeroId(h.id)));
+
+    // Filter out regular heroes that are on DFKTavern using base IDs
+    const regularHeroes = heroesFromManagement || [];
+    const filteredRegularHeroes = regularHeroes.filter(h => {
+      const baseId = getBaseHeroId(h.id);
+      const isInTavern = tavernHeroIds.has(baseId);
+      return !isInTavern;
+    });
+    
+    // Combine filtered regular heroes with tavern heroes
+    const allHeroes = [...filteredRegularHeroes, ...(tavernHeroesState || [])].map(hero => {
+      // Check if the hero is listed in HONKMarketplace
+      const listedHero = listedHeroes.find(listed => listed.heroId === hero.id);
+      if (listedHero) {
+        return {
+          ...hero,
+          isForSale: true,
+          price: listedHero.price,
+          marketplace: 'honk'
+        };
+      }
+      return hero;
+    });
+    
+    // Filter heroes
+    const filteredHeroes = allHeroes.filter(hero => {
+      // Hide listed heroes filter
+      if (filters.hideListedHeroes && hero.isForSale) {
+        return false;
+      }
+      
+      // Hide DFK Tavern heroes filter
+      if (filters.hideDFKTavern && hero.isDFKTavernListing) {
+        return false;
+      }
+
+      return true;
+    });
+
+    // Sort heroes
+    const sortFunctions = {
+      'price-asc': (a, b) => {
+        // First sort by marketplace
+        if (a.marketplace === 'honk' && b.marketplace !== 'honk') return -1;
+        if (a.marketplace !== 'honk' && b.marketplace === 'honk') return 1;
+        
+        // Then by price
+        const aPrice = Number(a.price || 0);
+        const bPrice = Number(b.price || 0);
+        return aPrice - bPrice;
+      },
+      'price-desc': (a, b) => {
+        // First sort by marketplace
+        if (a.marketplace === 'honk' && b.marketplace !== 'honk') return -1;
+        if (a.marketplace !== 'honk' && b.marketplace === 'honk') return 1;
+        
+        // Then by price
+        const aPrice = Number(a.price || 0);
+        const bPrice = Number(b.price || 0);
+        return bPrice - aPrice;
+      },
+      'level-asc': (a, b) => {
+        // First sort by marketplace
+        if (a.marketplace === 'honk' && b.marketplace !== 'honk') return -1;
+        if (a.marketplace !== 'honk' && b.marketplace === 'honk') return 1;
+        
+        // Then by level
+        const aLevel = Number(a.level || 0);
+        const bLevel = Number(b.level || 0);
+        return aLevel - bLevel;
+      },
+      'level-desc': (a, b) => {
+        // First sort by marketplace
+        if (a.marketplace === 'honk' && b.marketplace !== 'honk') return -1;
+        if (a.marketplace !== 'honk' && b.marketplace === 'honk') return 1;
+        
+        // Then by level
+        const aLevel = Number(a.level || 0);
+        const bLevel = Number(b.level || 0);
+        return bLevel - aLevel;
+      },
+      'rarity-asc': (a, b) => {
+        // First sort by marketplace
+        if (a.marketplace === 'honk' && b.marketplace !== 'honk') return -1;
+        if (a.marketplace !== 'honk' && b.marketplace === 'honk') return 1;
+        
+        // Then by rarity
+        const rarityMap = {
+          'common': 0,
+          'uncommon': 1,
+          'rare': 2,
+          'legendary': 3,
+          'mythic': 4
+        };
+        const aRarity = rarityMap[(a.rarity || '').toLowerCase()] || 0;
+        const bRarity = rarityMap[(b.rarity || '').toLowerCase()] || 0;
+        return aRarity - bRarity;
+      },
+      'rarity-desc': (a, b) => {
+        // First sort by marketplace
+        if (a.marketplace === 'honk' && b.marketplace !== 'honk') return -1;
+        if (a.marketplace !== 'honk' && b.marketplace === 'honk') return 1;
+        
+        // Then by rarity
+        const rarityMap = {
+          'common': 0,
+          'uncommon': 1,
+          'rare': 2,
+          'legendary': 3,
+          'mythic': 4
+        };
+        const aRarity = rarityMap[(a.rarity || '').toLowerCase()] || 0;
+        const bRarity = rarityMap[(b.rarity || '').toLowerCase()] || 0;
+        return bRarity - aRarity;
+      }
+    };
+
+    const sortFn = sortFunctions[sortOrder] || sortFunctions['level-desc'];
+    return [...filteredHeroes].sort(sortFn);
+
+  }, [heroesFromManagement, tavernHeroesState, isFullyLoaded, filters, sortOrder]);
+
+  // Update loading state when fetching changes
+  useEffect(() => {
+    setLoading(loadingFromManagement || isChecking);
+  }, [loadingFromManagement, isChecking]);
+
+  // Update heroes state with filtered heroes
+  useEffect(() => {
+    setHeroes(displayedHeroes);
+  }, [displayedHeroes]);
+
+  useEffect(() => {
+    // If testHeroes are provided, use those instead of fetching
+    if (testHeroes) {
+      setHeroes(testHeroes);
+    } else if (isConnected && isCorrectNetwork) {
+      fetchListedHeroes();
+    }
+  }, [isConnected, isCorrectNetwork, connectedAddress, testHeroes]);
+
+  useEffect(() => {
+    if (listedHeroes && listedHeroes.length > 0) {
+      setHeroes(prevHeroes => {
+        return prevHeroes.map(hero => {
+          const listedHero = listedHeroes.find(listed => listed.heroId === hero.id);
+          if (listedHero) {
+            return {
+              ...hero,
+              isForSale: true,
+              price: listedHero.price,
+              owner: listedHero.owner
+            };
+          }
+          return hero;
+        });
+      });
+    }
+  }, [listedHeroes]);
 
   const [warningModalOpen, setWarningModalOpen] = useState(false);
   const [currentWarnings, setCurrentWarnings] = useState([]);
   const [heroToList, setHeroToList] = useState(null);
   const [priceToList, setPriceToList] = useState(null);
+
+  useEffect(() => {
+    if (error) {
+      toast.error(`Error loading heroes: ${error}`);
+    }
+  }, [error]);
 
   const handleWarningClose = () => {
     setWarningModalOpen(false);
@@ -44,7 +272,7 @@ const SellTab = ({ filters, sortOrder }) => {
       const result = await listHeroForSale(heroToList, priceToList, true);
       if (result.success) {
         toast.success(`Hero ${heroToList} listed successfully after warning confirmation.`);
-        fetchHeroes(connectedAddress);
+        fetchListedHeroes();
       } else {
         toast.error(`Failed to list hero after warning confirmation: ${result.errors.join(', ')}`);
       }
@@ -56,6 +284,11 @@ const SellTab = ({ filters, sortOrder }) => {
   };
 
   const handleListHeroForSale = async (heroId, price) => {
+    if (!price) {
+      toast.error('Please enter a price before listing');
+      return;
+    }
+
     const result = await listHeroForSale(heroId, price);
     if (!result.success) {
       if (result.warnings.length > 0) {
@@ -68,7 +301,7 @@ const SellTab = ({ filters, sortOrder }) => {
       }
     } else {
       toast.success(`Hero ${heroId} listed successfully.`);
-      fetchHeroes(connectedAddress);
+      fetchListedHeroes();
     }
   };
 
@@ -113,46 +346,36 @@ const SellTab = ({ filters, sortOrder }) => {
         </div>
       )}
       {isConnected && isCorrectNetwork && (
-        <>
-          {loading ? (
-            <LoadingIndicator />
-          ) : error ? (
-            <div className="mt-4 text-center text-red-500">
-              {toast.error(`Error loading heroes: ${error}`)}
-            </div>
-          ) : displayedHeroes.length === 0 ? (
-            <div className="mt-4 text-center">
-              <p>No heroes to display</p>
-              <p>No heroes match your current filters.</p>
-            </div>
-          ) : (
-            <>
-              <HeroGrid
-                heroes={displayedHeroes}
-                isBuyPage={false}
-                honkLogo={honkLogo}
-                onList={handleListHeroForSale}
-                onCancelListing={cancelListing}
-                onUpdatePrice={updatePrice}
-                formatPrice={formatPrice}
-                lastHeroRef={lastHeroElementRef}
-                listingHeroId={listingHeroId}
-                cancellingHeroId={cancellingHeroId}
-              />
-              {isLoadingMore && <LoadingIndicator />}
-              {!isLoadingMore && !hasMore && displayedHeroes.length > 0 && (
-                <p className="mt-4 text-center">No more heroes to load.</p>
-              )}
-            </>
-          )}
-          <WarningModal
-            isOpen={warningModalOpen}
-            onClose={handleWarningClose}
-            onConfirm={handleWarningConfirm}
-            warnings={currentWarnings}
+        <div className="relative">
+          <HeroGrid
+            heroes={heroes}
+            isBuyPage={false}
+            honkLogo={honkLogo}
+            onList={handleListHeroForSale}
+            onCancelListing={cancelListing}
+            onUpdatePrice={updatePrice}
+            formatPrice={formatPrice}
+            lastHeroRef={lastHeroElementRef}
+            isConnected={isConnected}
+            listedHeroes={listedHeroes}
+            pendingCancellations={pendingCancellations}
+            pendingPriceUpdates={pendingPriceUpdates}
           />
-        </>
+          {isLoadingMore && <LoadingIndicator />}
+          {!isLoadingMore && !hasMore && heroes.length > 0 && (
+            <p className="mt-4 text-center">No more heroes to load.</p>
+          )}
+          {!loading && heroes.length === 0 && (
+            <p className="mt-4 text-center">No heroes match your current filters.</p>
+          )}
+        </div>
       )}
+      <WarningModal
+        isOpen={warningModalOpen}
+        onClose={handleWarningClose}
+        onConfirm={handleWarningConfirm}
+        warnings={currentWarnings}
+      />
     </div>
   );
 };

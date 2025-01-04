@@ -1,21 +1,45 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { calculateRequiredXp, calculateRemainingStamina } from '../utils/stamExpCalc';
+import { statBoosts } from '../utils/heroStatskills';
 import { DFKHeroContract, web3 } from '../Web3Config';
+import { getFirstName, getLastName } from '../utils/heroUtils';
+import '../components/styles/HeroCard.css';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+import femaleIcon from '../assets/images/hero/icons/icon-female.png';
+import maleIcon from '../assets/images/hero/icons/icon-male.png';
+
+import fireIcon from '../assets/images/hero/icons/element-fire.png';
+import waterIcon from '../assets/images/hero/icons/element-water.png';
+import earthIcon from '../assets/images/hero/icons/element-earth.png';
+import windIcon from '../assets/images/hero/icons/element-wind.png';
+import lightningIcon from '../assets/images/hero/icons/element-lightning.png';
+import iceIcon from '../assets/images/hero/icons/element-ice.png';
+import lightIcon from '../assets/images/hero/icons/element-light.png';
+import darkIcon from '../assets/images/hero/icons/element-dark.png';
+
+import arcticIcon from '../assets/images/hero/icons/icon-arctic.png';
+import cityIcon from '../assets/images/hero/icons/icon-city.png';
+import desertIcon from '../assets/images/hero/icons/icon-desert.png';
+import forestIcon from '../assets/images/hero/icons/icon-forest.png';
+import islandIcon from '../assets/images/hero/icons/icon-island.png';
+import mountainIcon from '../assets/images/hero/icons/icon-mountains.png';
+import plainsIcon from '../assets/images/hero/icons/icon-plains.png';
+import swampIcon from '../assets/images/hero/icons/icon-swamp.png';
+
+import commonIcon from '../assets/images/hero/icons/rarity-common.png';
+import uncommonIcon from '../assets/images/hero/icons/rarity-uncommon.png';
+import rareIcon from '../assets/images/hero/icons/rarity-rare.png';
+import legendaryIcon from '../assets/images/hero/icons/rarity-legendary.png';
+import mythicIcon from '../assets/images/hero/icons/rarity-mythic.png';
+
+import healthIcon from '../assets/images/hero/icons/icon-health.png';
+import manaIcon from '../assets/images/hero/icons/icon-mana.png';
 
 import crystalIcon from '../assets/images/hero/icons/crystal.png';
-import fireIcon from '../assets/images/hero/icons/fire.png';
-import waterIcon from '../assets/images/hero/icons/water.png';
-import earthIcon from '../assets/images/hero/icons/earth.png';
-import windIcon from '../assets/images/hero/icons/wind.png';
-import lightningIcon from '../assets/images/hero/icons/lightning.png';
-import iceIcon from '../assets/images/hero/icons/ice.png';
-import lightIcon from '../assets/images/hero/icons/light.png';
-import darkIcon from '../assets/images/hero/icons/dark.png';
-import arcticIcon from '../assets/images/hero/icons/arctic.png';
-import cityIcon from '../assets/images/hero/icons/city.png';
-import desertIcon from '../assets/images/hero/icons/desert.png';
-import forestIcon from '../assets/images/hero/icons/forest.png';
-import islandIcon from '../assets/images/hero/icons/island.png';
+import jewelIcon from '../assets/images/hero/icons/jewel.png';
+import jadeIcon from '../assets/images/hero/icons/jade.png';
 
 const craftingProfessionMapping = {
   '1': 'Alchemy',
@@ -71,7 +95,7 @@ const HeroCard = React.memo(
       } catch (error) {
         console.error('Error in handleBuy:', error);
         setIsBuying(false);
-        // toast.error(`Failed to buy hero: ${error.message}`);
+        toast.error(`Failed to buy hero: ${error.message}`);
       }
     }, [isBuying, isConnected, hero.id, onBuyHero, pendingTransactions]);
 
@@ -81,7 +105,7 @@ const HeroCard = React.memo(
         onList(hero.id);
       } catch (error) {
         console.error('Error opening listing modal:', error);
-        // toast.error('Failed to open listing modal');
+        toast.error('Failed to open listing modal');
       }
     }, [hero.id, onList, isListing]);
 
@@ -90,21 +114,21 @@ const HeroCard = React.memo(
       try {
         const result = await onCancelListing(hero.id);
         if (!result?.success) {
-          // toast.error('Failed to cancel listing');
+          toast.error('Failed to cancel listing');
         }
       } catch (error) {
         console.error('Error cancelling listing:', error);
-        // toast.error('Failed to cancel listing');
+        toast.error('Failed to cancel listing');
       }
     }, [hero.id, onCancelListing, isCancelling]);
 
     const handleUpdatePrice = async () => {
       if (!price || isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
-        // toast.error('Please enter a valid price greater than 0 HONK');
+        toast.error('Please enter a valid price greater than 0 HONK');
         return;
       }
       if (parseFloat(price) > 1000000) {
-        // toast.error('Price cannot exceed 1,000,000 HONK');
+        toast.error('Price cannot exceed 1,000,000 HONK');
         return;
       }
 
@@ -114,11 +138,11 @@ const HeroCard = React.memo(
           setIsEditing(false);
           setPrice('');
         } else {
-          // toast.error('Failed to update price');
+          toast.error('Failed to update price');
         }
       } catch (error) {
         console.error('Failed to update price:', error);
-        // toast.error('Failed to update price');
+        toast.error('Failed to update price');
       }
     };
 
@@ -130,37 +154,60 @@ const HeroCard = React.memo(
       }
     }, []);
 
-    const getRealmIcon = useCallback((originRealm) => {
-      switch (originRealm) {
+    const formatPrice = (price) => {
+      return price ? web3.utils.fromWei(price.toString(), 'ether') : '0';
+    };
+
+    const formatPriceForDisplay = (price) => {
+      if (!price) return '0';
+      try {
+        // First try to convert from Wei if it's in Wei format
+        const formattedPrice = web3.utils.fromWei(price.toString(), 'ether');
+        return parseFloat(formattedPrice).toLocaleString(undefined, {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2
+        });
+      } catch (error) {
+        // If fromWei fails, the price is probably already in the correct format
+        return parseFloat(price).toLocaleString(undefined, {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 2
+        });
+      }
+    };
+
+    const formatHeroId = (id, originRealm) => {
+      // Only format IDs for Crystal and Jade realms
+      if (originRealm === 'CRY' || originRealm === 'SER2') {
+        // For Crystal realm, ensure prefix starts with 1
+        // For Jade realm, ensure prefix starts with 2
+        const prefix = originRealm === 'CRY' ? '1' : '2';
+        
+        // Find the first non-zero digit after the prefix
+        const match = id.match(new RegExp(`^${prefix}0*([1-9][0-9]*)$`));
+        if (match) {
+          return match[1]; // Return everything after the prefix and leading zeros
+        }
+      }
+      
+      // For other realms or if no match, return id as is
+      return id;
+    };
+
+    const getRealmIcon = (originRealm) => {
+      switch(originRealm) {
         case 'CRY':
           return crystalIcon;
         case 'SER':
+          return jewelIcon;
         case 'SER2':
-          return null;
+          return jadeIcon;
         default:
           return null;
       }
-    }, []);
+    };
 
-    const formatPriceForDisplay = useCallback((price) => {
-      if (!price) return '0';
-      const priceNum = parseFloat(price);
-      if (isNaN(priceNum)) return '0';
-      
-      if (priceNum < 0.000001) {
-        return '< 0.000001';
-      }
-      
-      return priceNum.toLocaleString(undefined, {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 6
-      });
-    }, []);
-
-    const formatHeroId = useCallback((id, originRealm) => {
-      if (!id) return '';
-      return originRealm === 'CRY' ? `CV-${id}` : `SD-${id}`;
-    }, []);
+    const realmIcon = getRealmIcon(hero.originRealm);
 
     const handleCardClick = useCallback(() => {
       if (!inModal) {
@@ -171,7 +218,7 @@ const HeroCard = React.memo(
     const handleCopyId = (e) => {
       e.stopPropagation(); // Prevent card flip
       navigator.clipboard.writeText(hero.fullId || hero.id);
-      // toast.success(`Hero ID ${hero.fullId || hero.id} copied to clipboard!`);
+      toast.success(`Hero ID ${hero.fullId || hero.id} copied to clipboard!`);
     };
 
     const openTavern = (e) => {
@@ -619,8 +666,6 @@ const HeroCard = React.memo(
       pendingTransactions?.has(hero.id),
       [pendingTransactions, hero.id]
     );
-
-    const realmIcon = getRealmIcon(hero.originRealm);
 
     return (
       <div className={`${hero.mainClass} w-full`}>

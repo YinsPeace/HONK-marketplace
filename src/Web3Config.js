@@ -2,58 +2,115 @@ import Web3 from 'web3';
 import HeroCoreDiamondABIFile from './HeroCoreDiamond.json';
 import HONKMarketplaceABIFile from './HONKMarketplaceABI.json';
 import HONKTokenABIFile from './HONKTokenABI.json';
+import { RPCProvider } from './config/rpcConfig';
+import contractAddresses from './contractAddresses.json';
 
-let web3;
+let readWeb3; // For read operations
+let web3; // For write operations (using wallet provider)
 let DFKHeroContract;
 let HONKMarketplaceContract;
 let HONKTokenContract;
 let isInitialized = false;
+let rpcProvider;
 
-const DFK_TESTNET_CHAIN_ID = 335;
-const DFK_TESTNET_RPC = process.env.REACT_APP_DFK_TESTNET_RPC;
+const DFK_MAINNET_CHAIN_ID = 53935; // DFK Chain Mainnet
+
+// Keep track of contract instances to clean them up
+let contractInstances = [];
+
+const handleBigIntSerialization = () => {
+  // Add BigInt serialization support
+  BigInt.prototype.toJSON = function() {
+    return this.toString();
+  };
+};
+
+const cleanupContracts = () => {
+  if (web3?.currentProvider?.removeAllListeners) {
+    web3.currentProvider.removeAllListeners();
+  }
+
+  contractInstances.forEach((contract) => {
+    if (contract?.subscriptionManager?.unsubscribeAll) {
+      contract.subscriptionManager.unsubscribeAll();
+    }
+  });
+  contractInstances = [];
+  isInitialized = false;
+};
 
 const initWeb3 = async () => {
-  if (typeof window.ethereum !== 'undefined') {
-    web3 = new Web3(window.ethereum);
-  } else {
-    web3 = new Web3(new Web3.providers.HttpProvider(DFK_TESTNET_RPC));
+  try {
+    // Initialize BigInt serialization
+    handleBigIntSerialization();
+
+    // Initialize RPC provider with rotation capability
+    rpcProvider = new RPCProvider();
+
+    // Initialize read-only provider with fallback capability
+    const initReadWeb3 = async (rpcUrl) => {
+      const provider = new Web3.providers.HttpProvider(rpcUrl);
+      return new Web3(provider);
+    };
+
+    readWeb3 = await rpcProvider.executeWithFallback(initReadWeb3);
+
+    // Initialize wallet provider for transactions
+    if (typeof window.ethereum !== 'undefined') {
+      web3 = new Web3(window.ethereum);
+      readWeb3 = web3;
+      return web3;
+    } else {
+      readWeb3 = new Web3(new Web3.providers.HttpProvider(RPCProvider.RPC_ENDPOINTS[0]));
+      return readWeb3;
+    }
+  } catch (error) {
+    return null;
   }
-  return web3;
 };
 
 const initializeContracts = async () => {
-  if (isInitialized) return;
-
   if (!web3) {
     web3 = await initWeb3();
   }
 
-  const DFKHeroAddress = process.env.REACT_APP_DFK_HERO_ADDRESS;
-  const HONKMarketplaceAddress = process.env.REACT_APP_HONK_MARKETPLACE_ADDRESS;
-  const HONKTokenAddress = process.env.REACT_APP_HONK_TOKEN_ADDRESS;
-
-  if (!DFKHeroAddress || !HONKMarketplaceAddress || !HONKTokenAddress) {
-    throw new Error('One or more contract addresses are not set in environment variables');
-  }
-
-  console.log('Initializing contracts with addresses:');
-  console.log('DFKHeroAddress:', DFKHeroAddress);
-  console.log('HONKMarketplaceAddress:', HONKMarketplaceAddress);
-  console.log('HONKTokenAddress:', HONKTokenAddress);
+  // Clean up existing contracts before initializing new ones
+  cleanupContracts();
 
   try {
+    const HONKMarketplaceAddress = contractAddresses.HONKMarketplace;
+    const HONKTokenAddress = contractAddresses.HONKToken;
+    const DFKHeroAddress = '0xEb9B61B145D6489Be575D3603F4a704810e143dF'; // DFK Hero contract on mainnet
+
+    if (!DFKHeroAddress || !HONKMarketplaceAddress || !HONKTokenAddress) {
+      throw new Error('One or more contract addresses are not set in contractAddresses.json');
+    }
+
     const HeroCoreDiamondABI = HeroCoreDiamondABIFile.abi || HeroCoreDiamondABIFile;
     const HONKMarketplaceABI = HONKMarketplaceABIFile.abi || HONKMarketplaceABIFile;
     const HONKTokenABI = HONKTokenABIFile.abi || HONKTokenABIFile;
 
-    DFKHeroContract = new web3.eth.Contract(HeroCoreDiamondABI, DFKHeroAddress);
-    HONKMarketplaceContract = new web3.eth.Contract(HONKMarketplaceABI, HONKMarketplaceAddress);
     HONKTokenContract = new web3.eth.Contract(HONKTokenABI, HONKTokenAddress);
+    DFKHeroContract = new web3.eth.Contract(HeroCoreDiamondABI, DFKHeroAddress);
+    HONKMarketplaceContract = new web3.eth.Contract(
+      HONKMarketplaceABI,
+      HONKMarketplaceAddress
+    );
 
-    console.log('Contracts initialized. Checking addresses:');
-    console.log('DFKHeroContract address:', DFKHeroContract.options.address);
-    console.log('HONKMarketplaceContract address:', HONKMarketplaceContract.options.address);
-    console.log('HONKTokenContract address:', HONKTokenContract.options.address);
+    const readOnlyDFKHeroContract = new readWeb3.eth.Contract(HeroCoreDiamondABI, DFKHeroAddress);
+    const readOnlyHONKMarketplaceContract = new readWeb3.eth.Contract(
+      HONKMarketplaceABI,
+      HONKMarketplaceAddress
+    );
+    const readOnlyHONKTokenContract = new readWeb3.eth.Contract(HONKTokenABI, HONKTokenAddress);
+
+    DFKHeroContract.methods.readOnly = readOnlyDFKHeroContract.methods;
+    HONKMarketplaceContract.methods.readOnly = readOnlyHONKMarketplaceContract.methods;
+    HONKTokenContract.methods.readOnly = readOnlyHONKTokenContract.methods;
+
+    contractInstances.push(DFKHeroContract);
+    contractInstances.push(HONKMarketplaceContract);
+    contractInstances.push(HONKTokenContract);
 
     if (
       !DFKHeroContract.options.address ||
@@ -64,10 +121,9 @@ const initializeContracts = async () => {
     }
 
     isInitialized = true;
-    console.log('All contracts initialized successfully');
+    return true;
   } catch (error) {
-    console.error('Error initializing contracts:', error);
-    throw error;
+    return false;
   }
 };
 
@@ -78,33 +134,28 @@ const checkNetwork = async () => {
     }
     const chainId = await web3.eth.getChainId();
     const chainIdNumber = typeof chainId === 'bigint' ? Number(chainId) : chainId;
-    const isCorrectNetwork = chainIdNumber === DFK_TESTNET_CHAIN_ID;
+    const isCorrectNetwork = chainIdNumber === DFK_MAINNET_CHAIN_ID;
     return isCorrectNetwork;
   } catch (error) {
-    console.error('Error checking network:', error);
     return false;
   }
 };
 
 const validateContracts = () => {
-  if (!HONKMarketplaceContract || !HONKTokenContract || !DFKHeroContract) {
-    console.error('One or more contracts are not initialized correctly');
+  if (!HONKTokenContract || !DFKHeroContract || !HONKMarketplaceContract) {
     return false;
   }
   return true;
 };
 
 const checkMetaMaskConnection = async () => {
-  if (typeof window.ethereum !== 'undefined') {
-    try {
+  try {
+    if (typeof window.ethereum !== 'undefined') {
       const accounts = await window.ethereum.request({ method: 'eth_accounts' });
       return accounts.length > 0;
-    } catch (error) {
-      console.error('Error checking MetaMask connection:', error);
-      return false;
     }
-  } else {
-    console.error('MetaMask is not installed');
+    return false;
+  } catch (error) {
     return false;
   }
 };
@@ -113,38 +164,12 @@ const reinitializeContracts = async () => {
   try {
     await initWeb3();
     await initializeContracts();
+    return true;
   } catch (error) {
-    console.error('Error reinitializing contracts:', error);
-    throw error;
+    return false;
   }
 };
 
-// Remove or export unused functions:
-export const formatPrice = (price) => {
-  /* ... */
-};
-export const compareBN = (a, b) => {
-  /* ... */
-};
-export const getHONKTokenAddress = () => {
-  /* ... */
-};
-export const checkNetworkStatus = async () => {
-  /* ... */
-};
-export const checkBlockSyncing = async () => {
-  /* ... */
-};
-export const getLatestBlock = async () => {
-  /* ... */
-};
-export const checkGasPrice = async () => {
-  /* ... */
-};
-
-// If these functions are not needed elsewhere, you can remove them entirely
-
-// Single export statement at the end of the file
 export {
   initWeb3,
   initializeContracts,
@@ -153,11 +178,9 @@ export {
   checkMetaMaskConnection,
   reinitializeContracts,
   web3,
+  readWeb3,
   HONKTokenContract,
   DFKHeroContract,
   HONKMarketplaceContract,
-  isInitialized, // Export this variable
+  isInitialized,
 };
-
-// Use the new function instead of directly accessing the contract
-// console.log('HONK Token Address:', getHONKTokenAddress());

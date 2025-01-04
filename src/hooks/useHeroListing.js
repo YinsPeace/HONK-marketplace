@@ -1,91 +1,173 @@
-import { useState } from 'react';
-import { HONKMarketplaceContract, DFKHeroContract, web3 } from '../Web3Config';
+import { useState, useCallback, useEffect } from 'react';
+import { HONKMarketplaceContract, web3, DFKHeroContract } from '../Web3Config';
 import { toast } from 'react-toastify';
 
-export const useHeroListing = (userAddress, fetchHeroes) => {
+export const useHeroListing = (connectedAddress, fetchHeroes, setHeroes) => {
   const [listingHeroId, setListingHeroId] = useState(null);
+  const [listedHeroes, setListedHeroes] = useState([]);
 
-  const checkHeroStatus = async (heroId) => {
-    const heroState = await DFKHeroContract.methods.getHeroState(heroId).call();
-    const heroEquipment = await DFKHeroContract.methods.getHeroEquipmentV2(heroId).call();
-
-    let warnings = [];
-    let errors = [];
-
-    if (heroState.currentQuest !== '0x0000000000000000000000000000000000000000') {
-      errors.push('This hero is currently on a quest and cannot be listed.');
-    }
-
-    const equippedSlots = parseInt(heroEquipment.equippedSlots);
-    if (equippedSlots > 0) {
-      warnings.push(
-        `This hero has ${equippedSlots} equipped item(s). These items will be sold with the hero if you proceed.`
-      );
-    }
-
-    return { warnings, errors };
-  };
-
-  const listHeroForSale = async (heroId, price, forceList = false) => {
+  const fetchListedHeroes = useCallback(async () => {
+    if (!connectedAddress) return [];
+    
     try {
-      setListingHeroId(heroId);
-      const { warnings, errors } = await checkHeroStatus(heroId);
+      const result = await HONKMarketplaceContract.methods.getListedHeroes().call();
+      const listedHeroes = result[0];
+      
+      const filtered = listedHeroes
+        .filter(hero => 
+          hero && 
+          hero.id && 
+          hero.id !== '0' && 
+          hero.owner && 
+          hero.owner.toLowerCase() === connectedAddress.toLowerCase() &&
+          hero.isForSale
+        )
+        .map(hero => ({
+          heroId: hero.id.toString(),
+          price: hero.price.toString(),
+          owner: hero.owner,
+          isForSale: true,
+          marketplace: 'honk'
+        }));
 
-      if (errors.length > 0) {
-        toast.error(errors.join(' '));
-        return { success: false, warnings, errors };
+      setListedHeroes(filtered);
+      return filtered;
+    } catch (error) {
+      console.error('Error fetching listed heroes:', error);
+      toast.error('Failed to fetch listed heroes');
+      return [];
+    }
+  }, [connectedAddress]);
+
+  // Fetch listed heroes when component mounts or address changes
+  useEffect(() => {
+    fetchListedHeroes();
+  }, [connectedAddress, fetchListedHeroes]);
+
+  const listHeroForSale = useCallback(async (heroId, price, bypassWarnings = false) => {
+    if (!connectedAddress || !heroId || !price) {
+      return {
+        success: false,
+        errors: ['Invalid parameters'],
+        warnings: []
+      };
+    }
+
+    try {
+      // Convert price to wei (assuming 18 decimals)
+      const priceInWei = web3.utils.toWei(price.toString(), 'ether');
+      
+      // Check if hero exists and is owned by the user using DFKHeroContract
+      const heroOwner = await DFKHeroContract.methods.ownerOf(heroId).call();
+      if (heroOwner.toLowerCase() !== connectedAddress.toLowerCase()) {
+        return {
+          success: false,
+          errors: ['You do not own this hero'],
+          warnings: []
+        };
       }
 
-      if (warnings.length > 0 && !forceList) {
-        return { success: false, warnings, errors };
+      // Check if hero is already listed - using the correct getHero method
+      const heroListing = await HONKMarketplaceContract.methods.getHero(heroId).call();
+      if (heroListing && heroListing.isForSale) {
+        return {
+          success: false,
+          errors: ['Hero is already listed'],
+          warnings: []
+        };
       }
 
-      // If there are no warnings, or forceList is true, proceed with listing
-      await proceedWithListing(heroId, price);
-      return { success: true, warnings: [], errors: [] };
+      // Check if marketplace is approved to handle the hero using DFKHeroContract
+      const isApproved = await DFKHeroContract.methods.isApprovedForAll(
+        connectedAddress,
+        HONKMarketplaceContract.options.address
+      ).call();
+
+      if (!isApproved) {
+        try {
+          // First approve the marketplace using DFKHeroContract
+          const approveTx = await DFKHeroContract.methods.setApprovalForAll(
+            HONKMarketplaceContract.options.address,
+            true
+          ).send({ 
+            from: connectedAddress,
+            gasLimit: 300000 // Lower gas limit for approval
+          });
+          
+          if (!approveTx.status) {
+            return {
+              success: false,
+              errors: ['Failed to approve marketplace'],
+              warnings: []
+            };
+          }
+        } catch (approvalError) {
+          console.error('Approval error:', approvalError);
+          return {
+            success: false,
+            errors: ['Failed to approve marketplace: ' + (approvalError.message || 'Unknown error')],
+            warnings: []
+          };
+        }
+      }
+
+      // List the hero using HONKMarketplaceContract
+      const tx = await HONKMarketplaceContract.methods.listHero(
+        heroId,
+        priceInWei
+      ).send({
+        from: connectedAddress,
+        gasLimit: 500000
+      });
+
+      if (tx.status) {
+        // Refresh the listed heroes
+        const updatedHeroes = await fetchListedHeroes();
+        
+        // Update the heroes state with the new listing
+        if (setHeroes) {
+          setHeroes(prevHeroes => {
+            return prevHeroes.map(hero => {
+              if (hero.id === heroId) {
+                return {
+                  ...hero,
+                  isForSale: true,
+                  price: priceInWei,
+                  owner: connectedAddress
+                };
+              }
+              return hero;
+            });
+          });
+        }
+        
+        return {
+          success: true,
+          errors: [],
+          warnings: []
+        };
+      } else {
+        return {
+          success: false,
+          errors: ['Transaction failed'],
+          warnings: []
+        };
+      }
+
     } catch (error) {
       console.error('Error listing hero:', error);
-      toast.error(`Failed to list hero: ${error.message}`);
-      return { success: false, warnings: [], errors: [error.message] };
-    } finally {
-      setListingHeroId(null);
+      return {
+        success: false,
+        errors: [error.message || 'Unknown error occurred'],
+        warnings: []
+      };
     }
+  }, [connectedAddress, fetchListedHeroes]);
+
+  return {
+    listingHeroId,
+    listHeroForSale,
+    fetchListedHeroes,
+    listedHeroes
   };
-
-  const proceedWithListing = async (heroId, price) => {
-    try {
-      toast.info(`Approving marketplace to transfer Hero ${heroId}...`);
-      // Step 1: Approve the HONKMarketplace contract to transfer the hero
-      const approveGasEstimate = await DFKHeroContract.methods
-        .approve(HONKMarketplaceContract.options.address, heroId)
-        .estimateGas({ from: userAddress });
-      await DFKHeroContract.methods.approve(HONKMarketplaceContract.options.address, heroId).send({
-        from: userAddress,
-        gas: BigInt(Math.floor(Number(approveGasEstimate) * 1.5)),
-      });
-
-      toast.info(`Listing Hero ${heroId} for sale...`);
-      // Step 2: List the hero on the HONKMarketplace
-      const priceWei = web3.utils.toWei(price.toString(), 'ether');
-      const listGasEstimate = await HONKMarketplaceContract.methods
-        .listHero(heroId, priceWei)
-        .estimateGas({ from: userAddress });
-      const receipt = await HONKMarketplaceContract.methods.listHero(heroId, priceWei).send({
-        from: userAddress,
-        gas: BigInt(Math.floor(Number(listGasEstimate) * 1.5)),
-      });
-
-      if (receipt.status) {
-        toast.success(`Hero ${heroId} listed for sale successfully!`);
-        fetchHeroes(userAddress);
-      } else {
-        throw new Error('Transaction failed');
-      }
-    } catch (error) {
-      console.error('Error in proceedWithListing:', error);
-      throw error;
-    }
-  };
-
-  return { listingHeroId, listHeroForSale };
 };

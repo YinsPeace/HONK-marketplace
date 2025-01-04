@@ -56,13 +56,22 @@
       "kind": "transparent"
     },
     {
-      "address": "0x09D3F995f3a44369b4F0293D8dD0bec913647776",
-      "txHash": "0x61a4edf1b50a072b32d38301551d31158ae316924ccff012c5bf0f4e3110f23c",
+      "address": "0x5619E8d730dbF582C780E26Fabbf58e19d73ecF2",
+      "txHash": "0xb7ffc6558c1199ff3663cd694fb14170f0511151c554c25ee8e27d115d62d67f",
       "kind": "transparent"
     },
     {
-      "address": "0x5619E8d730dbF582C780E26Fabbf58e19d73ecF2",
-      "txHash": "0xb7ffc6558c1199ff3663cd694fb14170f0511151c554c25ee8e27d115d62d67f",
+      "address": "0x09D3F995f3a44369b4F0293D8dD0bec913647776",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x6ac87bb414697F9c09d8018D48D8Af72e09F51Ec",
+      "txHash": "0xf014da47a4b1fd7578fe0d88961af45736ed1b2bd30145de1043a3b59b683d93",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x01eCD73BB6a8c28e72303D1d878B78A8fC2e322B",
+      "txHash": "0x75628ccacd284a3fedab1e04f0dec4c656d8a322d740e89ecf85fab1ad77d087",
       "kind": "transparent"
     }
   ],
@@ -2173,6 +2182,833 @@
               "label": "_status",
               "type": "t_uint256",
               "src": "..\\@openzeppelin\\contracts-upgradeable\\utils\\ReentrancyGuardUpgradeable.sol:40"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:24"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:69"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:73"
+            }
+          ]
+        }
+      }
+    },
+    "0dd0b90f0e2ec94c47fc1a232a5500560c29ca25d900a332c5c2efaf8a39eac8": {
+      "address": "0x9d4d90F8848A14A7e0043cA00C03a829659D05fA",
+      "layout": {
+        "solcVersion": "0.8.20",
+        "storage": [
+          {
+            "contract": "HONKMarketplace",
+            "label": "honkToken",
+            "type": "t_contract(IERC20)1677",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:23"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "dfkHeroContract",
+            "type": "t_contract(IHeroCoreDiamond)2463",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:24"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "feeRecipient",
+            "type": "t_address",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:26"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "FEE_PERCENTAGE",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:27"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "proposedFeePercentage",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:31"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "proposedFeePercentageTimestamp",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:32"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroes",
+            "type": "t_mapping(t_uint256,t_struct(Hero)2503_storage)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:42"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroCount",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:43"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroIdToIndex",
+            "type": "t_mapping(t_uint256,t_uint256)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:44"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "isHeroListed",
+            "type": "t_mapping(t_uint256,t_bool)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:45"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "listedHeroCount",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:46"
+          }
+        ],
+        "types": {
+          "t_contract(IERC20)1677": {
+            "label": "contract IERC20"
+          },
+          "t_contract(IHeroCoreDiamond)2463": {
+            "label": "contract IHeroCoreDiamond"
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_mapping(t_uint256,t_struct(Hero)2503_storage)": {
+            "label": "mapping(uint256 => struct HONKMarketplace.Hero)"
+          },
+          "t_struct(Hero)2503_storage": {
+            "label": "struct HONKMarketplace.Hero",
+            "members": [
+              {
+                "label": "id",
+                "type": "t_uint256"
+              },
+              {
+                "label": "owner",
+                "type": "t_address"
+              },
+              {
+                "label": "price",
+                "type": "t_uint256"
+              },
+              {
+                "label": "isForSale",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_bool": {
+            "label": "bool"
+          },
+          "t_mapping(t_uint256,t_uint256)": {
+            "label": "mapping(uint256 => uint256)"
+          },
+          "t_mapping(t_uint256,t_bool)": {
+            "label": "mapping(uint256 => bool)"
+          },
+          "t_uint64": {
+            "label": "uint64"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\utils\\PausableUpgradeable.sol:21"
+            }
+          ],
+          "erc7201:openzeppelin.storage.ReentrancyGuard": [
+            {
+              "contract": "ReentrancyGuardUpgradeable",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\utils\\ReentrancyGuardUpgradeable.sol:40"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:24"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:69"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:73"
+            }
+          ]
+        }
+      },
+      "allAddresses": [
+        "0x9d4d90F8848A14A7e0043cA00C03a829659D05fA"
+      ]
+    },
+    "a680b3e6359c66c15da038138c4caf1fcf9a9d7c387e851db738d6d652171560": {
+      "address": "0x68F3bD6B882B4615D1e5a980354D37Ed5E61Fa5e",
+      "txHash": "0x7d83481e5ab249306614a7ceb73ad7ee71dae05dbcb5e7f8177385775a66a394",
+      "layout": {
+        "solcVersion": "0.8.20",
+        "storage": [
+          {
+            "contract": "HONKMarketplace",
+            "label": "honkToken",
+            "type": "t_contract(IERC20)1767",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:23"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "dfkHeroContract",
+            "type": "t_contract(IHeroCoreDiamond)2666",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:24"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "feeRecipient",
+            "type": "t_address",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:26"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "FEE_PERCENTAGE",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:27"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "proposedFeePercentage",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:31"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "proposedFeePercentageTimestamp",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:32"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroes",
+            "type": "t_mapping(t_uint256,t_struct(Hero)2706_storage)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:42"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroCount",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:43"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroIdToIndex",
+            "type": "t_mapping(t_uint256,t_uint256)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:44"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "isHeroListed",
+            "type": "t_mapping(t_uint256,t_bool)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:45"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "listedHeroCount",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:46"
+          }
+        ],
+        "types": {
+          "t_contract(IERC20)1767": {
+            "label": "contract IERC20"
+          },
+          "t_contract(IHeroCoreDiamond)2666": {
+            "label": "contract IHeroCoreDiamond"
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_mapping(t_uint256,t_struct(Hero)2706_storage)": {
+            "label": "mapping(uint256 => struct HONKMarketplace.Hero)"
+          },
+          "t_struct(Hero)2706_storage": {
+            "label": "struct HONKMarketplace.Hero",
+            "members": [
+              {
+                "label": "id",
+                "type": "t_uint256"
+              },
+              {
+                "label": "owner",
+                "type": "t_address"
+              },
+              {
+                "label": "price",
+                "type": "t_uint256"
+              },
+              {
+                "label": "isForSale",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_bool": {
+            "label": "bool"
+          },
+          "t_mapping(t_uint256,t_uint256)": {
+            "label": "mapping(uint256 => uint256)"
+          },
+          "t_mapping(t_uint256,t_bool)": {
+            "label": "mapping(uint256 => bool)"
+          },
+          "t_uint64": {
+            "label": "uint64"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\utils\\PausableUpgradeable.sol:21"
+            }
+          ],
+          "erc7201:openzeppelin.storage.ReentrancyGuard": [
+            {
+              "contract": "ReentrancyGuardUpgradeable",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\utils\\ReentrancyGuardUpgradeable.sol:43"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:24"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:69"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:73"
+            }
+          ]
+        }
+      }
+    },
+    "01378a1f51539f8ab180d6968637d77d6d3f7766a334a02db06aa1cffc550a5d": {
+      "address": "0x2d3bAddDa2E2E4318de6D70EBc73950Ad961A08D",
+      "txHash": "0x6b312824522ff37e4a0a764a7d3acdf6801c4c199bf1e1e75aaafbcbfd8810fc",
+      "layout": {
+        "solcVersion": "0.8.20",
+        "storage": [
+          {
+            "contract": "HONKMarketplace",
+            "label": "honkToken",
+            "type": "t_contract(IERC20)1767",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:23"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "dfkHeroContract",
+            "type": "t_contract(IHeroCoreDiamond)2666",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:24"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "feeRecipient",
+            "type": "t_address",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:26"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "FEE_PERCENTAGE",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:27"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "proposedFeePercentage",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:31"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "proposedFeePercentageTimestamp",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:32"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroes",
+            "type": "t_mapping(t_uint256,t_struct(Hero)2706_storage)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:42"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroCount",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:43"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroIdToIndex",
+            "type": "t_mapping(t_uint256,t_uint256)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:44"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "isHeroListed",
+            "type": "t_mapping(t_uint256,t_bool)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:45"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "listedHeroCount",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:46"
+          }
+        ],
+        "types": {
+          "t_contract(IERC20)1767": {
+            "label": "contract IERC20"
+          },
+          "t_contract(IHeroCoreDiamond)2666": {
+            "label": "contract IHeroCoreDiamond"
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_mapping(t_uint256,t_struct(Hero)2706_storage)": {
+            "label": "mapping(uint256 => struct HONKMarketplace.Hero)"
+          },
+          "t_struct(Hero)2706_storage": {
+            "label": "struct HONKMarketplace.Hero",
+            "members": [
+              {
+                "label": "id",
+                "type": "t_uint256"
+              },
+              {
+                "label": "owner",
+                "type": "t_address"
+              },
+              {
+                "label": "price",
+                "type": "t_uint256"
+              },
+              {
+                "label": "isForSale",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_bool": {
+            "label": "bool"
+          },
+          "t_mapping(t_uint256,t_uint256)": {
+            "label": "mapping(uint256 => uint256)"
+          },
+          "t_mapping(t_uint256,t_bool)": {
+            "label": "mapping(uint256 => bool)"
+          },
+          "t_uint64": {
+            "label": "uint64"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\utils\\PausableUpgradeable.sol:21"
+            }
+          ],
+          "erc7201:openzeppelin.storage.ReentrancyGuard": [
+            {
+              "contract": "ReentrancyGuardUpgradeable",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\utils\\ReentrancyGuardUpgradeable.sol:43"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:24"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:69"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:73"
+            }
+          ]
+        }
+      }
+    },
+    "fce10255806560327845d0eb0fa0c99b01807292e3e71f49ac5061f068d3680e": {
+      "address": "0x73435be5558901EDd14De0a41eBA4649B379e734",
+      "txHash": "0x7a61293bde027beddde103f4d4fe58dc2b90bb26a7578331cc0d6f4369d7f5db",
+      "layout": {
+        "solcVersion": "0.8.20",
+        "storage": [
+          {
+            "contract": "HONKMarketplace",
+            "label": "honkToken",
+            "type": "t_contract(IERC20)1767",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:24"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "dfkHeroContract",
+            "type": "t_contract(IHeroCoreDiamond)2674",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:25"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "feeRecipient",
+            "type": "t_address",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:27"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "FEE_PERCENTAGE",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:28"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "proposedFeePercentage",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:33"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "proposedFeePercentageTimestamp",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:34"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroes",
+            "type": "t_mapping(t_uint256,t_struct(Hero)2721_storage)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:44"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroCount",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:45"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroIdToIndex",
+            "type": "t_mapping(t_uint256,t_uint256)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:46"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "isHeroListed",
+            "type": "t_mapping(t_uint256,t_bool)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:47"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "listedHeroCount",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:48"
+          }
+        ],
+        "types": {
+          "t_contract(IERC20)1767": {
+            "label": "contract IERC20"
+          },
+          "t_contract(IHeroCoreDiamond)2674": {
+            "label": "contract IHeroCoreDiamond"
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_mapping(t_uint256,t_struct(Hero)2721_storage)": {
+            "label": "mapping(uint256 => struct HONKMarketplace.Hero)"
+          },
+          "t_struct(Hero)2721_storage": {
+            "label": "struct HONKMarketplace.Hero",
+            "members": [
+              {
+                "label": "id",
+                "type": "t_uint256"
+              },
+              {
+                "label": "owner",
+                "type": "t_address"
+              },
+              {
+                "label": "price",
+                "type": "t_uint256"
+              },
+              {
+                "label": "isForSale",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_bool": {
+            "label": "bool"
+          },
+          "t_mapping(t_uint256,t_uint256)": {
+            "label": "mapping(uint256 => uint256)"
+          },
+          "t_mapping(t_uint256,t_bool)": {
+            "label": "mapping(uint256 => bool)"
+          },
+          "t_uint64": {
+            "label": "uint64"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\utils\\PausableUpgradeable.sol:21"
+            }
+          ],
+          "erc7201:openzeppelin.storage.ReentrancyGuard": [
+            {
+              "contract": "ReentrancyGuardUpgradeable",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\utils\\ReentrancyGuardUpgradeable.sol:43"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\access\\OwnableUpgradeable.sol:24"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:69"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\proxy\\utils\\Initializable.sol:73"
+            }
+          ]
+        }
+      }
+    },
+    "93dfe1475bda74daf6c31dfe5badb42d7aaaed10ce727fe9f27865eafb957b38": {
+      "address": "0x6a64B7E00d2C47C5c502621b22a63F85630E7Ad6",
+      "txHash": "0x7b56ef83d6173fb941574dc399c1c26fb36477a38dfa3e6afa066f450d6b966b",
+      "layout": {
+        "solcVersion": "0.8.20",
+        "storage": [
+          {
+            "contract": "HONKMarketplace",
+            "label": "honkToken",
+            "type": "t_contract(IERC20)1767",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:24"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "dfkHeroContract",
+            "type": "t_contract(IHeroCoreDiamond)2674",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:25"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "feeRecipient",
+            "type": "t_address",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:27"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "FEE_PERCENTAGE",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:28"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "proposedFeePercentage",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:34"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "proposedFeePercentageTimestamp",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:35"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroes",
+            "type": "t_mapping(t_uint256,t_struct(Hero)2724_storage)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:45"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroCount",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:46"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "heroIdToIndex",
+            "type": "t_mapping(t_uint256,t_uint256)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:47"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "isHeroListed",
+            "type": "t_mapping(t_uint256,t_bool)",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:48"
+          },
+          {
+            "contract": "HONKMarketplace",
+            "label": "listedHeroCount",
+            "type": "t_uint256",
+            "src": "..\\project:\\contracts\\HONKMarketplace.sol:49"
+          }
+        ],
+        "types": {
+          "t_contract(IERC20)1767": {
+            "label": "contract IERC20"
+          },
+          "t_contract(IHeroCoreDiamond)2674": {
+            "label": "contract IHeroCoreDiamond"
+          },
+          "t_address": {
+            "label": "address"
+          },
+          "t_uint256": {
+            "label": "uint256"
+          },
+          "t_mapping(t_uint256,t_struct(Hero)2724_storage)": {
+            "label": "mapping(uint256 => struct HONKMarketplace.Hero)"
+          },
+          "t_struct(Hero)2724_storage": {
+            "label": "struct HONKMarketplace.Hero",
+            "members": [
+              {
+                "label": "id",
+                "type": "t_uint256"
+              },
+              {
+                "label": "owner",
+                "type": "t_address"
+              },
+              {
+                "label": "price",
+                "type": "t_uint256"
+              },
+              {
+                "label": "isForSale",
+                "type": "t_bool"
+              }
+            ]
+          },
+          "t_bool": {
+            "label": "bool"
+          },
+          "t_mapping(t_uint256,t_uint256)": {
+            "label": "mapping(uint256 => uint256)"
+          },
+          "t_mapping(t_uint256,t_bool)": {
+            "label": "mapping(uint256 => bool)"
+          },
+          "t_uint64": {
+            "label": "uint64"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\utils\\PausableUpgradeable.sol:21"
+            }
+          ],
+          "erc7201:openzeppelin.storage.ReentrancyGuard": [
+            {
+              "contract": "ReentrancyGuardUpgradeable",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "..\\@openzeppelin\\contracts-upgradeable\\utils\\ReentrancyGuardUpgradeable.sol:43"
             }
           ],
           "erc7201:openzeppelin.storage.Ownable": [

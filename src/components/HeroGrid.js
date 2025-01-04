@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import HeroCard from './HeroCard';
 import { Modal, HeroDetails } from './Modal';
+import { toast } from 'react-toastify';
+import VirtualizedHeroGrid from './VirtualizedHeroGrid';
 
 const HeroGrid = ({
   heroes,
@@ -9,12 +10,15 @@ const HeroGrid = ({
   onList,
   onCancelListing,
   onUpdatePrice,
-  onBuy,
+  onBuyHero,
   formatPrice,
   lastHeroRef,
-  listingHeroId,
-  cancellingHeroId,
   isConnected,
+  purchasedHeroes,
+  listedHeroes,
+  pendingTransactions,
+  pendingCancellations,
+  pendingPriceUpdates,
 }) => {
   const [selectedHero, setSelectedHero] = useState(null);
   const [price, setPrice] = useState('');
@@ -25,7 +29,11 @@ const HeroGrid = ({
 
   const handleList = (heroId) => {
     const hero = heroes.find((h) => h.id === heroId);
-    setSelectedHero(hero);
+    if (hero) {
+      setSelectedHero(hero);
+    } else {
+      console.error('Hero not found:', heroId);
+    }
   };
 
   const closeModal = () => {
@@ -34,42 +42,55 @@ const HeroGrid = ({
   };
 
   const listHeroForSale = async () => {
-    if (selectedHero && price) {
-      try {
-        await onList(selectedHero.id, price);
-        closeModal();
-      } catch (error) {
-        console.error('Error listing hero:', error);
-      }
+    if (!selectedHero) {
+      toast.error('No hero selected');
+      return;
+    }
+
+    if (!price) {
+      toast.error('Please enter a price');
+      return;
+    }
+
+    const numericPrice = parseFloat(price);
+    if (isNaN(numericPrice) || numericPrice <= 0) {
+      toast.error('Please enter a valid price greater than 0 HONK');
+      return;
+    }
+
+    if (numericPrice > 1000000) {
+      toast.error('Price cannot exceed 1,000,000 HONK');
+      return;
+    }
+
+    try {
+      await onList(selectedHero.id, price);
+      closeModal();
+    } catch (error) {
+      console.error('Error listing hero:', error);
+      toast.error('Failed to list hero: ' + error.message);
     }
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-wrap justify-center -mx-4">
-        {heroes.map((hero, index) => (
-          <div
-            key={hero.id}
-            ref={index === heroes.length - 1 ? lastHeroRef : null}
-            className="p-4"
-            style={{ width: '320px' }} // Adjusted to account for padding
-          >
-            <HeroCard
-              hero={hero}
-              isBuyPage={isBuyPage}
-              honkLogo={honkLogo}
-              onBuy={onBuy}
-              onCancelListing={onCancelListing}
-              onUpdatePrice={onUpdatePrice}
-              onList={handleList}
-              formatPrice={formatPrice}
-              isListing={listingHeroId === hero.id}
-              isCancelling={cancellingHeroId === hero.id}
-              isConnected={isConnected}
-            />
-          </div>
-        ))}
-      </div>
+    <>
+      <VirtualizedHeroGrid
+        heroes={heroes}
+        isBuyPage={isBuyPage}
+        honkLogo={honkLogo}
+        onList={handleList}
+        onCancelListing={onCancelListing}
+        onUpdatePrice={onUpdatePrice}
+        onBuyHero={onBuyHero}
+        formatPrice={formatPrice}
+        lastHeroRef={lastHeroRef}
+        isConnected={isConnected}
+        purchasedHeroes={purchasedHeroes}
+        listedHeroes={listedHeroes}
+        pendingTransactions={pendingTransactions}
+        pendingCancellations={pendingCancellations}
+        pendingPriceUpdates={pendingPriceUpdates}
+      />
       {selectedHero && (
         <Modal onClose={closeModal}>
           <HeroDetails
@@ -78,13 +99,12 @@ const HeroGrid = ({
             price={price}
             setPrice={setPrice}
             onList={listHeroForSale}
-            isBuyPage={isBuyPage}
+            isBuyPage={false}
             onClose={closeModal}
-            onBuy={onBuy}
           />
         </Modal>
       )}
-    </div>
+    </>
   );
 };
 

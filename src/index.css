@@ -1815,6 +1815,48 @@ CHANGE CARD BORDERS
 BASED ON RARITY OR PARTNERSHIPS
 **/
 
+/*** COMMON ***/
+
+.common .heroCardFront,
+.common .heroCardBack {
+  background-image: url(./assets/images/hero/cards/commonCardBackground.png);
+}
+
+.common .heroCardFront .heroCardFrame:before {
+  background-image: url(./assets/images/hero/cards/commonCardBorder.png),
+    url(./assets/images/hero/cards/commonCardBorderInside.png);
+}
+
+.common .heroCardBack .heroCardFrame:before {
+  background-image: url(./assets/images/hero/cards/commonCardBorder.png),
+    url(./assets/images/hero/cards/commonCardBackFrame.png);
+}
+
+.common .heroName span {
+  background-image: url(./assets/images/hero/cards/commonCardTab.png);
+}
+
+.common .heroName span:before {
+  background-image: url(./assets/images/hero/cards/commonCardTabCorner2.png);
+}
+
+.common .heroName span:after {
+  background-image: url(./assets/images/hero/cards/commonCardTabCorner1.png);
+}
+
+.common .heroPreview:before {
+  background: url(./assets/images/hero/cards/commonCardFrame.png);
+}
+
+.common .heroHealth,
+.common .heroMana,
+.common .heroFrame,
+.common .heroID,
+.common .heroName span,
+.common .sliderToggle {
+  color: #e2e8f0;
+}
+
 /*** UNCOMMON ***/
 
 .uncommon .heroCardFront,

@@ -1,6 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 const PORT = 3456;
@@ -15,6 +16,27 @@ app.use((req, res, next) => {
   log(`Request for: ${req.url}`);
   next();
 });
+
+// DFK API proxy middleware
+app.use(
+  '/dfk-api',
+  createProxyMiddleware({
+    target: 'https://api.defikingdoms.com',
+    changeOrigin: true,
+    pathRewrite: {
+      '^/dfk-api': '',
+    },
+    onProxyRes: function (proxyRes, req, res) {
+      proxyRes.headers['Access-Control-Allow-Origin'] = '*';
+      proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
+      proxyRes.headers['Access-Control-Allow-Headers'] = 'Content-Type';
+    },
+    onError: function(err, req, res) {
+      log(`Proxy error: ${err.message}`);
+      res.status(500).send('Proxy Error');
+    },
+  })
+);
 
 // Serve static files from the 'build' directory
 app.use(express.static(path.join(__dirname, 'build')));

@@ -1,151 +1,354 @@
-export const applyFiltersAndSort = (heroes, filters, sortOrder, isSellTab = false) => {
-  console.log('Applying filters and sort:');
-  console.log('Heroes:', heroes);
-  console.log('Filters:', filters);
-  console.log('Sort order:', sortOrder);
-  console.log('Is Sell Tab:', isSellTab);
+import { web3, DFKHeroContract } from '../Web3Config';
 
-  const filteredHeroes = heroes.filter((hero) => {
-    console.log('Filtering hero:', hero.id);
-    const heroAttributes = {
-      heroClass: hero.attributes.find((attr) => attr.trait_type === 'Class')?.value,
-      heroSubClass: hero.attributes.find((attr) => attr.trait_type === 'Sub Class')?.value,
-      heroProfession: hero.attributes.find((attr) => attr.trait_type === 'Profession')?.value,
-      heroCraft1: hero.attributes.find((attr) => attr.trait_type === 'Crafting 1')?.value,
-      heroCraft2: hero.attributes.find((attr) => attr.trait_type === 'Crafting 2')?.value,
-      heroRarity: hero.attributes.find((attr) => attr.trait_type === 'Rarity')?.value,
-      heroRarityNumber: ['Common', 'Uncommon', 'Rare', 'Legendary', 'Mythic'].indexOf(
-        hero.attributes.find((attr) => attr.trait_type === 'Rarity')?.value
-      ),
-      heroGeneration: parseInt(
-        hero.attributes.find((attr) => attr.trait_type === 'Generation')?.value
-      ),
-      heroLevel: parseInt(hero.attributes.find((attr) => attr.trait_type === 'Level')?.value),
+// Memoize filter results for performance
+const memoizedResults = new Map();
+
+// Memoize quest status checks
+const questStatusCache = new Map();
+
+// Helper function to check quest status
+const checkQuestStatus = async (heroId) => {
+  if (questStatusCache.has(heroId)) {
+    return questStatusCache.get(heroId);
+  }
+
+  try {
+    const heroState = await DFKHeroContract.methods.getHeroState(heroId).call();
+    const isQuesting = heroState.currentQuest !== '0x0000000000000000000000000000000000000000';
+    questStatusCache.set(heroId, isQuesting);
+    return isQuesting;
+  } catch (error) {
+    console.error(`Error checking quest status for hero ${heroId}:`, error);
+    return false;
+  }
+};
+
+const applyHeroFilters = async (hero, filters) => {
+  // Hide questing heroes filter
+  if (filters.hideQuesting) {
+    const isQuesting = await checkQuestStatus(hero.id);
+    if (isQuesting) {
+      return null;
+    }
+  }
+
+  // Hero ID filter
+  if (filters.heroId && filters.heroId.trim() !== '') {
+    const searchTerm = filters.heroId.trim();
+    
+    // For single digit searches, require at least 2 digits
+    if (searchTerm.length === 1) {
+      return null;
+    }
+    
+    // Ensure consistent string handling
+    const heroFullId = String(hero.id || '').padStart(13, '0');
+    
+    // Get the last 6 digits which is the actual hero ID
+    const baseHeroId = heroFullId.slice(-6);
+    
+    // Check if the search term appears in either the full ID or base ID
+    const isMatch = heroFullId.includes(searchTerm) || baseHeroId.includes(searchTerm);
+    if (!isMatch) {
+      return null;
+    }
+  }
+
+  // Class filter
+  if (filters.class?.length > 0) {
+    const heroClassRaw = hero.mainClass || hero.class || '';
+    const heroClass = normalizeClassName(heroClassRaw);
+    
+    const matchesClass = filters.class.some(filterClass => 
+      normalizeClassName(filterClass) === heroClass
+    );
+
+    if (!matchesClass) return null;
+  }
+
+  // Subclass filter
+  if (filters.subclass?.length > 0) {
+    const heroSubClassRaw = hero.subClass || hero.subclass || '';
+    const heroSubClass = normalizeClassName(heroSubClassRaw);
+    
+    const matchesSubClass = filters.subclass.some(filterClass => 
+      normalizeClassName(filterClass) === heroSubClass
+    );
+
+    if (!matchesSubClass) {
+      return null;
+    }
+  }
+
+  // Profession filter (gathering)
+  if (filters.profession?.length > 0) {
+    // Use the profession directly from the hero object
+    const mainProfession = (hero.professionStr || hero.profession || '').toLowerCase();
+    
+    const matchesProfession = filters.profession.some(prof => 
+      prof.toLowerCase() === mainProfession
+    );
+
+    if (!matchesProfession) return null;
+  }
+
+  // Crafting profession 1 filter
+  if (filters.crafting1?.length > 0) {
+    const craftProf1 = (hero.craftProf1 || hero.crafting1 || '').toLowerCase();
+    
+    const matchesCrafting1 = filters.crafting1.some(prof => 
+      prof.toLowerCase() === craftProf1
+    );
+
+    if (!matchesCrafting1) return null;
+  }
+
+  // Crafting profession 2 filter
+  if (filters.crafting2?.length > 0) {
+    const craftProf2 = (hero.craftProf2 || hero.crafting2 || '').toLowerCase();
+    
+    const matchesCrafting2 = filters.crafting2.some(prof => 
+      prof.toLowerCase() === craftProf2
+    );
+
+    if (!matchesCrafting2) return null;
+  }
+
+  // Level range filter
+  if (filters.levelRange || (filters.levelMin !== undefined && filters.levelMax !== undefined)) {
+    // Get level range either from array or separate min/max values
+    const [minLevel, maxLevel] = filters.levelRange || [filters.levelMin, filters.levelMax];
+    
+    // Try different possible level properties and convert to number
+    const heroLevel = Number(
+      hero.level || 
+      hero.stats?.level || 
+      hero.info?.level || 
+      hero.attributes?.find(a => a.trait_type === 'level')?.value || 
+      '1'
+    );
+
+    if (Number(minLevel) > 0 && heroLevel < Number(minLevel)) {
+      return null;
+    }
+
+    if (maxLevel && Number(maxLevel) > 0 && heroLevel > Number(maxLevel)) {
+      return null;
+    }
+  }
+
+  // Rarity filter
+  if (filters.rarityMin !== undefined || filters.rarityMax !== undefined) {
+    const rarityMap = {
+      'common': 0,
+      'uncommon': 1,
+      'rare': 2,
+      'legendary': 3,
+      'mythic': 4
     };
-    console.log('Hero attributes:', heroAttributes);
+    
+    const heroRarityValue = rarityMap[(hero.rarity || '').toLowerCase()] || 0;
+    const minRarity = filters.rarityMin || 0;
+    const maxRarity = filters.rarityMax || 4;
 
-    let matches = true;
+    if (heroRarityValue < minRarity || heroRarityValue > maxRarity) {
+      return null;
+    }
+  }
 
-    // Apply class filter
-    if (filters.class && filters.class.length > 0) {
-      matches = matches && filters.class.includes(heroAttributes.heroClass);
-      console.log('Class filter applied:', matches);
+  // Generation range filter
+  if (filters.generationMin !== undefined || filters.generationMax !== undefined) {
+    const heroGen = Number(hero.generation || 0);
+    const minGen = filters.generationMin || 0;
+    const maxGen = filters.generationMax || 11;
+    
+    if (heroGen < minGen || heroGen > maxGen) {
+      return null;
     }
+  }
 
-    // Apply subclass filter
-    if (filters.subclass && filters.subclass.length > 0) {
-      matches = matches && filters.subclass.includes(heroAttributes.heroSubClass);
-      console.log('Subclass filter applied:', matches);
+  // Summons remaining filter
+  if (filters.summonsRemainingMin !== undefined || filters.summonsRemainingMax !== undefined) {
+    const heroMaxSummons = Number(hero.maxSummons || 0);
+    const usedSummons = Number(hero.summons || 0);
+    const summonsRemaining = heroMaxSummons - usedSummons;
+    
+    const minSummons = filters.summonsRemainingMin || 0;
+    const maxSummons = filters.summonsRemainingMax || 10;
+    
+    if (summonsRemaining < minSummons || summonsRemaining > maxSummons) {
+      return null;
     }
+  }
 
-    // Apply profession filter
-    if (filters.profession && filters.profession.length > 0) {
-      matches = matches && filters.profession.includes(heroAttributes.heroProfession);
-      console.log('Profession filter applied:', matches);
-    }
+  return hero;
+};
 
-    // Apply crafting filters
-    if (filters.crafting1 && filters.crafting1.length > 0) {
-      matches = matches && filters.crafting1.includes(heroAttributes.heroCraft1);
-      console.log('Crafting1 filter applied:', matches);
-    }
-    if (filters.crafting2 && filters.crafting2.length > 0) {
-      matches = matches && filters.crafting2.includes(heroAttributes.heroCraft2);
-      console.log('Crafting2 filter applied:', matches);
-    }
+export const applyFiltersAndSort = async (heroes, filters, sortOrder, isSellTab = false, listedHeroes = [], tavernHeroes = []) => {
+  if (!heroes || !Array.isArray(heroes)) return [];
+  
+  // Ensure filters is an object
+  filters = filters || {};
+  
+  // Ensure arrays are arrays
+  listedHeroes = Array.isArray(listedHeroes) ? listedHeroes : [];
+  tavernHeroes = Array.isArray(tavernHeroes) ? tavernHeroes : [];
 
-    // Apply range filters
-    if (
-      heroAttributes.heroRarityNumber < filters.rarityMin ||
-      heroAttributes.heroRarityNumber > filters.rarityMax
-    ) {
-      matches = false;
-      console.log('Rarity filter applied:', matches);
-    }
-    if (
-      heroAttributes.heroGeneration < filters.generationMin ||
-      heroAttributes.heroGeneration > filters.generationMax
-    ) {
-      matches = false;
-      console.log('Generation filter applied:', matches);
-    }
-    if (
-      heroAttributes.heroLevel < filters.levelMin ||
-      heroAttributes.heroLevel > filters.levelMax
-    ) {
-      matches = false;
-      console.log('Level filter applied:', matches);
-    }
-
-    // Apply hide options
-    if (filters.hideQuesting && hero.isOnQuest) {
-      matches = false;
-      console.log('Hide questing filter applied:', matches);
-    }
-    if (filters.hideListedHeroes && hero.isForSale) {
-      matches = false;
-      console.log('Hide listed heroes filter applied:', matches);
-    }
-
-    console.log(`Hero ${hero.id} matches filters:`, matches);
-    return matches;
+  // Create a cache key based on the inputs
+  const cacheKey = JSON.stringify({ 
+    heroes: heroes.map(h => h.id), 
+    filters, 
+    sortOrder, 
+    isSellTab 
   });
+  
+  if (memoizedResults.has(cacheKey)) {
+    return memoizedResults.get(cacheKey);
+  }
 
-  console.log('Filtered heroes:', filteredHeroes);
+  // Create Sets for quick lookup
+  const listedHeroIds = new Set(listedHeroes.map(h => h?.heroId).filter(Boolean));
+  const tavernHeroIds = new Set(tavernHeroes.map(h => h?.id).filter(Boolean));
 
-  const sortedHeroes = filteredHeroes.sort((a, b) => {
-    // Prioritize listed heroes in SellTab
-    if (isSellTab) {
-      if (a.isForSale && !b.isForSale) return -1;
-      if (!a.isForSale && b.isForSale) return 1;
+  // Split heroes into listed, unlisted, and tavern
+  const [listedHeroesArr, unlistedHeroesArr, tavernHeroesArr] = heroes.reduce(
+    ([listed, unlisted, tavern], hero) => {
+      if (!hero) return [listed, unlisted, tavern];
+      
+      // First check if it's a DFK hero
+      if (hero.marketplace === 'dfk' || hero.isDFKTavernListing) {
+        tavern.push(hero);
+      }
+      // Then check if it's listed on HONK
+      else if (listedHeroIds.has(hero.id) && hero.isForSale) {
+        const listingData = listedHeroes.find(h => h.heroId === hero.id);
+        if (listingData) {
+          listed.push({
+            ...hero,
+            isForSale: true,
+            price: listingData.price,
+            owner: listingData.owner,
+            marketplace: 'honk'
+          });
+        } else {
+          unlisted.push(hero);
+        }
+      } else {
+        unlisted.push(hero);
+      }
+      return [listed, unlisted, tavern];
+    },
+    [[], [], []]
+  );
+
+  // Apply filters to each array separately
+  let filteredListedHeroes = await Promise.all(listedHeroesArr.map(async (hero) => {
+    return applyHeroFilters(hero, filters);
+  }));
+
+  let filteredUnlistedHeroes = await Promise.all(unlistedHeroesArr.map(async (hero) => {
+    return applyHeroFilters(hero, filters);
+  }));
+
+  let filteredTavernHeroes = await Promise.all(tavernHeroesArr.map(async (hero) => {
+    return applyHeroFilters(hero, filters);
+  }));
+
+  // Filter out nulls (heroes that didn't pass filters)
+  filteredListedHeroes = filteredListedHeroes.filter(hero => hero !== null);
+  filteredUnlistedHeroes = filteredUnlistedHeroes.filter(hero => hero !== null);
+  filteredTavernHeroes = filteredTavernHeroes.filter(hero => hero !== null);
+
+  // Apply sorting within each group
+  const sortFunctions = {
+    'price-asc': (a, b) => {
+      const aPrice = BigInt(a.price || '0');
+      const bPrice = BigInt(b.price || '0');
+      return aPrice < bPrice ? -1 : aPrice > bPrice ? 1 : 0;
+    },
+    'price-desc': (a, b) => {
+      const aPrice = BigInt(a.price || '0');
+      const bPrice = BigInt(b.price || '0');
+      return bPrice < aPrice ? -1 : bPrice > aPrice ? 1 : 0;
+    },
+    'level-asc': (a, b) => (Number(a.level || 0) - Number(b.level || 0)),
+    'level-desc': (a, b) => (Number(b.level || 0) - Number(a.level || 0)),
+    'id-asc': (a, b) => (Number(a.id || 0) - Number(b.id || 0)),
+    'id-desc': (a, b) => (Number(b.id || 0) - Number(a.id || 0)),
+    'generation-asc': (a, b) => (Number(a.generation || 0) - Number(b.generation || 0)),
+    'generation-desc': (a, b) => (Number(b.generation || 0) - Number(a.generation || 0)),
+    'rarity-asc': (a, b) => {
+      const rarityMap = {
+        'common': 0,
+        'uncommon': 1,
+        'rare': 2,
+        'legendary': 3,
+        'mythic': 4
+      };
+      const aRarity = rarityMap[(a.rarity || '').toLowerCase()] || 0;
+      const bRarity = rarityMap[(b.rarity || '').toLowerCase()] || 0;
+      return aRarity - bRarity;
+    },
+    'rarity-desc': (a, b) => {
+      const rarityMap = {
+        'common': 0,
+        'uncommon': 1,
+        'rare': 2,
+        'legendary': 3,
+        'mythic': 4
+      };
+      const aRarity = rarityMap[(a.rarity || '').toLowerCase()] || 0;
+      const bRarity = rarityMap[(b.rarity || '').toLowerCase()] || 0;
+      return bRarity - aRarity;
     }
+  };
 
-    const getAttributeValue = (hero, attribute) => {
-      return hero.attributes.find((attr) => attr.trait_type === attribute)?.value;
-    };
+  const sortFn = sortFunctions[sortOrder] || sortFunctions['price-asc'];
+  
+  filteredListedHeroes.sort(sortFn);
+  filteredUnlistedHeroes.sort(sortFn);
+  filteredTavernHeroes.sort(sortFn);
 
-    switch (sortOrder) {
-      case 'price-asc':
-        return parseFloat(a.price) - parseFloat(b.price);
-      case 'price-desc':
-        return parseFloat(b.price) - parseFloat(a.price);
-      case 'generation-asc':
-        return (
-          parseInt(getAttributeValue(a, 'Generation')) -
-          parseInt(getAttributeValue(b, 'Generation'))
-        );
-      case 'generation-desc':
-        return (
-          parseInt(getAttributeValue(b, 'Generation')) -
-          parseInt(getAttributeValue(a, 'Generation'))
-        );
-      case 'rarity-asc':
-        return (
-          ['Common', 'Uncommon', 'Rare', 'Legendary', 'Mythic'].indexOf(
-            getAttributeValue(a, 'Rarity')
-          ) -
-          ['Common', 'Uncommon', 'Rare', 'Legendary', 'Mythic'].indexOf(
-            getAttributeValue(b, 'Rarity')
-          )
-        );
-      case 'rarity-desc':
-        return (
-          ['Common', 'Uncommon', 'Rare', 'Legendary', 'Mythic'].indexOf(
-            getAttributeValue(b, 'Rarity')
-          ) -
-          ['Common', 'Uncommon', 'Rare', 'Legendary', 'Mythic'].indexOf(
-            getAttributeValue(a, 'Rarity')
-          )
-        );
-      case 'level-asc':
-        return parseInt(getAttributeValue(a, 'Level')) - parseInt(getAttributeValue(b, 'Level'));
-      case 'level-desc':
-        return parseInt(getAttributeValue(b, 'Level')) - parseInt(getAttributeValue(a, 'Level'));
-      default:
-        return 0;
-    }
-  });
+  // Combine all heroes in the correct order
+  const filteredHeroes = [
+    ...filteredListedHeroes,
+    ...filteredUnlistedHeroes,
+    ...filteredTavernHeroes
+  ];
 
-  console.log('Sorted heroes:', sortedHeroes);
-  return sortedHeroes;
+  // Cache and return the results
+  memoizedResults.set(cacheKey, filteredHeroes);
+  return filteredHeroes;
+};
+
+const normalizeClassName = (className) => {
+  const classMap = {
+    'warrior': 'warrior',
+    'knight': 'knight',
+    'thief': 'thief',
+    'archer': 'archer',
+    'priest': 'priest',
+    'wizard': 'wizard',
+    'monk': 'monk',
+    'pirate': 'pirate',
+    'berserker': 'berserker',
+    'seer': 'seer',
+    'legionnaire': 'legionnaire',
+    'scholar': 'scholar',
+    'paladin': 'paladin',
+    'darkKnight': 'darkknight',
+    'summoner': 'summoner',
+    'ninja': 'ninja',
+    'shapeshifter': 'shapeshifter',
+    'dragoon': 'dragoon'
+  };
+  return classMap[className.toLowerCase()] || className.toLowerCase();
+};
+
+const rarityValues = {
+  'common': 0,
+  'uncommon': 1,
+  'rare': 2,
+  'legendary': 3,
+  'mythic': 4
 };

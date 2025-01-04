@@ -2,6 +2,7 @@ import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import honkLogo from './assets/images/honk/honkCoin.webp';
 import './index.css';
+import './App.css';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './components/customToastStyles.css';
@@ -12,9 +13,11 @@ import LoadingIndicator from './components/LoadingIndicator';
 import SidebarWithFilters from './components/SidebarWithFilters';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDonate } from '@fortawesome/free-solid-svg-icons';
+import { HeroProvider } from './context/HeroContext';
 
 const BuyTab = lazy(() => import('./components/BuyTab'));
 const SellTab = lazy(() => import('./components/SellTab'));
+const TestHeroLoad = lazy(() => import('./components/TestHeroLoad'));
 
 const ConnectionStatus = ({
   isConnected,
@@ -169,6 +172,8 @@ const App = () => {
     levelMax: 100,
     generationMin: 0,
     generationMax: 11,
+    summonsRemainingMin: 0,
+    summonsRemainingMax: 10,
     hideQuesting: false,
     hideListedHeroes: false,
   });
@@ -256,102 +261,115 @@ const App = () => {
   }
 
   return (
-    <div className="relative min-h-screen bg-gray-900 text-gray-300">
-      <SidebarWithFilters
-        onFiltersChange={handleFiltersChange}
-        onSortChange={handleSortChange}
-        filters={filters}
-        sortOrder={sortOrder}
-        sortOptions={[
-          { value: 'price-asc', label: 'Price: Low to High' },
-          { value: 'price-desc', label: 'Price: High to Low' },
-          { value: 'level-asc', label: 'Level: Low to High' },
-          { value: 'level-desc', label: 'Level: High to Low' },
-          { value: 'rarity-asc', label: 'Rarity: Common to Mythic' },
-          { value: 'rarity-desc', label: 'Rarity: Mythic to Common' },
-          { value: 'generation-asc', label: 'Generation: Low to High' },
-          { value: 'generation-desc', label: 'Generation: High to Low' },
-        ]}
-        disabled={!isConnected || !isCorrectNetwork}
-        isBuyTab={location.pathname === '/'}
-        isOpen={isSidebarOpen}
-        setIsOpen={setIsSidebarOpen}
-      />
-      <div className={`flex-1 ${isSidebarOpen ? 'ml-96' : 'ml-16'} transition-all duration-300`}>
-        <div className="p-4">
-          <ConnectionStatus
-            isConnected={isConnected}
-            isCorrectNetwork={isCorrectNetwork}
-            walletAddress={connectedAddress}
-            honkBalance={honkBalance}
-            onConnect={handleConnect}
-            onSwitchNetwork={handleSwitchNetwork}
-            onRefreshBalance={updateBalance}
-          />
-          <div className="container mx-auto p-4 flex justify-center items-center">
-            <img
-              src={honkLogo}
-              alt="HONK Logo"
-              className="mr-4"
-              style={{ width: '100px', height: 'auto' }}
+    <HeroProvider>
+      <div className="relative min-h-screen bg-gray-900 text-gray-300">
+        <SidebarWithFilters
+          onFiltersChange={handleFiltersChange}
+          onSortChange={handleSortChange}
+          filters={filters}
+          sortOrder={sortOrder}
+          sortOptions={[
+            { value: 'price-asc', label: 'Price: Low to High' },
+            { value: 'price-desc', label: 'Price: High to Low' },
+            { value: 'level-asc', label: 'Level: Low to High' },
+            { value: 'level-desc', label: 'Level: High to Low' },
+            { value: 'rarity-asc', label: 'Rarity: Common to Mythic' },
+            { value: 'rarity-desc', label: 'Rarity: Mythic to Common' },
+            { value: 'generation-asc', label: 'Generation: Low to High' },
+            { value: 'generation-desc', label: 'Generation: High to Low' },
+          ]}
+          disabled={!isConnected || !isCorrectNetwork}
+          isBuyTab={location.pathname === '/'}
+          isOpen={isSidebarOpen}
+          setIsOpen={setIsSidebarOpen}
+        />
+        <div className={`flex-1 ${isSidebarOpen ? 'ml-96' : 'ml-16'} transition-all duration-300`}>
+          <div className="p-4">
+            <ConnectionStatus
+              isConnected={isConnected}
+              isCorrectNetwork={isCorrectNetwork}
+              walletAddress={connectedAddress}
+              honkBalance={honkBalance}
+              onConnect={handleConnect}
+              onSwitchNetwork={handleSwitchNetwork}
+              onRefreshBalance={updateBalance}
             />
-            <h1 className="text-4xl font-bold my-8 text-white">HONK Marketplace</h1>
-          </div>
-          {isConnected ? (
-            isCorrectNetwork ? (
-              <Suspense fallback={<div>Loading...</div>}>
-                <Routes>
-                  <Route
-                    path="/sell"
-                    element={
-                      <SellTab
-                        userAddress={connectedAddress}
-                        filters={filters}
-                        sortOrder={sortOrder}
-                      />
-                    }
-                  />
-                  <Route
-                    path="/"
-                    element={
-                      <BuyTab
-                        connectedAddress={connectedAddress}
-                        honkLogo={honkLogo}
-                        filters={filters}
-                        sortOrder={sortOrder}
-                        onBalanceChange={updateBalance}
-                        isConnected={isConnected}
-                      />
-                    }
-                  />
-                </Routes>
-              </Suspense>
+            <div className="container mx-auto p-4 flex justify-center items-center">
+              <img
+                src={honkLogo}
+                alt="HONK Logo"
+                className="mr-4"
+                style={{ width: '100px', height: 'auto' }}
+              />
+              <h1 className="text-4xl font-bold my-8 text-white">HONK Marketplace</h1>
+            </div>
+            {isConnected ? (
+              isCorrectNetwork ? (
+                <Suspense fallback={<div>Loading...</div>}>
+                  <Routes>
+                    <Route
+                      path="/sell"
+                      element={
+                        <SellTab
+                          userAddress={connectedAddress}
+                          filters={filters}
+                          sortOrder={sortOrder}
+                        />
+                      }
+                    />
+                    <Route
+                      path="/"
+                      element={
+                        <BuyTab
+                          connectedAddress={connectedAddress}
+                          honkLogo={honkLogo}
+                          filters={filters}
+                          sortOrder={sortOrder}
+                          onBalanceChange={updateBalance}
+                          isConnected={isConnected}
+                        />
+                      }
+                    />
+                    <Route
+                      path="/test"
+                      element={
+                        <TestHeroLoad
+                          connectedAddress={connectedAddress}
+                          filters={filters}
+                          sortOrder={sortOrder}
+                        />
+                      }
+                    />
+                  </Routes>
+                </Suspense>
+              ) : (
+                <div className="text-center mt-10">
+                  <p>Please switch to the DFK Testnet to access the marketplace.</p>
+                </div>
+              )
             ) : (
               <div className="text-center mt-10">
-                <p>Please switch to the DFK Testnet to access the marketplace.</p>
+                <p>Please connect your wallet to access the marketplace.</p>
               </div>
-            )
-          ) : (
-            <div className="text-center mt-10">
-              <p>Please connect your wallet to access the marketplace.</p>
-            </div>
-          )}
+            )}
+          </div>
+          <ToastContainer
+            position="bottom-right"
+            autoClose={3000}
+            hideProgressBar={false}
+            newestOnTop={true}
+            closeOnClick
+            rtl={false}
+            pauseOnFocusLoss
+            draggable
+            pauseOnHover
+            theme="dark"
+            limit={3}
+          />
+          <CreditsIcon />
         </div>
-        <ToastContainer
-          position="bottom-right"
-          autoClose={5000}
-          hideProgressBar={false}
-          newestOnTop={false}
-          closeOnClick
-          rtl={false}
-          pauseOnFocusLoss
-          draggable
-          pauseOnHover
-          theme="dark"
-        />
-        <CreditsIcon />
       </div>
-    </div>
+    </HeroProvider>
   );
 };
 

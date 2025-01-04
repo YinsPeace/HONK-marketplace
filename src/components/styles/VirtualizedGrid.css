@@ -1,0 +1,52 @@
+body {
+  overflow: hidden;
+}
+
+.virtualized-grid-container {
+  width: 100%;
+  height: calc(100vh - 200px);
+  overflow-y: auto;
+  position: relative;
+}
+
+.virtualized-grid-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.virtualized-grid-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.virtualized-grid-container::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.virtualized-grid-content {
+  position: relative;
+  width: 100%;
+}
+
+.virtualized-grid-row {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  position: absolute;
+  left: 50%;
+  width: 100%;
+}
+
+.hero-card-wrapper {
+  width: 300px;
+  min-height: 650px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Add some padding at the bottom of the container for better scrolling */
+.virtualized-grid-container::after {
+  content: '';
+  display: block;
+  height: 40px;
+}

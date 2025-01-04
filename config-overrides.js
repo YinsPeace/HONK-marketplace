@@ -9,5 +9,14 @@ module.exports = override(
   ),
   addWebpackAlias({
     '@': path.resolve(__dirname, 'src'),
-  })
+  }),
+  (config) => {
+    // Ensure JSON files are processed
+    config.module.rules.push({
+      test: /\.json$/,
+      type: 'javascript/auto',
+      include: path.resolve(__dirname, 'src/assets'),
+    });
+    return config;
+  }
 );

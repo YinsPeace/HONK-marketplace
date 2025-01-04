@@ -2,10 +2,9 @@ module.exports = {
   extends: [
     'react-app',
     'react-app/jest',
-    'plugin:react/recommended',
-    'plugin:prettier/recommended',
+    'plugin:react/recommended'
   ],
-  plugins: ['react', 'prettier'],
+  plugins: ['react'],
   parserOptions: {
     ecmaVersion: 2020,
   },
@@ -16,16 +15,7 @@ module.exports = {
     'no-undef': 'off',
     'react/prop-types': 'off',
     'react/react-in-jsx-scope': 'off',
-    'prettier/prettier': [
-      'error',
-      {
-        endOfLine: 'auto',
-      },
-    ],
-  },
-  settings: {
-    react: {
-      version: 'detect',
-    },
-  },
-};
+    'react-hooks/rules-of-hooks': 'off',
+    'react-hooks/exhaustive-deps': 'warn'
+  }
+}

@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import HeroGrid from './HeroGrid';
 import LoadingIndicator from './LoadingIndicator';
-import { formatPrice } from '../utils/heroUtils';
 import { toast } from 'react-toastify';
-import { useHeroManagement } from '../hooks/useHeroManagement';
 import { useWallet } from '../hooks/useWallet';
 import { useHeroBuying } from '../hooks/useHeroBuying';
+import { useBuyTab } from '../hooks/useBuyTab';
+import honkLogo from '../assets/images/honk/honkCoin.webp';
 
-const BuyTab = ({ honkLogo, filters, sortOrder }) => {
+const BuyTab = ({ filters, sortOrder }) => {
   const { isConnected, isCorrectNetwork, connectedAddress, connect, switchNetwork, updateBalance } =
     useWallet();
 
@@ -17,14 +17,19 @@ const BuyTab = ({ honkLogo, filters, sortOrder }) => {
     error,
     hasMore,
     isLoadingMore,
-    lastHeroElementRef,
+    loadMoreHeroes,
     fetchHeroes,
-  } = useHeroManagement(connectedAddress, true, filters, sortOrder);
+    setHeroes
+  } = useBuyTab(connectedAddress, filters, sortOrder);
+
+  const [pendingTransactions, setPendingTransactions] = React.useState(new Set());
 
   const { buyingHeroId, buyHero, checkHONKBalance } = useHeroBuying(
     connectedAddress,
     fetchHeroes,
-    updateBalance
+    updateBalance,
+    setPendingTransactions,
+    setHeroes
   );
 
   const handleBuyHero = async (heroId) => {
@@ -55,64 +60,81 @@ const BuyTab = ({ honkLogo, filters, sortOrder }) => {
         return;
       }
 
-      await buyHero(heroId);
+      const success = await buyHero(heroId);
+      if (success) {
+        toast.success('Hero purchase successful!');
+      }
     } catch (error) {
       toast.error(`Failed to buy hero: ${error.message}`);
     }
   };
 
+  useEffect(() => {
+    if (!isConnected || !isCorrectNetwork || !connectedAddress) {
+      return;
+    }
+  }, [isConnected, isCorrectNetwork, connectedAddress]);
+
   return (
-    <div>
+    <div className="container mx-auto px-4">
       {!isConnected && (
-        <div className="mt-4 text-center">
-          <p>Please connect your wallet to view and buy heroes.</p>
+        <div className="mt-8 text-center">
+          <p className="text-lg mb-4">Please connect your wallet to access the marketplace.</p>
           <button
             onClick={connect}
-            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="mt-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-semibold text-lg"
           >
             Connect Wallet
           </button>
         </div>
       )}
       {isConnected && !isCorrectNetwork && (
-        <div className="mt-4 text-center">
-          <p>Please switch to the correct network.</p>
+        <div className="mt-8 text-center">
+          <p className="text-lg mb-4">Please switch to the DFK Chain network to continue.</p>
           <button
             onClick={switchNetwork}
-            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="mt-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-semibold text-lg"
           >
-            Switch Network
+            Switch to DFK Chain
           </button>
         </div>
       )}
       {isConnected && isCorrectNetwork && (
         <>
           {loading ? (
-            <LoadingIndicator />
+            <div className="mt-8">
+              <LoadingIndicator />
+            </div>
           ) : error ? (
-            <div className="mt-4 text-center text-red-500">
-              {toast.error(`Error loading heroes: ${error}`)}
+            <div className="mt-8 text-center text-red-500">
+              Error: {error}
             </div>
           ) : (
-            <>
+            <div className="mt-8">
               <HeroGrid
                 heroes={displayedHeroes}
                 isBuyPage={true}
                 honkLogo={honkLogo}
-                formatPrice={formatPrice}
-                onBuy={handleBuyHero}
-                lastHeroRef={lastHeroElementRef}
+                onBuyHero={handleBuyHero}
+                lastHeroRef={hasMore ? loadMoreHeroes : undefined}
                 isConnected={isConnected}
-                buyingHeroId={buyingHeroId}
+                loading={isLoadingMore}
+                purchasedHeroes={new Set()}
+                listedHeroes={new Set()}
+                pendingTransactions={pendingTransactions}
+                pendingCancellations={new Set()}
+                pendingPriceUpdates={new Set()}
               />
               {isLoadingMore && <LoadingIndicator />}
               {!isLoadingMore && !hasMore && displayedHeroes.length > 0 && (
-                <p className="mt-4 text-center">No more heroes to load.</p>
+                <div className="text-center mt-8 text-gray-500">
+                  No more heroes to load
+                </div>
               )}
               {!isLoadingMore && displayedHeroes.length === 0 && (
-                <p className="mt-4 text-center">No heroes match your current filters.</p>
+                <p className="mt-8 text-center">No heroes match your current filters.</p>
               )}
-            </>
+            </div>
           )}
         </>
       )}

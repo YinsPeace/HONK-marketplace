@@ -64,7 +64,7 @@ export const useDFKTavernCheck = (connectedAddress, heroes, isLoading, shouldChe
     };
 
     checkTavernListings();
-  }, [connectedAddress, shouldCheck, isChecking]);
+  }, [connectedAddress, shouldCheck]);
 
   return {
     tavernListedHeroes,

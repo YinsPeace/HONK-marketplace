@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { classMapping } from '../utils/heroUtils';
+import './styles/SidebarWithFilters.css';
 
 const sectionTitles = {
   class: 'Class',
@@ -25,6 +26,37 @@ const SidebarWithFilters = ({
   const [activeTab, setActiveTab] = useState('main');
   const location = useLocation();
 
+  useEffect(() => {
+    // Update range slider fills when switching tabs or when filters change
+    const updateRangeSliderFills = () => {
+      const sliders = document.querySelectorAll('.relative[data-filter]');
+      sliders.forEach(slider => {
+        const filterType = slider.getAttribute('data-filter').toLowerCase();
+        const fill = slider.querySelector('.range-slider-fill');
+        const minInput = slider.querySelector('.range-input-min');
+        const maxInput = slider.querySelector('.range-input-max');
+        
+        if (fill && minInput && maxInput) {
+          const min = parseInt(minInput.min);
+          const max = parseInt(maxInput.max);
+          const minVal = parseInt(minInput.value);
+          const maxVal = parseInt(maxInput.value);
+          
+          // Adjust the percentage calculation to account for slider width
+          const range = max - min;
+          const minPercent = ((minVal - min) / range) * 92 + 5; // Add 5% offset from left
+          const maxPercent = ((maxVal - min) / range) * 92 + 5; // Add 5% offset from left
+          
+          fill.style.left = `${minPercent}%`;
+          fill.style.width = `${maxPercent - minPercent}%`;
+        }
+      });
+    };
+
+    // Run on mount and when activeTab or filters change
+    updateRangeSliderFills();
+  }, [activeTab, filters]);
+
   const toggleSidebar = () => setIsOpen(!isOpen);
 
   const isActiveTab = (tabName) => {
@@ -32,12 +64,10 @@ const SidebarWithFilters = ({
   };
 
   const handleFilterChange = (filterKey, value) => {
-    console.log('Filter changed in Sidebar:', filterKey, value);
     onFiltersChange(filterKey, value);
   };
 
   const handleSortChange = (value) => {
-    console.log('Sort changed in Sidebar:', value);
     onSortChange(value);
   };
 
@@ -50,8 +80,8 @@ const SidebarWithFilters = ({
     minFilterKey,
     maxFilterKey
   ) => (
-    <div className="mb-6">
-      <h3 className="text-sm font-medium text-gray-300 mb-2">{filterType}</h3>
+    <div className="mb-2">
+      <h3 className="text-sm font-medium text-gray-300 mb-1">{filterType}</h3>
       <div className="relative flex space-x-2" data-filter={filterType.toLowerCase()}>
         <div className="range-slider-fill absolute top-0 h-2 bg-orange-500"></div>
         <input
@@ -96,8 +126,37 @@ const SidebarWithFilters = ({
     </div>
   );
 
-  const classOptions = Object.values(classMapping);
-  const professionOptions = ['Fishing', 'Foraging', 'Gardening', 'Mining'];
+  const classOptions = [
+    'Warrior',
+    'Knight',
+    'Thief',
+    'Archer',
+    'Priest',
+    'Wizard',
+    'Monk',
+    'Pirate',
+    'Berserker',
+    'Seer',
+    'Legionnaire',
+    'Scholar',
+    'Paladin',
+    'DarkKnight',
+    'Summoner',
+    'Ninja',
+    'Shapeshifter',
+    'Dragoon',
+    'Sage',
+    'Spellbow',
+    'Dreadknight'
+  ];
+
+  const professionOptions = [
+    'Mining',
+    'Gardening',
+    'Fishing',
+    'Foraging',
+  ];
+
   const craftingOptions = [
     'Blacksmithing',
     'Goldsmithing',
@@ -116,22 +175,22 @@ const SidebarWithFilters = ({
         : 'grid-cols-2';
 
     return (
-      <div className="mb-6">
-        <h3 className="text-sm font-medium text-gray-300 mb-2">{sectionTitles[filterType]}</h3>
-        <div className={`grid ${columnClass} gap-2`}>
+      <div className="mb-2">
+        <h3 className="text-sm font-medium text-gray-300 mb-1">{sectionTitles[filterType]}</h3>
+        <div className={`grid ${columnClass} gap-1`}>
           {options.map((option) => (
-            <label key={option} className="flex items-center">
+            <label key={option} className="flex items-center text-sm">
               <input
                 type="checkbox"
-                checked={filters[filterType].includes(option)}
+                checked={filters[filterType]?.map(f => f.toLowerCase()).includes(option.toLowerCase())}
                 onChange={() => {
-                  const updatedFilter = filters[filterType].includes(option)
-                    ? filters[filterType].filter((item) => item !== option)
-                    : [...filters[filterType], option];
+                  const updatedFilter = filters[filterType]?.includes(option)
+                    ? filters[filterType].filter((item) => item.toLowerCase() !== option.toLowerCase())
+                    : [...(filters[filterType] || []), option];
                   handleFilterChange(filterType, updatedFilter);
                 }}
                 disabled={disabled}
-                className="mr-2"
+                className="mr-1"
               />
               <span className="text-sm text-gray-400">{option}</span>
             </label>
@@ -143,49 +202,127 @@ const SidebarWithFilters = ({
 
   const renderMainFilters = () => (
     <>
-      {renderCheckboxGroup('class', classOptions)}
-      {renderCheckboxGroup('subclass', classOptions)}
-      {renderDualRangeSlider(
-        'Rarity',
-        0,
-        4,
-        1,
-        ['Common', 'Uncommon', 'Rare', 'Legendary', 'Mythic'],
-        'rarityMin',
-        'rarityMax'
-      )}
-      {renderDualRangeSlider(
-        'Generation',
-        0,
-        11,
-        0.5,
-        ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11+'],
-        'generationMin',
-        'generationMax'
-      )}
-      <div className="space-y-2 mb-6">
-        <label className="block text-sm font-medium text-gray-300">Level Range</label>
-        <div className="flex items-center space-x-2">
-          <input
-            type="number"
-            min="1"
-            max="100"
-            value={filters.levelMin}
-            onChange={(e) => handleFilterChange('levelMin', parseInt(e.target.value))}
-            disabled={disabled}
-            className="w-1/2 p-2 bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <span>-</span>
-          <input
-            type="number"
-            min="1"
-            max="100"
-            value={filters.levelMax}
-            onChange={(e) => handleFilterChange('levelMax', parseInt(e.target.value))}
-            disabled={disabled}
-            className="w-1/2 p-2 bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
+      <div className="flex-1 overflow-y-auto p-3">
+        {activeTab === 'main' && (
+          <>
+            {/* Absolute positioned search and clear */}
+            <div className="absolute top-2 right-0 flex space-x-2">
+              <input
+                type="text"
+                placeholder="Hero ID"
+                value={filters.heroId || ''}
+                onChange={(e) => handleFilterChange('heroId', e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                  }
+                }}
+                className="w-28 px-2 py-1 text-sm bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                onClick={handleClearFilters}
+                className="px-3 py-1 text-sm bg-gray-700 hover:bg-gray-600 text-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                Clear
+              </button>
+            </div>
+            <div className="mb-5">
+              <h3 className="text-sm font-medium text-gray-300 mb-3">Class</h3>
+              <div className={`grid grid-cols-3 gap-1.5`}>
+                {classOptions.map((option) => (
+                  <label key={option} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.class?.map(f => f.toLowerCase()).includes(option.toLowerCase())}
+                      onChange={() => {
+                        const updatedFilter = filters.class?.includes(option)
+                          ? filters.class.filter((item) => item.toLowerCase() !== option.toLowerCase())
+                          : [...(filters.class || []), option];
+                        handleFilterChange('class', updatedFilter);
+                      }}
+                      disabled={disabled}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-gray-400">{option}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="mb-5">
+              <h3 className="text-sm font-medium text-gray-300 mb-3">Sub Class</h3>
+              <div className={`grid grid-cols-3 gap-1.5`}>
+                {classOptions.map((option) => (
+                  <label key={option} className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={filters.subclass?.map(f => f.toLowerCase()).includes(option.toLowerCase())}
+                      onChange={() => {
+                        const updatedFilter = filters.subclass?.includes(option)
+                          ? filters.subclass.filter((item) => item.toLowerCase() !== option.toLowerCase())
+                          : [...(filters.subclass || []), option];
+                        handleFilterChange('subclass', updatedFilter);
+                      }}
+                      disabled={disabled}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-gray-400">{option}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            {renderDualRangeSlider(
+              'Rarity',
+              0,
+              4,
+              1,
+              ['Common', 'Uncommon', 'Rare', 'Legendary', 'Mythic'],
+              'rarityMin',
+              'rarityMax'
+            )}
+            {renderDualRangeSlider(
+              'Generation',
+              0,
+              11,
+              0.5,
+              ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11+'],
+              'generationMin',
+              'generationMax'
+            )}
+            {renderDualRangeSlider(
+              'Summons Remaining',
+              0,
+              10,
+              1,
+              ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+              'summonsRemainingMin',
+              'summonsRemainingMax'
+            )}
+            <div className="space-y-1.5 mb-5">
+              <label className="block text-sm font-medium text-gray-300">Level Range</label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={filters.levelMin}
+                  onChange={(e) => handleFilterChange('levelMin', parseInt(e.target.value))}
+                  disabled={disabled}
+                  className="w-1/2 p-1.5 text-sm bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <span>-</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={filters.levelMax}
+                  onChange={(e) => handleFilterChange('levelMax', parseInt(e.target.value))}
+                  disabled={disabled}
+                  className="w-1/2 p-1.5 text-sm bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </>
   );
@@ -198,44 +335,40 @@ const SidebarWithFilters = ({
     </>
   );
 
-  useEffect(() => {
-    const updateRangeSliderFill = (filterName) => {
-      const container = document.querySelector(`[data-filter="${filterName}"]`);
-      if (!container) return;
-
-      const minInput = container.querySelector('.range-input-min');
-      const maxInput = container.querySelector('.range-input-max');
-      const fillElement = container.querySelector('.range-slider-fill');
-
-      const range = parseFloat(maxInput.max) - parseFloat(maxInput.min);
-      const minPosition =
-        ((parseFloat(minInput.value) - parseFloat(minInput.min)) / range) * 95 + 5;
-      const maxPosition =
-        ((parseFloat(maxInput.value) - parseFloat(minInput.min)) / range) * 95 + 5;
-
-      fillElement.style.left = `${minPosition}%`;
-      fillElement.style.width = `${maxPosition - minPosition}%`;
-    };
-
-    updateRangeSliderFill('rarity');
-    updateRangeSliderFill('generation');
-  }, [filters.rarityMin, filters.rarityMax, filters.generationMin, filters.generationMax]);
+  const defaultFilters = {
+    class: [],
+    subclass: [],
+    profession: [],
+    crafting1: [],
+    crafting2: [],
+    levelMin: 1,
+    levelMax: 100,
+    rarityMin: 0,
+    rarityMax: 4,
+    generationMin: 0,
+    generationMax: 11,
+    summonsRemainingMin: 0,
+    summonsRemainingMax: 10,
+    hideQuesting: false,
+  };
 
   const handleClearFilters = () => {
-    onFiltersChange('class', []);
-    onFiltersChange('subclass', []);
-    onFiltersChange('profession', []);
-    onFiltersChange('crafting1', []);
-    onFiltersChange('crafting2', []);
-    onFiltersChange('rarityMin', 0);
-    onFiltersChange('rarityMax', 4);
-    onFiltersChange('generationMin', 0);
-    onFiltersChange('generationMax', 11);
-    onFiltersChange('levelMin', 1);
-    onFiltersChange('levelMax', 100);
-    onFiltersChange('hideQuesting', false);
-    onFiltersChange('hideListedHeroes', false);
-    onSortChange('price-asc');
+    onFiltersChange('class', defaultFilters.class);
+    onFiltersChange('subclass', defaultFilters.subclass);
+    onFiltersChange('profession', defaultFilters.profession);
+    onFiltersChange('crafting1', defaultFilters.crafting1);
+    onFiltersChange('crafting2', defaultFilters.crafting2);
+    onFiltersChange('rarityMin', defaultFilters.rarityMin);
+    onFiltersChange('rarityMax', defaultFilters.rarityMax);
+    onFiltersChange('generationMin', defaultFilters.generationMin);
+    onFiltersChange('generationMax', defaultFilters.generationMax);
+    onFiltersChange('levelMin', defaultFilters.levelMin);
+    onFiltersChange('levelMax', defaultFilters.levelMax);
+    onFiltersChange('summonsRemainingMin', defaultFilters.summonsRemainingMin);
+    onFiltersChange('summonsRemainingMax', defaultFilters.summonsRemainingMax);
+    onFiltersChange('hideQuesting', defaultFilters.hideQuesting);
+    onFiltersChange('hideListedHeroes', defaultFilters.hideListedHeroes);
+    onFiltersChange('heroId', '');
   };
 
   return (
@@ -317,24 +450,15 @@ const SidebarWithFilters = ({
           style={{ height: 'calc(100vh - 116px)' }}
         >
           <form className="space-y-4 relative">
-            <button
-              type="button"
-              onClick={handleClearFilters}
-              className="absolute top-0 right-0 mt-[-1rem] px-2 py-1 bg-gray-700 text-gray-300 text-sm rounded hover:bg-gray-600 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
-              title="Clear all filters"
-            >
-              Clear
-            </button>
-
             {activeTab === 'main' ? renderMainFilters() : renderProfessionFilters()}
 
-            <div className="space-y-2 mb-4">
+            <div className={`sort-section space-y-2 mb-2 ${activeTab === 'main' ? 'sort-section-main' : ''}`}>
               <label className="block text-sm font-medium text-gray-300">Sort By</label>
               <select
                 onChange={(e) => handleSortChange(e.target.value)}
                 value={sortOrder}
                 disabled={disabled}
-                className="w-full p-2 bg-gray-700 text-white border border-gray-600 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full bg-gray-700 text-white border border-gray-600 rounded-md py-1 px-3 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50"
               >
                 {sortOptions.map((option) => (
                   <option key={option.value} value={option.value}>

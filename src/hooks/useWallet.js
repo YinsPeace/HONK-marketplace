@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { initWeb3, checkNetwork, reinitializeContracts, HONKTokenContract } from '../Web3Config';
+import {
+  initWeb3,
+  checkNetwork,
+  reinitializeContracts,
+  HONKTokenContract,
+  subscribeToGlacierWebhooks,
+} from '../Web3Config';
 
 export const useWallet = () => {
   const [isConnected, setIsConnected] = useState(false);
@@ -9,141 +15,206 @@ export const useWallet = () => {
   const [error, setError] = useState(null);
 
   const checkConnection = useCallback(async () => {
-    console.log('Checking wallet connection...');
-    const web3 = await initWeb3();
-    const accounts = await web3.eth.getAccounts();
-    console.log('Accounts:', accounts);
-    if (accounts.length > 0) {
-      setIsConnected(true);
-      setConnectedAddress(accounts[0]);
+    try {
+      const web3 = await initWeb3();
+      if (!web3) {
+        setIsConnected(false);
+        setConnectedAddress(null);
+        return false;
+      }
+
+      const accounts = await web3.eth.getAccounts();
+      const isConnected = accounts.length > 0;
+      setIsConnected(isConnected);
+      
+      if (isConnected) {
+        setConnectedAddress(accounts[0]);
+        const networkCheck = await checkNetwork();
+        setIsCorrectNetwork(networkCheck);
+        return true;
+      } else {
+        setConnectedAddress(null);
+        setIsCorrectNetwork(false);
+        return false;
+      }
+    } catch (error) {
+      console.error('Error checking connection:', error);
+      setIsConnected(false);
+      setConnectedAddress(null);
+      setIsCorrectNetwork(false);
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    const checkWalletConnection = async () => {
+      if (typeof window.ethereum === 'undefined') {
+        return;
+      }
+
+      const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+      if (accounts.length > 0) {
+        setIsConnected(true);
+        setConnectedAddress(accounts[0]);
+        const networkCheck = await checkNetwork();
+        setIsCorrectNetwork(networkCheck);
+        await reinitializeContracts();
+      } else {
+        setIsConnected(false);
+        setConnectedAddress(null);
+      }
+    };
+
+    checkWalletConnection();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window.ethereum === 'undefined') return;
+
+    const handleAccountsChanged = async (accounts) => {
+      if (accounts.length === 0) {
+        setIsConnected(false);
+        setConnectedAddress(null);
+        setIsCorrectNetwork(false);
+      } else {
+        setIsConnected(true);
+        setConnectedAddress(accounts[0]);
+        const networkCheck = await checkNetwork();
+        setIsCorrectNetwork(networkCheck);
+        await reinitializeContracts();
+      }
+    };
+
+    const handleChainChanged = async () => {
       const networkCheck = await checkNetwork();
       setIsCorrectNetwork(networkCheck);
-      console.log('Wallet connected:', { address: accounts[0], correctNetwork: networkCheck });
-      return true;
-    }
-    console.log('No wallet connected');
-    return false;
+      if (networkCheck) {
+        await reinitializeContracts();
+      }
+    };
+
+    window.ethereum.on('accountsChanged', handleAccountsChanged);
+    window.ethereum.on('chainChanged', handleChainChanged);
+
+    return () => {
+      window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+      window.ethereum.removeListener('chainChanged', handleChainChanged);
+    };
   }, []);
 
   const connect = useCallback(async () => {
-    console.log('Attempting to connect wallet...');
-    if (typeof window.ethereum !== 'undefined') {
-      try {
-        await window.ethereum.request({ method: 'eth_requestAccounts' });
-        await reinitializeContracts();
-        const connected = await checkConnection();
-        if (connected) {
-          localStorage.setItem('walletConnected', 'true');
-          localStorage.setItem('connectedAddress', await web3.eth.getAccounts()[0]);
-          console.log('Wallet connected successfully');
-        }
-        return connected;
-      } catch (error) {
-        console.error('Failed to connect:', error);
-        setError(error.message);
-        return false;
-      }
-    } else {
-      console.error('MetaMask is not installed');
+    if (typeof window.ethereum === 'undefined') {
       setError('MetaMask is not installed');
       return false;
     }
-  }, [checkConnection]);
+
+    try {
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      if (accounts.length > 0) {
+        setIsConnected(true);
+        setConnectedAddress(accounts[0]);
+        const networkCheck = await checkNetwork();
+        setIsCorrectNetwork(networkCheck);
+        if (networkCheck) {
+          await reinitializeContracts();
+        }
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('[useWallet] Connection error:', error);
+      setError(error.message);
+      return false;
+    }
+  }, []);
 
   const disconnect = useCallback(() => {
-    console.log('Disconnecting wallet...');
     setIsConnected(false);
     setConnectedAddress(null);
     setHonkBalance('0');
-    localStorage.removeItem('walletConnected');
-    localStorage.removeItem('connectedAddress');
-    console.log('Wallet disconnected');
   }, []);
 
   const clearError = useCallback(() => {
-    console.log('Clearing error');
     setError(null);
   }, []);
 
   const switchNetwork = useCallback(async () => {
-    console.log('Attempting to switch network...');
+    if (!window.ethereum) {
+      setError('MetaMask is not installed');
+      return false;
+    }
+
+    const chainIdHex = '0x' + (53935).toString(16);
+    const networkConfig = {
+      chainId: chainIdHex,
+      chainName: 'DFK Chain',
+      nativeCurrency: {
+        name: 'JEWEL',
+        symbol: 'JEWEL',
+        decimals: 18,
+      },
+      rpcUrls: ['https://subnets.avax.network/defi-kingdoms/dfk-chain/rpc'],
+      blockExplorerUrls: ['https://subnets.avax.network/defi-kingdoms/'],
+    };
+
     try {
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0x14f' }], // DFK Testnet chain ID in hex
+        params: [{ chainId: chainIdHex }],
       });
       const networkCheck = await checkNetwork();
       setIsCorrectNetwork(networkCheck);
-      console.log('Network switch result:', networkCheck);
       return networkCheck;
     } catch (error) {
-      console.error('Failed to switch network:', error);
-      setError('Failed to switch network');
+      if (error.code === 4902) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [networkConfig],
+          });
+          const networkCheck = await checkNetwork();
+          setIsCorrectNetwork(networkCheck);
+          return networkCheck;
+        } catch (addError) {
+          setError('Failed to add DFK Chain network');
+          return false;
+        }
+      }
+      if (error.code === 4001) {
+        setError('User rejected the network switch');
+      } else {
+        setError('Failed to switch to DFK Chain network: ' + error.message);
+      }
       return false;
     }
   }, []);
 
   const updateBalance = useCallback(async () => {
-    console.log('Updating HONK balance...');
-    if (connectedAddress && HONKTokenContract && HONKTokenContract.methods) {
-      try {
-        const balance = await HONKTokenContract.methods.balanceOf(connectedAddress).call();
-        setHonkBalance(balance);
-        console.log('Updated HONK balance:', balance);
-      } catch (error) {
-        console.error('Error updating HONK balance:', error);
-        setError('Failed to update balance');
+    try {
+      if (!connectedAddress || !HONKTokenContract) {
+        setHonkBalance('0');
+        return;
       }
-    } else {
-      console.log('Unable to update balance: missing address or contract');
+      const balance = await HONKTokenContract.methods.balanceOf(connectedAddress).call();
+      setHonkBalance(BigInt(balance));
+    } catch (error) {
+      setHonkBalance('0');
     }
   }, [connectedAddress]);
 
   useEffect(() => {
-    console.log('useWallet effect running...');
+    let mounted = true;
+
     const init = async () => {
-      const walletConnected = localStorage.getItem('walletConnected');
-      const storedAddress = localStorage.getItem('connectedAddress');
-      console.log('Stored wallet info:', { walletConnected, storedAddress });
-      if (walletConnected === 'true' && storedAddress) {
-        setIsConnected(true);
-        setConnectedAddress(storedAddress);
-        const networkCheck = await checkNetwork();
-        setIsCorrectNetwork(networkCheck);
-        if (networkCheck) {
-          await reinitializeContracts();
-          updateBalance();
-        }
-      } else {
-        const connected = await checkConnection();
-        if (connected) {
-          updateBalance();
-        }
+      if (!mounted) return;
+      await checkConnection();
+      if (isConnected && mounted) {
+        await updateBalance();
       }
     };
 
     init();
-
-    if (window.ethereum) {
-      window.ethereum.on('accountsChanged', checkConnection);
-      window.ethereum.on('chainChanged', checkConnection);
-    }
-
-    return () => {
-      if (window.ethereum && window.ethereum.removeListener) {
-        window.ethereum.removeListener('accountsChanged', checkConnection);
-        window.ethereum.removeListener('chainChanged', checkConnection);
-      }
-    };
   }, [checkConnection, updateBalance]);
-
-  console.log('useWallet state:', {
-    isConnected,
-    isCorrectNetwork,
-    connectedAddress,
-    honkBalance,
-    error,
-  });
 
   return {
     isConnected,
@@ -157,4 +228,21 @@ export const useWallet = () => {
     updateBalance,
     clearError,
   };
+};
+
+const getStoredWalletInfo = () => {
+  const walletConnected = localStorage.getItem('walletConnected');
+  const storedAddress = localStorage.getItem('connectedAddress');
+  return { walletConnected, storedAddress };
+};
+
+const connectWallet = async (address) => {
+  setIsConnected(true);
+  setConnectedAddress(address);
+  const networkCheck = await checkNetwork();
+  setIsCorrectNetwork(networkCheck);
+  if (networkCheck) {
+    await reinitializeContracts();
+    updateBalance();
+  }
 };

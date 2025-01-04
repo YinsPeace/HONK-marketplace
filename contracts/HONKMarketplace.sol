@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -13,6 +13,7 @@ import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 /// @notice Interface for the DFK Hero Core Diamond contract
 interface IHeroCoreDiamond is IERC721 {
     function transferHeroAndEquipmentFrom(address _from, address _newOwner, uint256 _heroId) external;
+    function getEquipment(uint256 _heroId) external view returns (address[] memory);
 }
 
 /// @title HONKMarketplace
@@ -28,6 +29,8 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
     // Time-lock related variables
     uint256 public constant TIMELOCK_PERIOD = 2 days;
+    uint256 public constant MAX_PRICE = 1_000_000 * 10**18; // 1 million HONK
+    uint256 public constant MAX_EQUIPMENT_COUNT = 5;
     uint256 public proposedFeePercentage;
     uint256 public proposedFeePercentageTimestamp;
 
@@ -69,6 +72,8 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
     event FundsWithdrawn(address recipient, uint256 amount);
     /// @notice Emitted when an ERC721 token is withdrawn by the owner
     event ERC721Withdrawn(address token, uint256 tokenId, address recipient);
+    /// @notice Emitted when a hero transfer fails
+    event HeroTransferFailed(uint256 indexed heroId, address indexed seller, address indexed buyer, string reason);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -79,11 +84,19 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
     /// @param _honkToken The address of the HONK token contract
     /// @param _dfkHeroContract The address of the DFK hero contract
     /// @param _feeRecipient The address that will receive marketplace fees
-    function initialize(address _honkToken, address _dfkHeroContract, address _feeRecipient) public initializer {
+    function initialize(
+        address _honkToken,
+        address _dfkHeroContract,
+        address _feeRecipient
+    ) public initializer {
         __Ownable_init(msg.sender);
         __ReentrancyGuard_init();
         __Pausable_init();
-        
+
+        require(_honkToken != address(0), "Invalid HONK token address");
+        require(_dfkHeroContract != address(0), "Invalid DFK Hero contract address");
+        require(_feeRecipient != address(0), "Invalid fee recipient address");
+
         honkToken = IERC20(_honkToken);
         dfkHeroContract = IHeroCoreDiamond(_dfkHeroContract);
         feeRecipient = _feeRecipient;
@@ -93,6 +106,7 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
     /// @notice Sets a new fee recipient address
     /// @param _newFeeRecipient The new address to receive marketplace fees
     function setFeeRecipient(address _newFeeRecipient) external onlyOwner whenNotPaused {
+        require(_newFeeRecipient != address(0), "Invalid fee recipient address");
         address oldRecipient = feeRecipient;
         feeRecipient = _newFeeRecipient;
         emit FeeRecipientUpdated(oldRecipient, _newFeeRecipient);
@@ -122,16 +136,24 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
     /// @notice Executes the proposed fee percentage change after the time-lock period
     function executeFeePercentageUpdate() external onlyOwner whenNotPaused {
         require(proposedFeePercentageTimestamp != 0, "No fee update proposed");
-        require(block.timestamp >= proposedFeePercentageTimestamp + TIMELOCK_PERIOD, "Time-lock period not elapsed");
         
+        // Add minimum delay check
+        uint256 minDelay = TIMELOCK_PERIOD;
+        uint256 currentTime = block.timestamp;
+        uint256 proposedTime = proposedFeePercentageTimestamp;
+        
+        require(currentTime >= proposedTime, "Invalid timestamp");
+        require(currentTime - proposedTime >= minDelay, "Time-lock period not elapsed");
+        require(currentTime - proposedTime <= minDelay + 1 days, "Update window expired");
+
         uint256 oldFeePercentage = FEE_PERCENTAGE;
         FEE_PERCENTAGE = proposedFeePercentage;
         
-        // Reset the proposal
+        // Reset the proposal after execution
         proposedFeePercentage = 0;
         proposedFeePercentageTimestamp = 0;
         
-        emit FeePercentageExecuted(oldFeePercentage, FEE_PERCENTAGE);
+        emit FeePercentageUpdated(oldFeePercentage, FEE_PERCENTAGE);
     }
 
     /// @notice Allows the owner to withdraw accumulated fees
@@ -148,9 +170,11 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
     /// @param _token The address of the ERC721 token contract
     /// @param _tokenId The ID of the token to withdraw
     /// @param _recipient The address to send the token to
-    function withdrawERC721(address _token, uint256 _tokenId, address _recipient) external onlyOwner {
-        IERC721(_token).safeTransferFrom(address(this), _recipient, _tokenId);
+    function withdrawERC721(address _token, uint256 _tokenId, address _recipient) external onlyOwner whenNotPaused {
+        require(_recipient != address(0), "Invalid recipient address");
+        // Emit event before external call
         emit ERC721Withdrawn(_token, _tokenId, _recipient);
+        IERC721(_token).safeTransferFrom(address(this), _recipient, _tokenId);
     }
 
     /// @notice Checks if a hero is currently listed for sale
@@ -166,6 +190,7 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
     /// @dev This function can only be called by the owner of the hero
     function listHero(uint256 _heroId, uint256 _price) external whenNotPaused nonReentrant {
         require(_price > 0, "Price must be greater than zero");
+        require(_price <= MAX_PRICE, "Price exceeds maximum allowed");
         require(dfkHeroContract.ownerOf(_heroId) == msg.sender, "You don't own this hero");
 
         uint256 index = heroIdToIndex[_heroId];
@@ -226,10 +251,33 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
         require(hero.owner == msg.sender, "You don't own this hero");
         require(hero.isForSale, "Hero is not listed for sale");
         require(_newPrice > 0, "Price must be greater than zero");
+        require(_newPrice <= MAX_PRICE, "Price exceeds maximum allowed");
 
         hero.price = _newPrice;
 
         emit HeroPriceUpdated(_heroId, msg.sender, _newPrice);
+    }
+
+    /// @notice Batch verifies equipment ownership
+    /// @dev Reverts if any equipment piece is not owned by the seller
+    /// @param equipment Array of equipment contract addresses
+    /// @param heroId The hero ID to check equipment for
+    /// @param seller The expected owner of the equipment
+    function _verifyEquipmentOwnership(
+        address[] memory equipment,
+        uint256 heroId,
+        address seller
+    ) internal view {
+        require(equipment.length <= MAX_EQUIPMENT_COUNT, "Too many equipment items");
+        
+        bool allValid = true;
+        for (uint256 i = 0; i < equipment.length; i++) {
+            if (IERC721(equipment[i]).ownerOf(heroId) != seller) {
+                allValid = false;
+                break;
+            }
+        }
+        require(allValid, "BH11: Equipment ownership mismatch");
     }
 
     /// @notice Allows a user to purchase a listed hero
@@ -245,47 +293,82 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
         uint256 price = hero.price;
         address seller = hero.owner;
 
-        uint256 fee = (price * FEE_PERCENTAGE) / 10000;
-        uint256 sellerAmount = price - fee;
-
+        // Add explicit allowance and balance checks early to save gas
+        uint256 currentAllowance = honkToken.allowance(msg.sender, address(this));
+        require(currentAllowance >= price, "BH12: Insufficient HONK allowance");
+        
         uint256 buyerBalance = honkToken.balanceOf(msg.sender);
         require(buyerBalance >= price, "BH4: Insufficient HONK balance");
 
-        // Transfer HONK tokens
+        // Equipment verification
+        try dfkHeroContract.getEquipment(heroId) returns (address[] memory equipment) {
+            if (equipment.length > 0) {
+                _verifyEquipmentOwnership(equipment, heroId, seller);
+            }
+        } catch {
+            // If getEquipment doesn't exist or fails, continue with normal flow
+        }
+
+        uint256 fee = (price * FEE_PERCENTAGE) / 10000;
+        uint256 sellerAmount = price - fee;
+
+        // Check current ownership before any state changes
+        address currentOwner = dfkHeroContract.ownerOf(heroId);
+        require(currentOwner == seller, "BH8: Seller no longer owns the hero");
+
+        // State changes first - remove from marketplace
+        _removeHeroFromMarketplace(index, heroId);
+        
+        // Emit event before external transfers
+        emit HeroPurchased(heroId, msg.sender, seller, price);
+
+        // External calls last
         bool transferToSellerSuccess = honkToken.transferFrom(msg.sender, seller, sellerAmount);
         require(transferToSellerSuccess, "BH6: Failed to transfer HONK to seller");
 
         bool transferFeeSuccess = honkToken.transferFrom(msg.sender, feeRecipient, fee);
         require(transferFeeSuccess, "BH7: Failed to transfer fee");
 
-        // Transfer the hero
-        address currentOwner = dfkHeroContract.ownerOf(heroId);
-        require(currentOwner == seller, "BH8: Seller no longer owns the hero");
-        
         try dfkHeroContract.transferHeroAndEquipmentFrom(seller, msg.sender, heroId) {
+            // Success case - no additional action needed
         } catch Error(string memory reason) {
+            emit HeroTransferFailed(heroId, seller, msg.sender, reason);
             revert(string(abi.encodePacked("BH9: Hero transfer failed: ", reason)));
         } catch {
+            emit HeroTransferFailed(heroId, seller, msg.sender, "Unknown error");
             revert("BH10: Hero transfer failed");
         }
-
-        _removeHeroFromMarketplace(index, heroId);
-
-        emit HeroPurchased(heroId, msg.sender, seller, price);
     }
 
     /// @notice Removes a hero from the marketplace
     /// @dev This function should be called when a hero is sold or its listing is cancelled
     /// @param index The index of the hero in the heroes mapping
     /// @param heroId The ID of the hero to be removed
-    function _removeHeroFromMarketplace(uint256 index, uint256 heroId) private {
+    function _removeHeroFromMarketplace(uint256 index, uint256 heroId) internal {
+        // Cache the hero to check if it was listed
+        Hero memory hero = heroes[index];
+        bool wasListed = hero.isForSale;
+        
+        // Batch the storage operations
         delete heroes[index];
         delete heroIdToIndex[heroId];
-        isHeroListed[heroId] = false;
-        listedHeroCount--;
-        // If this was the last hero, reduce heroCount
-        if (index == heroCount) {
+        delete isHeroListed[heroId];
+        
+        // Update counters only if necessary
+        if (wasListed) {
+            if (listedHeroCount > 0) {
+                listedHeroCount--;
+            }
+        }
+        if (heroCount > 0) {
             heroCount--;
+        }
+        
+        // If this wasn't the last hero, move the last hero to this position
+        if (index != heroCount && heroCount > 0) {
+            Hero memory lastHero = heroes[heroCount];
+            heroes[index] = lastHero;
+            heroIdToIndex[lastHero.id] = index;
         }
     }
 

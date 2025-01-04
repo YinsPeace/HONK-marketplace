@@ -1,75 +1,113 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { HONKMarketplaceContract, web3 } from '../Web3Config';
 import { toast } from 'react-toastify';
 
-export const useHeroOperations = (connectedAddress, fetchHeroes) => {
-  const [updatingHeroId, setUpdatingHeroId] = useState(null);
-  const [cancellingHeroId, setCancellingHeroId] = useState(null);
+export const useHeroOperations = (connectedAddress, fetchHeroes, setHeroes) => {
+  const [pendingCancellations, setPendingCancellations] = useState(new Set());
+  const [pendingPriceUpdates, setPendingPriceUpdates] = useState(new Set());
 
-  const updatePrice = async (heroId, price) => {
-    setUpdatingHeroId(heroId);
-    toast.info(`Updating price for Hero ${heroId}...`);
+  const updatePrice = useCallback(async (heroId, newPrice) => {
+    if (!connectedAddress || !heroId || !newPrice) {
+      return {
+        success: false,
+        error: 'Invalid parameters'
+      };
+    }
+
     try {
-      const priceWei = web3.utils.toWei(price.toString(), 'ether');
-      const gasEstimate = await HONKMarketplaceContract.methods
-        .updatePrice(heroId, priceWei)
-        .estimateGas({ from: connectedAddress });
-      const receipt = await HONKMarketplaceContract.methods.updatePrice(heroId, priceWei).send({
+      setPendingPriceUpdates(prev => new Set([...prev, heroId]));
+
+      // Convert price to wei
+      const priceInWei = web3.utils.toWei(newPrice.toString(), 'ether');
+
+      // Use the correct method name from the contract: updatePrice
+      const tx = await HONKMarketplaceContract.methods.updatePrice(
+        heroId,
+        priceInWei
+      ).send({
         from: connectedAddress,
-        gas: BigInt(Math.floor(Number(gasEstimate) * 1.5)),
+        gasLimit: 300000
       });
 
-      if (receipt.status) {
-        toast.success(`Price updated for Hero ${heroId} successfully!`);
-        fetchHeroes(connectedAddress);
+      if (tx.status) {
+        // Refresh the heroes list
+        await fetchHeroes(connectedAddress);
+        toast.success(`Successfully updated price for hero ${heroId}`);
+        return {
+          success: true
+        };
       } else {
-        throw new Error('Transaction failed');
+        toast.error('Transaction failed');
+        return {
+          success: false,
+          error: 'Transaction failed'
+        };
       }
     } catch (error) {
       console.error('Error updating price:', error);
-      let errorMessage = 'Failed to update price. ';
-      if (error.code === 4001) {
-        errorMessage += 'Transaction was rejected in your wallet.';
-      } else {
-        errorMessage += 'Please try again later.';
-      }
-      toast.error(errorMessage);
+      toast.error(`Failed to update price: ${error.message || 'Unknown error'}`);
+      return {
+        success: false,
+        error: error.message || 'Unknown error'
+      };
     } finally {
-      setUpdatingHeroId(null);
+      setPendingPriceUpdates(prev => {
+        const next = new Set(prev);
+        next.delete(heroId);
+        return next;
+      });
     }
-  };
+  }, [connectedAddress, fetchHeroes]);
 
-  const cancelListing = async (heroId) => {
-    setCancellingHeroId(heroId);
-    toast.info(`Cancelling listing for Hero ${heroId}...`);
+  const cancelListing = useCallback(async (heroId) => {
+    if (!connectedAddress || !heroId) {
+      return {
+        success: false,
+        error: 'Invalid parameters'
+      };
+    }
+
     try {
-      const gasEstimate = await HONKMarketplaceContract.methods
-        .cancelListing(heroId)
-        .estimateGas({ from: connectedAddress });
-      const receipt = await HONKMarketplaceContract.methods.cancelListing(heroId).send({
+      setPendingCancellations(prev => new Set([...prev, heroId]));
+
+      const tx = await HONKMarketplaceContract.methods.cancelListing(heroId).send({
         from: connectedAddress,
-        gas: BigInt(Math.floor(Number(gasEstimate) * 1.5)),
+        gasLimit: 300000
       });
 
-      if (receipt.status) {
-        toast.success(`Listing for Hero ${heroId} cancelled successfully!`);
-        fetchHeroes(connectedAddress);
+      if (tx.status) {
+        await fetchHeroes(connectedAddress);
+        toast.success(`Successfully cancelled listing for hero ${heroId}`);
+        return {
+          success: true
+        };
       } else {
-        throw new Error('Transaction failed');
+        toast.error('Transaction failed');
+        return {
+          success: false,
+          error: 'Transaction failed'
+        };
       }
     } catch (error) {
       console.error('Error cancelling listing:', error);
-      let errorMessage = 'Failed to cancel listing. ';
-      if (error.code === 4001) {
-        errorMessage += 'Transaction was rejected in your wallet.';
-      } else {
-        errorMessage += 'Please try again later.';
-      }
-      toast.error(errorMessage);
+      toast.error(`Failed to cancel listing: ${error.message || 'Unknown error'}`);
+      return {
+        success: false,
+        error: error.message || 'Unknown error'
+      };
     } finally {
-      setCancellingHeroId(null);
+      setPendingCancellations(prev => {
+        const next = new Set(prev);
+        next.delete(heroId);
+        return next;
+      });
     }
-  };
+  }, [connectedAddress, fetchHeroes]);
 
-  return { updatingHeroId, cancellingHeroId, updatePrice, cancelListing };
+  return {
+    updatePrice,
+    cancelListing,
+    pendingCancellations,
+    pendingPriceUpdates
+  };
 };
