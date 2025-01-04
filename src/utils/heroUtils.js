@@ -774,3 +774,19 @@ const convertBigIntsToStrings = (obj) => {
   }
   return converted;
 };
+
+const isHeroInTavern = (hero, tavernHeroes) => {
+  return (
+    hero && 
+    tavernHeroes && 
+    ((hero.id && tavernHeroes.includes(hero.id)) || (hero.fullId && tavernHeroes.includes(hero.fullId)))
+  );
+};
+
+const isHeroListed = (hero, listedHeroes) => {
+  return (
+    hero && 
+    listedHeroes && 
+    ((hero.id && listedHeroes.includes(hero.id)) || (hero.fullId && listedHeroes.includes(hero.fullId)))
+  );
+};
