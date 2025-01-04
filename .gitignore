@@ -48,3 +48,37 @@ yarn-error.log*
 # Additional exclusions
 /dist
 vscode/
+
+# Build and deployment artifacts
+/artifacts
+/cache
+/deploy-package
+*.zip
+/verify
+/security-audit
+
+# Contract builds
+*.flat.sol
+/migrations/*.js
+!migrations/1_initial_migration.js
+
+# OpenZeppelin
+.openzeppelin/unknown-*.json
+
+# Local development
+/src/tests
+/test
+/src/components/TestHeroLoad.js
+
+# Metadata and temporary files
+metadata.json
+bAKmetadata.json
+*.temp
+*.tmp
+
+# Hardhat
+hardhat.config.js
+hardhat-*.json
+
+# Truffle
+truffle-config.js
