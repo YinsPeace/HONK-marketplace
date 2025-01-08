@@ -23,7 +23,6 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
     IERC20 public honkToken;
     IHeroCoreDiamond public dfkHeroContract;
-
     address public feeRecipient;
     uint256 public FEE_PERCENTAGE;
 
@@ -33,6 +32,7 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
     uint256 public constant MAX_EQUIPMENT_COUNT = 5;
     uint256 public proposedFeePercentage;
     uint256 public proposedFeePercentageTimestamp;
+    uint256 public constant PRICE_UPDATE_COOLDOWN = 15 minutes;
 
     /// @notice Structure to represent a hero in the marketplace
     struct Hero {
@@ -47,6 +47,7 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
     mapping(uint256 => uint256) public heroIdToIndex;
     mapping(uint256 => bool) public isHeroListed;
     uint256 public listedHeroCount;
+    mapping(uint256 => uint256) public lastPriceUpdateTime;
 
     /// @notice Emitted when a hero is listed for sale
     event HeroListed(uint256 indexed heroId, address indexed seller, uint256 price);
@@ -74,6 +75,8 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
     event ERC721Withdrawn(address token, uint256 tokenId, address recipient);
     /// @notice Emitted when a hero transfer fails
     event HeroTransferFailed(uint256 indexed heroId, address indexed seller, address indexed buyer, string reason);
+    /// @notice Emitted when the price update cooldown is still active
+    event PriceUpdateCooldownTriggered(uint256 indexed heroId, uint256 nextUpdateTime);
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -192,17 +195,20 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
         require(_price > 0, "Price must be greater than zero");
         require(_price <= MAX_PRICE, "Price exceeds maximum allowed");
         require(dfkHeroContract.ownerOf(_heroId) == msg.sender, "You don't own this hero");
+        require(!isHeroListed[_heroId], "Hero is already listed");
 
-        uint256 index = heroIdToIndex[_heroId];
-        if (index == 0) {
-            heroCount++;
-            index = heroCount;
-            heroIdToIndex[_heroId] = index;
-        }
-
-        heroes[index] = Hero(_heroId, msg.sender, _price, true);
+        // Always increment and use new index
+        heroCount++;
+        uint256 newIndex = heroCount;
+        
+        // Update mappings
+        heroIdToIndex[_heroId] = newIndex;
+        heroes[newIndex] = Hero(_heroId, msg.sender, _price, true);
         isHeroListed[_heroId] = true;
         listedHeroCount++;
+        
+        // Set initial price update timestamp
+        lastPriceUpdateTime[_heroId] = block.timestamp;
 
         emit HeroListed(_heroId, msg.sender, _price);
     }
@@ -253,7 +259,12 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
         require(_newPrice > 0, "Price must be greater than zero");
         require(_newPrice <= MAX_PRICE, "Price exceeds maximum allowed");
 
+        // Check cooldown period
+        uint256 nextAllowedUpdate = lastPriceUpdateTime[_heroId] + PRICE_UPDATE_COOLDOWN;
+        require(block.timestamp >= nextAllowedUpdate, "Price update too soon");
+        
         hero.price = _newPrice;
+        lastPriceUpdateTime[_heroId] = block.timestamp;
 
         emit HeroPriceUpdated(_heroId, msg.sender, _newPrice);
     }
@@ -280,14 +291,26 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
         require(allValid, "BH11: Equipment ownership mismatch");
     }
 
+    event BuyHeroDebug(string step, uint256 heroId, uint256 value);
+
     /// @notice Allows a user to purchase a listed hero
     /// @param heroId The ID of the hero to be purchased
     /// @dev This function handles the transfer of HONK tokens and the hero NFT
+    /// @dev Includes checks for DFK Tavern listings and automatically removes invalid listings
     function buyHero(uint256 heroId) external whenNotPaused nonReentrant {
         uint256 index = heroIdToIndex[heroId];
         require(index != 0, "BH1: Hero does not exist");
         Hero storage hero = heroes[index];
         require(hero.isForSale, "BH2: Hero is not for sale");
+        
+        // Check ownership early and handle DFK Tavern case
+        address currentOwner = dfkHeroContract.ownerOf(heroId);
+        if (currentOwner != hero.owner) {
+            // Clean up the listing and provide clear error message
+            _removeHeroFromMarketplace(index, heroId);
+            revert("Hero is no longer available (possibly listed on DFK Tavern)");
+        }
+
         require(msg.sender != hero.owner, "BH3: Cannot buy your own hero");
 
         uint256 price = hero.price;
@@ -311,10 +334,6 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
         uint256 fee = (price * FEE_PERCENTAGE) / 10000;
         uint256 sellerAmount = price - fee;
-
-        // Check current ownership before any state changes
-        address currentOwner = dfkHeroContract.ownerOf(heroId);
-        require(currentOwner == seller, "BH8: Seller no longer owns the hero");
 
         // State changes first - remove from marketplace
         _removeHeroFromMarketplace(index, heroId);
@@ -342,6 +361,7 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
 
     /// @notice Removes a hero from the marketplace
     /// @dev This function should be called when a hero is sold or its listing is cancelled
+    /// @dev Indices only grow to prevent collisions and ensure consistent index referencing
     /// @param index The index of the hero in the heroes mapping
     /// @param heroId The ID of the hero to be removed
     function _removeHeroFromMarketplace(uint256 index, uint256 heroId) internal {
@@ -349,26 +369,62 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
         Hero memory hero = heroes[index];
         bool wasListed = hero.isForSale;
         
-        // Batch the storage operations
+        // Simply clear the data without moving other heroes
         delete heroes[index];
         delete heroIdToIndex[heroId];
         delete isHeroListed[heroId];
         
-        // Update counters only if necessary
-        if (wasListed) {
-            if (listedHeroCount > 0) {
-                listedHeroCount--;
+        // Update only listedHeroCount if necessary
+        if (wasListed && listedHeroCount > 0) {
+            listedHeroCount--;
+        }
+        // Note: We don't decrease heroCount - indices only grow to prevent collisions
+    }
+
+    /// @notice Emergency cleanup function that resets all marketplace listings
+    /// @dev CAUTION: This removes all current listings from the marketplace
+    /// @dev Users will need to re-list their heroes after this is called
+    /// @dev Should only be called in emergency situations or during upgrades
+    function adminEmergencyCleanup() external onlyOwner whenPaused {
+        // Reset the marketplace-related counters
+        heroCount = 0;
+        listedHeroCount = 0;
+
+        // Clear a large fixed range of storage slots to ensure we catch everything
+        // Using 1000 as a safe maximum that would cover any reasonable number of listings
+        for (uint256 i = 1; i <= 1000; i++) {
+            // Get and clear any hero at this index
+            Hero memory hero = heroes[i];
+            if (hero.id != 0) {
+                delete isHeroListed[hero.id];
+                delete heroIdToIndex[hero.id];
             }
+            delete heroes[i];
         }
-        if (heroCount > 0) {
-            heroCount--;
-        }
-        
-        // If this wasn't the last hero, move the last hero to this position
-        if (index != heroCount && heroCount > 0) {
-            Hero memory lastHero = heroes[heroCount];
-            heroes[index] = lastHero;
-            heroIdToIndex[lastHero.id] = index;
+    }
+
+    /// @notice Removes listings where the hero is no longer owned by the listed owner
+    /// @dev This can happen when heroes are listed on other marketplaces or transferred
+    /// @param heroIds Array of hero IDs to check and potentially clean up
+    function cleanupStaleListings(uint256[] calldata heroIds) external onlyOwner {
+        for (uint256 i = 0; i < heroIds.length; i++) {
+            uint256 heroId = heroIds[i];
+            uint256 index = heroIdToIndex[heroId];
+            if (index != 0) {
+                Hero memory hero = heroes[index];
+                if (hero.isForSale) {
+                    try dfkHeroContract.ownerOf(heroId) returns (address currentOwner) {
+                        if (currentOwner != hero.owner) {
+                            _removeHeroFromMarketplace(index, heroId);
+                            emit HeroUnlisted(heroId, hero.owner);
+                        }
+                    } catch {
+                        // If ownerOf reverts, the hero might not exist anymore
+                        _removeHeroFromMarketplace(index, heroId);
+                        emit HeroUnlisted(heroId, hero.owner);
+                    }
+                }
+            }
         }
     }
 

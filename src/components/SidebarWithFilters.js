@@ -490,6 +490,7 @@ const SidebarWithFilters = ({
                   />
                   <span className="text-sm font-medium text-gray-300">Hide Listed Heroes</span>
                 </label>
+                
               )}
             </div>
           </form>

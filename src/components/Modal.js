@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import './styles/Modal.css';
 import HeroCard from './HeroCard';
 
@@ -17,6 +17,12 @@ const Modal = ({ onClose, children }) => {
 
 const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClose, onBuy }) => {
   const SELLER_FEE_PERCENTAGE = 0.01;
+
+  const [isQuesting, setIsQuesting] = useState(false);
+
+  const handleQuestStatusChange = (status) => {
+    setIsQuesting(status);
+  };
 
   const getAttributeValue = (traitType) => {
     const attribute = hero.attributes.find((attr) => attr.trait_type === traitType);
@@ -38,6 +44,10 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
   };
 
   const handleAction = () => {
+    if (isQuesting) {
+      return; // Don't do anything if hero is questing
+    }
+
     if (isBuyPage) {
       onBuy(hero.id, hero.price);
     } else {
@@ -49,7 +59,7 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
   return (
     <div className="modal-body">
       <div className="modal-hero-image">
-        <HeroCard hero={hero} honkLogo={honkLogo} inModal />
+        <HeroCard hero={hero} honkLogo={honkLogo} inModal onQuestStatusChange={handleQuestStatusChange}/>
       </div>
       <div className="hero-details">
         <h2>{hero.name}</h2>
@@ -175,9 +185,9 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="Price in HONK"
-                disabled={hero.isOnQuest}
-                className={hero.isOnQuest ? 'input-disabled' : ''}
-                title={hero.isOnQuest ? 'Hero is currently on a quest and cannot be listed' : ''}
+                disabled={isQuesting}
+                className={isQuesting ? 'input-disabled' : ''}
+                title={isQuesting ? 'Hero is currently on a quest and cannot be listed' : ''}
               />
               <div className="fee-details">
                 <p>Marketplace Fee (1%): {calculateSellerFee(price).toFixed(2)} HONK</p>
@@ -185,18 +195,19 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
               </div>
               <div className="modal-buttons">
                 <button
-                  className={`modal-button ${hero.isOnQuest ? 'button-disabled' : ''}`}
-                  onClick={handleAction}
-                  disabled={hero.isOnQuest}
-                  title={hero.isOnQuest ? 'Hero is currently on a quest and cannot be listed' : ''}
+                  className={`modal-button ${isQuesting ? 'button-disabled' : ''}`}
+                  onClick={isQuesting ? undefined : handleAction}
+                  disabled={isQuesting}
+                  style={isQuesting? { pointerEvents: 'none' } : {}}
+                  title={isQuesting ? 'Hero is currently on a quest and cannot be listed' : ''}                
                 >
-                  List for Sale
+                  {isQuesting ? 'Questing' : 'List for Sale'}
                 </button>
                 <button className="modal-button" onClick={onClose}>
                   Cancel
                 </button>
               </div>
-              {hero.isOnQuest && (
+              {isQuesting && (
                 <div className="quest-warning">
                   <p>This hero is currently on a quest and cannot be listed</p>
                 </div>
@@ -204,7 +215,7 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
             </>
           )}
         </div>
-        {!isBuyPage && (
+        {(!isBuyPage && !isQuesting) && (
           <div className="disclaimer">
             <p>
               Disclaimer: By proceeding with this listing, you acknowledge that a 1% fee will be

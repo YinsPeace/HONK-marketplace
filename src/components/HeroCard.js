@@ -70,6 +70,7 @@ const HeroCard = React.memo(
     pendingTransactions,
     pendingCancellations,
     pendingPriceUpdates,
+    onQuestStatusChange
   }) => {
     const [isOnQuest, setIsOnQuest] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -81,10 +82,15 @@ const HeroCard = React.memo(
     useEffect(() => {
       const checkQuestStatus = async () => {
         const heroState = await DFKHeroContract.methods.getHeroState(hero.id).call();
-        setIsOnQuest(heroState.currentQuest !== '0x0000000000000000000000000000000000000000');
+        const questStatus = heroState.currentQuest !== '0x0000000000000000000000000000000000000000';
+        setIsOnQuest(questStatus);
+
+        if (onQuestStatusChange) {
+          onQuestStatusChange(questStatus);
+        }
       };
       checkQuestStatus();
-    }, [hero.id]);
+    }, [hero.id, onQuestStatusChange]);
 
     const handleBuy = useCallback(async () => {
       if (isBuying || !isConnected || pendingTransactions?.has(hero.id)) return;

@@ -288,4 +288,8 @@ input[type='number']::-webkit-outer-spin-button {
   border-radius: 4px;
   color: #ff6b6b;
   text-align: center;
+  position: relative;
+  max-width: 80%;
+  margin-left: auto;
+  margin-right: auto;
 }
