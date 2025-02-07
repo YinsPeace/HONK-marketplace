@@ -165,6 +165,7 @@ const HERO_FIELDS = `
 
 export const getHeroesData = async (heroIds) => {
   try {
+    await apiRateLimiter.acquire();
     // Use the full IDs for the query (including realm prefix)
     const stringIds = heroIds.map(id => id.toString());
     
