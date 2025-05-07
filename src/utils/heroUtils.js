@@ -3,6 +3,7 @@ import femaleFirstNames from '../data/femaleFirstNames.json';
 import lastNames from '../data/lastNames.json';
 import { web3 } from '../Web3Config';
 
+
 // Mapping for crafting professions based on passive genes
 const craftingProfessionMapping = {
   '0': 'blacksmithing',
@@ -133,6 +134,7 @@ const batchProcessor = async (requests, batchSize = 5) => {
   return results;
 };
 
+// eslint-disable-next-line no-unused-vars
 const HERO_FIELDS = `
   id
   mainClass
@@ -396,6 +398,7 @@ const getGenderFromGenes = (visualGenes) => {
   }
 };
 
+// eslint-disable-next-line no-unused-vars
 const fetchHeroMetadata = async (id) => {
   try {
     const response = await fetch(`/heroes/token/${id}`);
@@ -490,218 +493,253 @@ export const getHeroesDataBatch = async (heroIds, onProgress) => {
 };
 
 export const getHeroesByOwner = async (ownerAddress) => {
-  let retries = 0;
+  const batchSize = 1000;
+  const PARALLEL_LIMIT = 8; // Increased concurrency – adjust if you hit rate limits
+  const MAX_RETRIES_LOCAL = MAX_RETRIES;
+  const RETRY_DELAY_LOCAL = RETRY_DELAY;
   
-  while (retries < MAX_RETRIES) {
-    try {
-      await apiRateLimiter.acquire();
-      
-      const query = `
-        query getHeroesByOwner($owner: String!) {
-          heroes(where: { owner: $owner }, first: 1000, orderBy: id) {
-            id
-            mainClass
-            subClass
-            level
-            generation
-            summons
-            maxSummons
-            statGenes
-            visualGenes
-            rarity
-            shiny
-            firstName
-            lastName
-            subClassStr
-            professionStr
-            summonedTime
-            nextSummonTime
-            staminaFullAt
-            xp
-            strength
-            intelligence
-            wisdom
-            luck
-            agility
-            vitality
-            endurance
-            dexterity
-            hp
-            mp
-            stamina
-            mining
-            gardening
-            foraging
-            fishing
-            statBoost1
-            statBoost2
-            element
-            gender
-            background
-            statsUnknown1
-            statsUnknown2
-            originRealm
+  // eslint-disable-next-line no-loop-func
+  const fetchBatch = async (skip) => {
+    let retries = 0;
+    while (retries < MAX_RETRIES_LOCAL) {
+      try {
+        await apiRateLimiter.acquire();
+        const query = `
+          query getHeroesByOwner($owner: String!, $skip: Int!) {
+            heroes(where: { owner: $owner }, first: 1000, skip: $skip, orderBy: id) {
+              id
+              mainClass
+              subClass
+              level
+              generation
+              summons
+              maxSummons
+              statGenes
+              visualGenes
+              rarity
+              shiny
+              firstName
+              lastName
+              subClassStr
+              professionStr
+              summonedTime
+              nextSummonTime
+              staminaFullAt
+              xp
+              strength
+              intelligence
+              wisdom
+              luck
+              agility
+              vitality
+              endurance
+              dexterity
+              hp
+              mp
+              stamina
+              mining
+              gardening
+              foraging
+              fishing
+              statBoost1
+              statBoost2
+              element
+              gender
+              background
+              statsUnknown1
+              statsUnknown2
+              originRealm
+              network
+            }
           }
-        }
-      `;
-
-      const variables = { 
-        owner: ownerAddress.toLowerCase()
-      };
-      
-      const response = await fetch('https://api.defikingdoms.com/graphql', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query,
-          variables: convertBigIntsToStrings(variables),
-        }),
-      });
-
-      if (response.status === 429) {
-        await sleep(RETRY_DELAY * (retries + 1));
-        retries++;
-        continue;
-      }
-
-      if (!response.ok) {
-        console.error('GraphQL request failed:', response.status, response.statusText);
-        const errorText = await response.text();
-        console.error('Error details:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (!data || !data.data || !data.data.heroes) {
-        throw new Error('Invalid response format from GraphQL API');
-      }
-
-      const heroes = data.data.heroes;
-
-      // Process each hero through our mapping functions
-      return heroes.map(hero => {
-        const gender = getGenderFromApi(hero.gender);
-        
-        // Ensure we have the full ID
-        const fullId = hero.id.toString();
-        
-        // Get names using indices from API
-        const nameList = gender === 'female' ? femaleFirstNames : maleFirstNames;
-        let firstName = hero.firstName;
-        let lastName = hero.lastName;
-        
-        // Only use name generation if we have numeric indices
-        if (typeof hero.firstName === 'number' || typeof hero.firstName === 'string' && !isNaN(hero.firstName)) {
-          firstName = getNameFromIndex(parseInt(hero.firstName), nameList);
-        } else if (typeof hero.firstName === 'string') {
-          firstName = hero.firstName; // Use the actual name from API
-        } else {
-          firstName = 'Unknown';
-        }
-        
-        if (typeof hero.lastName === 'number' || typeof hero.lastName === 'string' && !isNaN(hero.lastName)) {
-          lastName = getNameFromIndex(parseInt(hero.lastName), lastNames);
-        } else if (typeof hero.lastName === 'string') {
-          lastName = hero.lastName; // Use the actual name from API
-        } else {
-          lastName = 'Unknown';
-        }
-        
-        // Get crafting professions from statsUnknown
-        const statsUnknown1Num = parseInt(hero.statsUnknown1);
-        const statsUnknown2Num = parseInt(hero.statsUnknown2);
-        
-        // Only include valid crafting professions (even numbers from 0 to 14)
-        const craftProf1 = statsUnknown1Num >= 0 && statsUnknown1Num <= 14 && statsUnknown1Num % 2 === 0 
-          ? craftingProfessionMapping[statsUnknown1Num.toString()]
-          : 'none';
-          
-        const craftProf2 = statsUnknown2Num >= 0 && statsUnknown2Num <= 14 && statsUnknown2Num % 2 === 0
-          ? craftingProfessionMapping[statsUnknown2Num.toString()]
-          : 'none';
-        
-        return {
-          ...hero,
-          id: fullId,
-          displayId: fullId, // Use full ID for display
-          shortId: fullId, // Use full ID here too
-          mainClass: classMapping[hero.mainClass] || 'Unknown',
-          subClass: classMapping[hero.subClass] || 'Unknown',
-          rarity: rarityMapping[hero.rarity] || 'Unknown',
-          element: elementMapping[hero.element] 
-            ? elementMapping[hero.element].toLowerCase() 
-            : (typeof hero.element === 'string' ? hero.element.toLowerCase() : 'unknown'),
-          background: backgroundMapping[hero.background] 
-            ? backgroundMapping[hero.background].toLowerCase() 
-            : (typeof hero.background === 'string' ? hero.background.toLowerCase() : 'plains'),
-          gender,
-          firstName,
-          lastName,
-          name: `${firstName} ${lastName}`,
-          image: `https://heroes.defikingdoms.com/image/${hero.id}`,
-          statBoost1: statsMapping[hero.statBoost1] || '',
-          statBoost2: statsMapping[hero.statBoost2] || '',
-          craftProf1,
-          craftProf2,
-          // Convert numeric values to strings or numbers as needed
-          level: parseInt(hero.level) || 0,
-          generation: parseInt(hero.generation) || 0,
-          hp: parseInt(hero.hp) || 0,
-          mp: parseInt(hero.mp) || 0,
-          stamina: parseInt(hero.stamina) || 0,
-          xp: parseInt(hero.xp) || 0,
-          strength: parseInt(hero.strength) || 0,
-          dexterity: parseInt(hero.dexterity) || 0,
-          agility: parseInt(hero.agility) || 0,
-          vitality: parseInt(hero.vitality) || 0,
-          endurance: parseInt(hero.endurance) || 0,
-          intelligence: parseInt(hero.intelligence) || 0,
-          wisdom: parseInt(hero.wisdom) || 0,
-          luck: parseInt(hero.luck) || 0,
-          mining: Math.floor(parseFloat(hero.mining)) || 0,
-          gardening: Math.floor(parseFloat(hero.gardening)) || 0,
-          fishing: Math.floor(parseFloat(hero.fishing)) || 0,
-          foraging: Math.floor(parseFloat(hero.foraging)) || 0,
-          // Format summons as current/max
-          summons: parseInt(hero.summons) || 0,
-          maxSummons: parseInt(hero.maxSummons) || 0,
-          summonsDisplay: `${parseInt(hero.summons) || 0}/${parseInt(hero.maxSummons) || 0}`,
-          staminaFullAt: parseInt(hero.staminaFullAt) || 0,
-          // Add attributes array for Modal component
-          attributes: [
-            { trait_type: 'Strength', value: parseInt(hero.strength) || 0 },
-            { trait_type: 'Agility', value: parseInt(hero.agility) || 0 },
-            { trait_type: 'Endurance', value: parseInt(hero.endurance) || 0 },
-            { trait_type: 'Wisdom', value: parseInt(hero.wisdom) || 0 },
-            { trait_type: 'Dexterity', value: parseInt(hero.dexterity) || 0 },
-            { trait_type: 'Vitality', value: parseInt(hero.vitality) || 0 },
-            { trait_type: 'Intelligence', value: parseInt(hero.intelligence) || 0 },
-            { trait_type: 'Luck', value: parseInt(hero.luck) || 0 },
-            { trait_type: 'Mining', value: Math.floor(parseFloat(hero.mining)) || 0 },
-            { trait_type: 'Gardening', value: Math.floor(parseFloat(hero.gardening)) || 0 },
-            { trait_type: 'Fishing', value: Math.floor(parseFloat(hero.fishing)) || 0 },
-            { trait_type: 'Foraging', value: Math.floor(parseFloat(hero.foraging)) || 0 },
-            { trait_type: 'Tailoring', value: Math.floor(parseFloat(hero.tailoring)) || 0 },
-            { trait_type: 'Leatherworking', value: Math.floor(parseFloat(hero.leatherworking)) || 0 }
-          ]
+        `;
+        const variables = {
+          owner: ownerAddress.toLowerCase(),
+          skip
         };
-      });
+        const response = await fetch('https://api.defikingdoms.com/graphql', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query,
+            variables: convertBigIntsToStrings(variables),
+          }),
 
-    } catch (error) {
-      if (retries >= MAX_RETRIES - 1) return [];
-      
-      await sleep(RETRY_DELAY * (retries + 1));
-      retries++;
+        });
+        if (response.status === 429) {
+          await sleep(RETRY_DELAY_LOCAL * (retries + 1));
+          retries++;
+          continue;
+        }
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('GraphQL error', response.status, errorText);
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const data = await response.json();
+        if (!data?.data?.heroes) {
+          throw new Error('Malformed response');
+        }
+        return data.data.heroes;
+      } catch (err) {
+        if (retries >= MAX_RETRIES_LOCAL - 1) {
+          throw err;
+        }
+        await sleep(RETRY_DELAY_LOCAL * (retries + 1));
+        retries++;
+      }
     }
+    return [];
+  };
+
+  let allHeroes = [];
+  let skip = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    // Prepare a batch of parallel requests up to the limit
+    const parallelSkips = Array.from({ length: PARALLEL_LIMIT }, (_, i) => skip + i * batchSize);
+    // eslint-disable-next-line no-loop-func
+    const results = await Promise.all(
+      parallelSkips.map((s) => fetchBatch(s))
+    );
+
+    // Concatenate and check if we've hit the end
+    for (const heroes of results) {
+      allHeroes = allHeroes.concat(heroes);
+      if (heroes.length < batchSize) {
+        hasMore = false;
+      }
+    }
+    skip += PARALLEL_LIMIT * batchSize;
   }
-  
-  return [];
+
+  // Process heroes through mapping logic
+  return allHeroes.map((hero) => {
+    const gender = getGenderFromApi(hero.gender);
+    
+    // Ensure we have the full ID
+    const fullId = hero.id.toString();
+    
+    // Get names using indices from API
+    const nameList = gender === 'female' ? femaleFirstNames : maleFirstNames;
+    let firstName = hero.firstName;
+    let lastName = hero.lastName;
+    
+    // Only use name generation if we have numeric indices
+    if (typeof hero.firstName === 'number' || (typeof hero.firstName === 'string' && !isNaN(hero.firstName))) {
+      firstName = getNameFromIndex(parseInt(hero.firstName), nameList);
+    } else if (typeof hero.firstName === 'string') {
+      firstName = hero.firstName; // Use the actual name from API
+    } else {
+      firstName = 'Unknown';
+    }
+    
+    if (typeof hero.lastName === 'number' || (typeof hero.lastName === 'string' && !isNaN(hero.lastName))) {
+      lastName = getNameFromIndex(parseInt(hero.lastName), lastNames);
+    } else if (typeof hero.lastName === 'string') {
+      lastName = hero.lastName; // Use the actual name from API
+    } else {
+      lastName = 'Unknown';
+    }
+    
+    // Get crafting professions from statsUnknown
+    const statsUnknown1Num = parseInt(hero.statsUnknown1);
+    const statsUnknown2Num = parseInt(hero.statsUnknown2);
+    
+    // Only include valid crafting professions (even numbers from 0 to 14)
+    const craftProf1 = statsUnknown1Num >= 0 && statsUnknown1Num <= 14 && statsUnknown1Num % 2 === 0 
+      ? craftingProfessionMapping[statsUnknown1Num.toString()]
+      : 'none';
+      
+    const craftProf2 = statsUnknown2Num >= 0 && statsUnknown2Num <= 14 && statsUnknown2Num % 2 === 0
+      ? craftingProfessionMapping[statsUnknown2Num.toString()]
+      : 'none';
+    
+    // Map network to realm name
+    const networkToRealm = {
+      'kla': 'Serendale',
+      'dfk': 'Crystalvale',
+      'met': 'Sundered Isles'
+    };
+    
+    // Get network and realm information
+    const network = hero.network || '';
+    const realmName = networkToRealm[network] || 'Unknown Realm';
+    
+    return {
+      ...hero,
+      id: fullId,
+      displayId: fullId, // Use full ID for display
+      shortId: fullId, // Use full ID here too
+      mainClass: classMapping[hero.mainClass] || 'Unknown',
+      subClass: classMapping[hero.subClass] || 'Unknown',
+      rarity: rarityMapping[hero.rarity] || 'Unknown',
+      element: elementMapping[hero.element] 
+        ? elementMapping[hero.element].toLowerCase() 
+        : (typeof hero.element === 'string' ? hero.element.toLowerCase() : 'unknown'),
+      background: backgroundMapping[hero.background] 
+        ? backgroundMapping[hero.background].toLowerCase() 
+        : (typeof hero.background === 'string' ? hero.background.toLowerCase() : 'plains'),
+      gender,
+      firstName,
+      lastName,
+      name: `${firstName} ${lastName}`,
+      image: `https://heroes.defikingdoms.com/image/${hero.id}`,
+      network,
+      realmName,
+      statBoost1: statsMapping[hero.statBoost1] || '',
+      statBoost2: statsMapping[hero.statBoost2] || '',
+      craftProf1,
+      craftProf2,
+      // Convert numeric values to strings or numbers as needed
+      level: parseInt(hero.level) || 0,
+      generation: parseInt(hero.generation) || 0,
+      hp: parseInt(hero.hp) || 0,
+      mp: parseInt(hero.mp) || 0,
+      stamina: parseInt(hero.stamina) || 0,
+      xp: parseInt(hero.xp) || 0,
+      strength: parseInt(hero.strength) || 0,
+      dexterity: parseInt(hero.dexterity) || 0,
+      agility: parseInt(hero.agility) || 0,
+      vitality: parseInt(hero.vitality) || 0,
+      endurance: parseInt(hero.endurance) || 0,
+      intelligence: parseInt(hero.intelligence) || 0,
+      wisdom: parseInt(hero.wisdom) || 0,
+      luck: parseInt(hero.luck) || 0,
+      mining: Math.floor(parseFloat(hero.mining)) || 0,
+      gardening: Math.floor(parseFloat(hero.gardening)) || 0,
+      fishing: Math.floor(parseFloat(hero.fishing)) || 0,
+      foraging: Math.floor(parseFloat(hero.foraging)) || 0,
+      // Format summons as current/max
+      summons: parseInt(hero.summons) || 0,
+      maxSummons: parseInt(hero.maxSummons) || 0,
+      summonsDisplay: `${parseInt(hero.summons) || 0}/${parseInt(hero.maxSummons) || 0}`,
+      staminaFullAt: parseInt(hero.staminaFullAt) || 0,
+      // Add attributes array for Modal component
+      attributes: [
+        { trait_type: 'Strength', value: parseInt(hero.strength) || 0 },
+        { trait_type: 'Agility', value: parseInt(hero.agility) || 0 },
+        { trait_type: 'Endurance', value: parseInt(hero.endurance) || 0 },
+        { trait_type: 'Wisdom', value: parseInt(hero.wisdom) || 0 },
+        { trait_type: 'Dexterity', value: parseInt(hero.dexterity) || 0 },
+        { trait_type: 'Vitality', value: parseInt(hero.vitality) || 0 },
+        { trait_type: 'Intelligence', value: parseInt(hero.intelligence) || 0 },
+        { trait_type: 'Luck', value: parseInt(hero.luck) || 0 },
+        { trait_type: 'Mining', value: Math.floor(parseFloat(hero.mining)) || 0 },
+        { trait_type: 'Gardening', value: Math.floor(parseFloat(hero.gardening)) || 0 },
+        { trait_type: 'Fishing', value: Math.floor(parseFloat(hero.fishing)) || 0 },
+        { trait_type: 'Foraging', value: Math.floor(parseFloat(hero.foraging)) || 0 },
+        { trait_type: 'Tailoring', value: Math.floor(parseFloat(hero.tailoring)) || 0 },
+        { trait_type: 'Leatherworking', value: Math.floor(parseFloat(hero.leatherworking)) || 0 }
+      ]
+    };
+  });
 };
 
-const getIdForName = (id, originRealm) => {
+export const getIdForName = (id, originRealm) => {
   // Based on originRealm, determine how to handle the ID
   if (!originRealm || originRealm === 'SER') {
     // Harmony hero - use full ID

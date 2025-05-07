@@ -23,7 +23,17 @@ const HeroGrid = ({
   const [selectedHero, setSelectedHero] = useState(null);
   const [price, setPrice] = useState('');
 
+  // Show loading indicator if no heroes but loading is in progress
   if (!heroes || heroes.length === 0) {
+    // Check if loading prop is passed, otherwise default to "No heroes"
+    if (isBuyPage === false && window.isLoadingHeroes) {
+      return (
+        <div className="flex justify-center items-center mt-10">
+          <div className="animate-spin rounded-full h-8 w-8 border-4 border-yellow-500 border-t-transparent"></div>
+          <span className="ml-3 text-lg">Loading heroes...</span>
+        </div>
+      );
+    }
     return <div className="text-center mt-4">No heroes to display</div>;
   }
 
@@ -64,7 +74,8 @@ const HeroGrid = ({
     }
 
     try {
-      await onList(selectedHero.id, price);
+      // Pass the full hero data to handle cross-chain heroes properly
+      await onList(selectedHero.id, price, false, selectedHero);
       closeModal();
     } catch (error) {
       console.error('Error listing hero:', error);

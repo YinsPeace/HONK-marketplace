@@ -17,7 +17,6 @@ import { HeroProvider } from './context/HeroContext';
 
 const BuyTab = lazy(() => import('./components/BuyTab'));
 const SellTab = lazy(() => import('./components/SellTab'));
-const TestHeroLoad = lazy(() => import('./components/TestHeroLoad'));
 
 const ConnectionStatus = ({
   isConnected,
@@ -327,16 +326,6 @@ const App = () => {
                           sortOrder={sortOrder}
                           onBalanceChange={updateBalance}
                           isConnected={isConnected}
-                        />
-                      }
-                    />
-                    <Route
-                      path="/test"
-                      element={
-                        <TestHeroLoad
-                          connectedAddress={connectedAddress}
-                          filters={filters}
-                          sortOrder={sortOrder}
                         />
                       }
                     />

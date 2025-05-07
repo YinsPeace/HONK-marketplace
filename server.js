@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const { createProxyMiddleware } = require('http-proxy-middleware');
+const { exec } = require('child_process');
 
 const app = express();
 const PORT = 3456;
@@ -47,7 +48,21 @@ app.get('*', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  log(`Server running at http://localhost:${PORT}/`);
+  const url = `http://localhost:${PORT}/`;
+  log(`Server running at ${url}`);
   log(`Current directory: ${__dirname}`);
   log(`Build directory exists: ${fs.existsSync(path.join(__dirname, 'build'))}`);
+  
+  // Open browser automatically
+  log('Opening browser...');
+  // Use different commands based on platform
+  const cmd = process.platform === 'win32' ? `start ${url}` : 
+              process.platform === 'darwin' ? `open ${url}` : 
+              `xdg-open ${url}`;
+  
+  exec(cmd, (err) => {
+    if (err) {
+      log(`Failed to open browser: ${err.message}`);
+    }
+  });
 });

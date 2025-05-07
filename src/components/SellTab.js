@@ -26,6 +26,7 @@ const SellTab = ({ filters, sortOrder, testHeroes }) => {
   const { 
     cancelListing, 
     updatePrice, 
+    checkAndCancelIfMoved,
     pendingCancellations, 
     pendingPriceUpdates 
   } = useHeroOperations(connectedAddress, fetchListedHeroes, setHeroes);
@@ -213,7 +214,15 @@ const SellTab = ({ filters, sortOrder, testHeroes }) => {
 
   // Update loading state when fetching changes
   useEffect(() => {
-    setLoading(loadingFromManagement || isChecking);
+    const isLoading = loadingFromManagement || isChecking;
+    setLoading(isLoading);
+    // Set global loading flag for HeroGrid to detect
+    window.isLoadingHeroes = isLoading;
+    
+    // Cleanup
+    return () => {
+      window.isLoadingHeroes = false;
+    };
   }, [loadingFromManagement, isChecking]);
 
   // Update heroes state with filtered heroes
@@ -229,6 +238,22 @@ const SellTab = ({ filters, sortOrder, testHeroes }) => {
       fetchListedHeroes();
     }
   }, [isConnected, isCorrectNetwork, connectedAddress, testHeroes]);
+
+  // Check for heroes that have moved to another chain and cancel their listings
+  // Only run this when the listed heroes change, not periodically
+  useEffect(() => {
+    const checkHeroesOnOtherChains = async () => {
+      if (!connectedAddress || !listedHeroes || listedHeroes.length === 0) return;
+      
+      // Check each listed hero to see if it has moved to another chain
+      for (const listedHero of listedHeroes) {
+        await checkAndCancelIfMoved(listedHero.heroId);
+      }
+    };
+    
+    // Run the check when the component mounts and when listed heroes change
+    checkHeroesOnOtherChains();
+  }, [connectedAddress, listedHeroes, checkAndCancelIfMoved]);
 
   useEffect(() => {
     if (listedHeroes && listedHeroes.length > 0) {
@@ -269,7 +294,9 @@ const SellTab = ({ filters, sortOrder, testHeroes }) => {
 
   const handleWarningConfirm = async () => {
     if (heroToList && priceToList) {
-      const result = await listHeroForSale(heroToList, priceToList, true);
+      // Find the hero in our local state
+      const hero = heroes.find(h => h.id === heroToList);
+      const result = await listHeroForSale(heroToList, priceToList, true, hero);
       if (result.success) {
         toast.success(`Hero ${heroToList} listed successfully after warning confirmation.`);
         fetchListedHeroes();
@@ -283,13 +310,16 @@ const SellTab = ({ filters, sortOrder, testHeroes }) => {
     setPriceToList(null);
   };
 
-  const handleListHeroForSale = async (heroId, price) => {
+  const handleListHeroForSale = async (heroId, price, bypass = false, heroData = null) => {
     if (!price) {
       toast.error('Please enter a price before listing');
       return;
     }
+    
+    // Find the hero in our local state if not provided
+    const hero = heroData || heroes.find(h => h.id === heroId);
 
-    const result = await listHeroForSale(heroId, price);
+    const result = await listHeroForSale(heroId, price, bypass, hero);
     if (!result.success) {
       if (result.warnings.length > 0) {
         setCurrentWarnings(result.warnings);

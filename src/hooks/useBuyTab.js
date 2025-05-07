@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { HONKMarketplaceContract } from '../Web3Config';
+import { HONKMarketplaceContract, DFKHeroContract } from '../Web3Config';
 import { getHeroData } from '../utils/heroUtils';
 import { applyFiltersAndSort as applyFiltersAndSortUtil } from '../utils/filterUtils';
 
@@ -102,6 +102,26 @@ export const useBuyTab = (connectedAddress, filters, sortOrder) => {
             let heroData;
             try {
               heroData = await getHeroData(heroId);
+              
+              // Check if hero is on the correct chain (DFK Chain/Crystalvale)
+              if (heroData.network && heroData.network !== 'dfk') {
+                // Hero has moved to another chain, should be filtered out
+                return null;
+              }
+              
+              // Check if hero is still owned by the original owner in the marketplace listing
+              try {
+                // Get the current owner from the contract
+                const currentOwner = await DFKHeroContract.methods.ownerOf(heroId).call();
+                
+                // If the current owner is different from the listing owner, filter it out
+                if (currentOwner.toLowerCase() !== marketplaceData.owner.toLowerCase()) {
+                  return null;
+                }
+              } catch (ownerError) {
+                // If we can't verify ownership, better to filter it out
+                return null;
+              }
             } catch (error) {
               heroData = createDefaultHeroData(heroId, marketplaceData);
             }

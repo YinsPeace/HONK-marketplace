@@ -85,5 +85,5 @@ truffle-config.js
 
 # Removed directories
 /src/contracts
-/src/data
+# /src/data - We need these files for hero names
 /slither.config.json

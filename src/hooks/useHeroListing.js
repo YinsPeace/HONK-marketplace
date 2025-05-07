@@ -44,7 +44,7 @@ export const useHeroListing = (connectedAddress, fetchHeroes, setHeroes) => {
     fetchListedHeroes();
   }, [connectedAddress, fetchListedHeroes]);
 
-  const listHeroForSale = useCallback(async (heroId, price, bypassWarnings = false) => {
+  const listHeroForSale = useCallback(async (heroId, price, bypassWarnings = false, heroData = null) => {
     if (!connectedAddress || !heroId || !price) {
       return {
         success: false,
@@ -57,12 +57,41 @@ export const useHeroListing = (connectedAddress, fetchHeroes, setHeroes) => {
       // Convert price to wei (assuming 18 decimals)
       const priceInWei = web3.utils.toWei(price.toString(), 'ether');
       
+      // Check if hero is on a different chain
+      if (heroData && heroData.network) {
+        // Map network codes to realm names
+        const networkToRealm = {
+          'kla': 'Serendale',
+          'dfk': 'Crystalvale',
+          'met': 'Sundered Isles'
+        };
+        
+        // If hero is not on DFK Chain (Crystalvale), show specific error
+        if (heroData.network !== 'dfk') {
+          const realmName = networkToRealm[heroData.network] || 'another realm';
+          return {
+            success: false,
+            errors: [`This hero is on ${realmName}. Please move it to Crystalvale to list on HONK Marketplace.`],
+            warnings: []
+          };
+        }
+      }
+      
       // Check if hero exists and is owned by the user using DFKHeroContract
-      const heroOwner = await DFKHeroContract.methods.ownerOf(heroId).call();
-      if (heroOwner.toLowerCase() !== connectedAddress.toLowerCase()) {
+      try {
+        const heroOwner = await DFKHeroContract.methods.ownerOf(heroId).call();
+        if (heroOwner.toLowerCase() !== connectedAddress.toLowerCase()) {
+          return {
+            success: false,
+            errors: ['You do not own this hero'],
+            warnings: []
+          };
+        }
+      } catch (ownerError) {
+        // If ownerOf fails, it might be because the hero is on another chain
         return {
           success: false,
-          errors: ['You do not own this hero'],
+          errors: ['Unable to verify hero ownership. The hero may be on another realm.'],
           warnings: []
         };
       }
