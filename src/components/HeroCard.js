@@ -903,7 +903,6 @@ const HeroCard = React.memo(
                         <div className="row"><div className="statName">Active 2</div><div className="statValue">{formatAbility(hero.abilityGenes?.active2?.name, activeAbilityMapping[Number(hero.originalStatGenes?.active2)])}</div></div>
                         <div className="row"><div className="statName">Passive 1</div><div className="statValue">{formatAbility(hero.abilityGenes?.passive1?.name, passiveAbilityMapping[Number(hero.originalStatGenes?.passive1)])}</div></div>
                         <div className="row"><div className="statName">Passive 2</div><div className="statValue">{formatAbility(hero.abilityGenes?.passive2?.name, passiveAbilityMapping[Number(hero.originalStatGenes?.passive2)])}</div></div>
-<div className="row"><div className="statName">Passive 2</div><div className="statValue">{formatAbility(hero.abilityGenes?.passive2?.name, passiveAbilityMapping[Number(hero.originalStatGenes?.passive2)])}</div></div>
                       </div>
                     </div>
                   )}
