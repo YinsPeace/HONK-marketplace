@@ -24,14 +24,43 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
     setIsQuesting(status);
   };
 
-  const getAttributeValue = (traitType) => {
-    const attribute = hero.attributes.find((attr) => attr.trait_type === traitType);
-    if (!attribute) return 'N/A';
+  // Get stat value directly from hero object
+  const getStatValue = (statName) => {
+    if (!hero || !hero.stats) return 'N/A';
     
-    // Format profession values by dividing by 10
-    const isProfession = ['Mining', 'Gardening', 'Fishing', 'Foraging', 'Tailoring', 'Leatherworking'].includes(traitType);
-    return isProfession ? Math.floor(parseFloat(attribute.value) / 10).toString() : attribute.value;
+    // Map stat names to their property names in the hero object
+    const statMap = {
+      'Strength': 'strength',
+      'Dexterity': 'dexterity',
+      'Agility': 'agility',
+      'Vitality': 'vitality',
+      'Endurance': 'endurance',
+      'Intelligence': 'intelligence',
+      'Wisdom': 'wisdom',
+      'Luck': 'luck'
+    };
+    
+    const statKey = statMap[statName];
+    return statKey && hero.stats ? hero.stats[statKey] || 'N/A' : 'N/A';
   };
+  
+  // Get profession value directly from hero object
+  const getProfessionValue = (profName) => {
+    if (!hero) return 'N/A';
+    
+    // Map profession names to their property names in the hero object
+    const profMap = {
+      'Mining': 'mining',
+      'Gardening': 'gardening',
+      'Fishing': 'fishing',
+      'Foraging': 'foraging'
+    };
+    
+    const profKey = profMap[profName];
+    return profKey && hero[profKey] !== undefined ? Math.floor(hero[profKey] / 10) : 'N/A';
+  };
+  
+  // This function was removed as we now directly use hero.craftProf1/2 properties
 
   const calculateSellerFee = (amount) => {
     const parsedAmount = parseFloat(amount) || 0;
@@ -64,26 +93,26 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
       <div className="hero-details">
         <h2>{hero.name}</h2>
         <div className="stats">
-          <h3 className="section-title">Stats</h3>
-          <hr />
+          <div className="stats-section">
+          <h2>Stats</h2>
           <div className="stat-grid">
             <div className="stat-col">
               <ul>
                 <li>
                   <span className="stat-label">Strength:</span>
-                  <span className="stat-value">{getAttributeValue('Strength')}</span>
+                  <span className="stat-value">{getStatValue('Strength')}</span>
                 </li>
                 <li>
                   <span className="stat-label">Agility:</span>
-                  <span className="stat-value">{getAttributeValue('Agility')}</span>
+                  <span className="stat-value">{getStatValue('Agility')}</span>
                 </li>
                 <li>
                   <span className="stat-label">Endurance:</span>
-                  <span className="stat-value">{getAttributeValue('Endurance')}</span>
+                  <span className="stat-value">{getStatValue('Endurance')}</span>
                 </li>
                 <li>
                   <span className="stat-label">Wisdom:</span>
-                  <span className="stat-value">{getAttributeValue('Wisdom')}</span>
+                  <span className="stat-value">{getStatValue('Wisdom')}</span>
                 </li>
               </ul>
             </div>
@@ -91,35 +120,36 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
               <ul>
                 <li>
                   <span className="stat-label">Dexterity:</span>
-                  <span className="stat-value">{getAttributeValue('Dexterity')}</span>
+                  <span className="stat-value">{getStatValue('Dexterity')}</span>
                 </li>
                 <li>
                   <span className="stat-label">Vitality:</span>
-                  <span className="stat-value">{getAttributeValue('Vitality')}</span>
+                  <span className="stat-value">{getStatValue('Vitality')}</span>
                 </li>
                 <li>
                   <span className="stat-label">Intelligence:</span>
-                  <span className="stat-value">{getAttributeValue('Intelligence')}</span>
+                  <span className="stat-value">{getStatValue('Intelligence')}</span>
                 </li>
                 <li>
                   <span className="stat-label">Luck:</span>
-                  <span className="stat-value">{getAttributeValue('Luck')}</span>
+                  <span className="stat-value">{getStatValue('Luck')}</span>
                 </li>
               </ul>
             </div>
           </div>
-          <h3 className="section-title">Professions</h3>
+        </div>  
+        <h3 className="section-title">Professions</h3>
           <hr />
           <div className="profession-grid">
             <div className="profession-col">
               <ul>
                 <li>
                   <span className="profession-label">Mining:</span>
-                  <span className="profession-value">{getAttributeValue('Mining')}</span>
+                  <span className="profession-value">{getProfessionValue('Mining')}</span>
                 </li>
                 <li>
                   <span className="profession-label">Fishing:</span>
-                  <span className="profession-value">{getAttributeValue('Fishing')}</span>
+                  <span className="profession-value">{getProfessionValue('Fishing')}</span>
                 </li>
               </ul>
             </div>
@@ -127,11 +157,11 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
               <ul>
                 <li>
                   <span className="profession-label">Gardening:</span>
-                  <span className="profession-value">{getAttributeValue('Gardening')}</span>
+                  <span className="profession-value">{getProfessionValue('Gardening')}</span>
                 </li>
                 <li>
                   <span className="profession-label">Foraging:</span>
-                  <span className="profession-value">{getAttributeValue('Foraging')}</span>
+                  <span className="profession-value">{getProfessionValue('Foraging')}</span>
                 </li>
               </ul>
             </div>
@@ -139,22 +169,32 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
           <h3 className="section-title">Crafting Professions</h3>
           <hr />
           <div className="profession-grid">
-            <div className="profession-col">
-              <ul>
-                <li>
-                  <span className="profession-label">Tailoring:</span>
-                  <span className="profession-value">{getAttributeValue('Tailoring')}</span>
-                </li>
-              </ul>
-            </div>
-            <div className="profession-col">
-              <ul>
-                <li>
-                  <span className="profession-label">Leatherworking:</span>
-                  <span className="profession-value">{getAttributeValue('Leatherworking')}</span>
-                </li>
-              </ul>
-            </div>
+            {(hero.craftProf1 && hero.craftProf1 !== 'none') || (hero.craftProf2 && hero.craftProf2 !== 'none') ? (
+              <>
+                {hero.craftProf1 && hero.craftProf1 !== 'none' && (
+                  <div className="profession-col single-col">
+                    <ul>
+                      <li>
+                        <span className="profession-label">{hero.craftProf1}:</span>
+                        <span className="profession-value">0</span>
+                      </li>
+                    </ul>
+                  </div>
+                )}
+                {hero.craftProf2 && hero.craftProf2 !== 'none' && hero.craftProf2 !== hero.craftProf1 && (
+                  <div className="profession-col single-col">
+                    <ul>
+                      <li>
+                        <span className="profession-label">{hero.craftProf2}:</span>
+                        <span className="profession-value">0</span>
+                      </li>
+                    </ul>
+                  </div>
+                )}
+              </>
+            ) : (
+              <p>No crafting professions</p>
+            )}
           </div>
         </div>
         <div className="modal-footer">

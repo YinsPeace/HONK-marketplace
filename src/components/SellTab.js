@@ -12,13 +12,15 @@ import { useDFKTavernCheck } from '../hooks/useDFKTavernCheck';
 import { toast } from 'react-toastify';
 import { applyFiltersAndSort as applyFiltersAndSortUtil } from '../utils/filterUtils';
 
-const SellTab = ({ filters, sortOrder, testHeroes }) => {
-  const { isConnected, isCorrectNetwork, connectedAddress, connect, switchNetwork } = useWallet();
+const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
+  // Only useWallet for isConnected, isCorrectNetwork, connect, switchNetwork if needed for UI
+  const { isConnected, isCorrectNetwork, connect, switchNetwork } = useWallet();
   const [heroes, setHeroes] = useState([]);
   const [loading, setLoading] = useState(false);
 
+  // All hero-related hooks use userAddress
   const { listingHeroId, listHeroForSale, listedHeroes, fetchListedHeroes } = useHeroListing(
-    connectedAddress,
+    userAddress,
     heroes,
     setHeroes
   );
@@ -29,7 +31,7 @@ const SellTab = ({ filters, sortOrder, testHeroes }) => {
     checkAndCancelIfMoved,
     pendingCancellations, 
     pendingPriceUpdates 
-  } = useHeroOperations(connectedAddress, fetchListedHeroes, setHeroes);
+  } = useHeroOperations(userAddress, fetchListedHeroes, setHeroes);
 
   // Keep track of tavern heroes separately
   const [tavernHeroesState, setTavernHeroesState] = useState([]);
@@ -45,7 +47,7 @@ const SellTab = ({ filters, sortOrder, testHeroes }) => {
     lastHeroElementRef,
     error
   } = useHeroManagement(
-    connectedAddress,
+    userAddress,
     false, // isBuyTab 
     filters,
     sortOrder,
@@ -54,7 +56,7 @@ const SellTab = ({ filters, sortOrder, testHeroes }) => {
 
   // Get tavern heroes using raw heroes
   const { tavernListedHeroes, isChecking } = useDFKTavernCheck(
-    connectedAddress,
+    userAddress,
     heroesFromManagement,
     loadingFromManagement,
     isFullyLoaded // Only start checking when heroes are fully loaded
@@ -237,13 +239,13 @@ const SellTab = ({ filters, sortOrder, testHeroes }) => {
     } else if (isConnected && isCorrectNetwork) {
       fetchListedHeroes();
     }
-  }, [isConnected, isCorrectNetwork, connectedAddress, testHeroes]);
+  }, [isConnected, isCorrectNetwork, userAddress, testHeroes]);
 
   // Check for heroes that have moved to another chain and cancel their listings
   // Only run this when the listed heroes change, not periodically
   useEffect(() => {
     const checkHeroesOnOtherChains = async () => {
-      if (!connectedAddress || !listedHeroes || listedHeroes.length === 0) return;
+      if (!userAddress || !listedHeroes || listedHeroes.length === 0) return;
       
       // Check each listed hero to see if it has moved to another chain
       for (const listedHero of listedHeroes) {
@@ -253,7 +255,7 @@ const SellTab = ({ filters, sortOrder, testHeroes }) => {
     
     // Run the check when the component mounts and when listed heroes change
     checkHeroesOnOtherChains();
-  }, [connectedAddress, listedHeroes, checkAndCancelIfMoved]);
+  }, [userAddress, listedHeroes, checkAndCancelIfMoved]);
 
   useEffect(() => {
     if (listedHeroes && listedHeroes.length > 0) {

@@ -8,6 +8,7 @@ import { getHeroesByOwner } from '../utils/heroUtils';
 import { applyFiltersAndSort } from '../utils/filterUtils';
 import { DFKHeroContract, HONKMarketplaceContract } from '../Web3Config';
 import { heroCache } from '../utils/cacheUtils';
+import { enhanceHeroWithGeneData } from '../utils/heroGeneParser';
 
 const HEROES_PER_PAGE = 20;
 
@@ -26,8 +27,13 @@ export const useHeroManagement = (
   const [error, setError] = useState(null);
   const [isFetching, setIsFetching] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [loading, setLoading] = useState(true);
   const observer = useRef();
-  const mode = isBuyTab ? 'buy' : 'owned';
+  const displayStableRef = useRef(false);
+  const processedHeroesCountRef = useRef(0);
+  // Normalize address to lowercase for all uses
+  const normalizedAddress = connectedAddress ? connectedAddress.toLowerCase() : undefined;
+  const mode = isBuyTab ? 'buy' : 'sell';
   const cachedHeroes = useRef({});
 
   // Function to update hero cache
@@ -69,33 +75,90 @@ export const useHeroManagement = (
     });
   }, []);
 
-  const fetchHeroes = useCallback(async () => {
-    if (!connectedAddress || isFetching) return;
+  // For benchmarking
+const setFetchStartTime = () => {
+  if (typeof window !== 'undefined') {
+    window.__honkSellFetchStart = performance.now();
+  }
+};
+
+const getFetchTime = () => {
+  if (typeof window !== 'undefined' && window.__honkSellFetchStart) {
+    return performance.now() - window.__honkSellFetchStart;
+  }
+  return 0;
+};
+
+const fetchHeroes = useCallback(async () => {
+    if (!normalizedAddress || isFetching) return;
     
     setIsFetching(true);
+    setLoading(true);
     setError(null);
+    displayStableRef.current = false;
+    processedHeroesCountRef.current = 0;
 
     try {
+      // Start benchmark
+      setFetchStartTime();
+// NOTE: isFetching removed from dependency array below.
+      // console.log(`[HONK] Starting to fetch heroes for: ${normalizedAddress}`);
+      
       // Try to get from cache first
-      const cacheKey = `${mode}-${connectedAddress}`;
+      const cacheKey = `${mode}-${normalizedAddress}`;
       const cachedData = heroCache.get(cacheKey);
       
-      if (cachedData) {
+      if (Array.isArray(cachedData) && cachedData.length > 0) {
+        // console.log(`[HONK] Found ${cachedData.length} heroes in cache for SellTab`);
         setHeroes(cachedData);
         setIsFetching(false);
         return;
       }
 
-      const fetchedHeroes = await getHeroesByOwner(connectedAddress);
-      setHeroes(fetchedHeroes);
-      // Store in cache
-      heroCache.set(cacheKey, fetchedHeroes);
+      // Use the progress callback to handle incremental loading
+      await getHeroesByOwner(normalizedAddress, (progress) => {
+        const { heroes: newHeroes, totalProcessed, isFirstBatch, elapsedMs, isDone } = progress;
+        
+        // Update our tracking
+        processedHeroesCountRef.current = totalProcessed;
+        
+        if (Array.isArray(newHeroes) && newHeroes.length > 0) {
+          // If this is the first batch, we want to show it immediately
+          if (isFirstBatch) {
+            // console.log(`[HONK] First batch of ${newHeroes.length} heroes loaded in ${elapsedMs}ms`);
+            setHeroes(newHeroes);
+            setLoading(false); // Turn off initial loading indicator
+            // For SellTab, cache after first batch
+            if (mode === 'sell') {
+              heroCache.set(cacheKey, newHeroes);
+            }
+          } else {
+            // For subsequent batches, append to existing heroes
+            setHeroes(prevHeroes => {
+              const updatedHeroes = [...prevHeroes, ...newHeroes];
+              // console.log(`[HONK] Loaded ${newHeroes.length} more heroes. Total: ${updatedHeroes.length}`);
+              return updatedHeroes;
+            });
+          }
+        }
+        
+        // If we're done loading all heroes, update cache and finalize
+        if (isDone) {
+          setHeroes(currentHeroes => {
+            // console.log(`[HONK] All ${currentHeroes.length} heroes loaded in ${getFetchTime()}ms`);
+            // Store in cache
+            heroCache.set(cacheKey, currentHeroes);
+            return currentHeroes;
+          });
+        }
+      });
     } catch (err) {
+      console.error('Failed to fetch heroes:', err);
       setError('Failed to fetch heroes');
     } finally {
       setIsFetching(false);
     }
-  }, [connectedAddress, isFetching, mode]);
+  }, [connectedAddress, mode]);
 
   const loadMoreHeroes = useCallback(() => {
     if (isLoadingMore || !hasMore) return;
@@ -154,7 +217,7 @@ export const useHeroManagement = (
           setError('One or more contracts failed to initialize.');
           return;
         }
-        if (connectedAddress) {
+        if (normalizedAddress) {
           await fetchHeroes();
         }
       } catch (err) {
@@ -163,34 +226,81 @@ export const useHeroManagement = (
     };
 
     initAndFetch();
-  }, [connectedAddress, fetchHeroes]);
+
+  }, [connectedAddress, mode]);
+
+  // Enhance heroes with gene data when in SellTab
+  const enhancedHeroes = useMemo(() => {
+    if (!isBuyTab && heroes.length > 0) {
+      // Helper to map statsUnknown values to crafting professions
+      const getProfessionFromStat = (statValue) => {
+        const professionMap = {
+          0: 'Blacksmithing',
+          2: 'Goldsmithing',
+          4: 'Armorsmithing',
+          6: 'Woodworking',
+          8: 'Leatherworking',
+          10: 'Tailoring',
+          12: 'Enchanting',
+          14: 'Alchemy'
+        };
+        return professionMap[statValue] || 'none';
+      };
+
+      return heroes.map(hero => {
+        // Ensure hero is enhanced with gene data exactly once
+        const enriched = hero.hasOwnProperty('visualTraits') ? hero : enhanceHeroWithGeneData(hero);
+
+        // Derive crafting professions if they are missing or set to "none"
+        const needsCraftProf1 = !enriched.craftProf1 || enriched.craftProf1 === 'none';
+        const needsCraftProf2 = !enriched.craftProf2 || enriched.craftProf2 === 'none';
+
+        if (!needsCraftProf1 && !needsCraftProf2) {
+          return enriched;
+        }
+
+        const craftProf1 = needsCraftProf1 ? getProfessionFromStat(parseInt(enriched.statsUnknown1 || 0)) : enriched.craftProf1;
+        const craftProf2 = needsCraftProf2 ? getProfessionFromStat(parseInt(enriched.statsUnknown2 || 0)) : enriched.craftProf2;
+
+        return {
+          ...enriched,
+          craftProf1,
+          craftProf2
+        };
+      });
+    }
+    return heroes;
+  }, [heroes, isBuyTab]);
 
   // Apply filters when heroes or filters change
   useEffect(() => {
-    const applyFilters = async () => {
-      if (heroes.length > 0) {
-        // Apply filters to all heroes
-        const filtered = await applyFiltersAndSort(heroes, filters, sortOrder, !isBuyTab, listedHeroes);
+    const updateFiltered = async () => {
+      try {
+        // Apply filters to enhanced heroes
+        const filtered = await applyFiltersAndSort(
+          enhancedHeroes,
+          filters,
+          sortOrder,
+          !isBuyTab,
+          Array.from(listedHeroes || [])
+        );
+
         setFilteredHeroes(filtered);
-        
-        // Reset pagination when filters change
         setDisplayedHeroes(filtered.slice(0, HEROES_PER_PAGE));
         setHasMore(filtered.length > HEROES_PER_PAGE);
         setCurrentPage(0);
+      } catch (err) {
+        console.error('Error applying filters:', err);
+        setError('Error filtering heroes');
       }
     };
 
-    if (!isFetching) {
-      applyFilters();
+    if (enhancedHeroes.length > 0) {
+      updateFiltered();
     }
-  }, [heroes, filters, sortOrder, listedHeroes, isBuyTab, isFetching]);
+  }, [enhancedHeroes, filters, sortOrder, isBuyTab, listedHeroes]);
 
-  // Clear cache on blockchain events
-  useEffect(() => {
-    if (listedHeroes?.length > 0) {
-      heroCache.clear();
-    }
-  }, [listedHeroes]);
+
 
   // Add isFullyLoaded calculation
   const isFullyLoaded = useMemo(() => {

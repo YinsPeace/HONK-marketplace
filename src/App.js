@@ -307,16 +307,6 @@ const App = () => {
                 <Suspense fallback={<div>Loading...</div>}>
                   <Routes>
                     <Route
-                      path="/sell"
-                      element={
-                        <SellTab
-                          userAddress={connectedAddress}
-                          filters={filters}
-                          sortOrder={sortOrder}
-                        />
-                      }
-                    />
-                    <Route
                       path="/"
                       element={
                         <BuyTab
@@ -326,6 +316,16 @@ const App = () => {
                           sortOrder={sortOrder}
                           onBalanceChange={updateBalance}
                           isConnected={isConnected}
+                        />
+                      }
+                    />
+                    <Route
+                      path="/sell"
+                      element={
+                        <SellTab
+                          userAddress={connectedAddress}
+                          filters={filters}
+                          sortOrder={sortOrder}
                         />
                       }
                     />

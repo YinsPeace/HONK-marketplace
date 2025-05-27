@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import HeroCardTabs from './HeroCardTabs';
 import { calculateRequiredXp, calculateRemainingStamina } from '../utils/stamExpCalc';
 import { statBoosts } from '../utils/heroStatskills';
 import { DFKHeroContract, web3 } from '../Web3Config';
-import { getFirstName, getLastName } from '../utils/heroUtils';
+import { getFirstName, getLastName, classMapping, professionMapping, elementMapping, statsMapping, activeAbilityMapping, passiveAbilityMapping } from '../utils/heroUtils';
+import { getActiveAbilityName, getPassiveAbilityName, abilityWithShortCode } from '../utils/heroGeneParser';
 import '../components/styles/HeroCard.css';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -42,14 +44,21 @@ import jewelIcon from '../assets/images/hero/icons/jewel.png';
 import jadeIcon from '../assets/images/hero/icons/jade.png';
 
 const craftingProfessionMapping = {
-  '1': 'Alchemy',
-  '2': 'Blacksmithing',
-  '3': 'Carpentry',
-  '4': 'Cooking',
-  '5': 'Jewelcrafting',
-  '6': 'Leatherworking',
-  '7': 'Tailoring',
-  '8': 'Weaving',
+  0: 'Blacksmithing',
+  2: 'Goldsmithing',
+  4: 'Armorsmithing',
+  6: 'Woodworking',
+  8: 'Leatherworking',
+  10: 'Tailoring',
+  12: 'Enchanting',
+  14: 'Alchemy'
+};
+
+// Helper function to format and escape ability names
+const formatAbility = (abilityName, fallback, unknown = 'Unknown') => {
+  const formattedAbility = abilityWithShortCode(abilityName || fallback || unknown);
+  // No need to escape here as we're returning a string, not JSX
+  return formattedAbility;
 };
 
 const HeroCard = React.memo(
@@ -78,6 +87,7 @@ const HeroCard = React.memo(
     const [isBuying, setIsBuying] = useState(false);
     const [isFlipped, setIsFlipped] = useState(false);
     const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
+    const [activeTab, setActiveTab] = useState('stats');
 
     useEffect(() => {
       const checkQuestStatus = async () => {
@@ -419,6 +429,9 @@ const HeroCard = React.memo(
       return <div>No hero data available</div>;
     }
 
+    // Normalize rarity for icon rendering
+    const normalizedRarity = (hero.rarity || '').toLowerCase().trim();
+
     const getAttribute = (traitType) => {
       switch (traitType) {
         case 'Rarity': return hero.rarity;
@@ -753,11 +766,11 @@ const HeroCard = React.memo(
               </div>
               <div className={'cardRarity'}>
                 <div className={'icon'}>
-                  {hero.rarity === 'common' && <img src={commonIcon} alt="" />}
-                  {hero.rarity === 'uncommon' && <img src={uncommonIcon} alt="" />}
-                  {hero.rarity === 'rare' && <img src={rareIcon} alt="" />}
-                  {hero.rarity === 'legendary' && <img src={legendaryIcon} alt="" />}
-                  {hero.rarity === 'mythic' && <img src={mythicIcon} alt="" />}
+                  {normalizedRarity === 'common' && <img src={commonIcon} alt="" />}
+                  {normalizedRarity === 'uncommon' && <img src={uncommonIcon} alt="" />}
+                  {normalizedRarity === 'rare' && <img src={rareIcon} alt="" />}
+                  {normalizedRarity === 'legendary' && <img src={legendaryIcon} alt="" />}
+                  {normalizedRarity === 'mythic' && <img src={mythicIcon} alt="" />}
                   <span className={'tooltip'}>{hero.rarity}</span>
                 </div>
               </div>
@@ -765,7 +778,7 @@ const HeroCard = React.memo(
                 Level {hero.level}
                 <span className={'subClass'}>Gen {hero.generation}</span>
               </div>
-            </div>
+              </div>
             <div className={'heroStats'}>
               <div className={'heroFrame'}>
                 <div className={`statSummons row`}>
@@ -842,25 +855,129 @@ const HeroCard = React.memo(
                   <span className={`tooltip`}>{hero.gender}</span>
                 </div>
               </div>
-              {hero.ownerName && (
-                <div className="owner-info" style={{ 
-                  position: 'absolute', 
-                  bottom: '10px', 
-                  left: '50%', 
-                  transform: 'translateX(-50%)',
-                  color: '#fff',
-                  fontSize: '0.9em',
-                  textAlign: 'center',
-                  width: '100%'
-                }}>
-                  Owner: {hero.ownerName}
-                </div>
-              )}
+              
+              {/* Tab content area */}
               <div className={`heroStats`}>
-                <div className={`heroFrame`}>{detailedStats}</div>
+                <div className={`heroFrame`}>
+                  {activeTab === 'stats' && detailedStats}
+                  {activeTab === 'growth' && (
+                    <div style={{ padding: '0 10px' }}>
+                      <h3 style={styles.sectionTitle}>Growth Stats</h3>
+                      <div className="statList-vertical growth-stats">
+                        <div className="growth-section-title" style={{ textAlign: 'center', fontWeight: 500, fontSize: '17px', color: '#fbe375', margin: '6px 0 2px 0', letterSpacing: '0.02em' }}>Primary Growth</div>
+                        <div className="row" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2px 8px' }}>
+                          <div className="col"><div className="statName">STR</div><div className="statValue">{hero.growthStats?.primary?.STR || '0'}%</div></div>
+                          <div className="col"><div className="statName">INT</div><div className="statValue">{hero.growthStats?.primary?.INT || '0'}%</div></div>
+                          <div className="col"><div className="statName">WIS</div><div className="statValue">{hero.growthStats?.primary?.WIS || '0'}%</div></div>
+                          <div className="col"><div className="statName">LCK</div><div className="statValue">{hero.growthStats?.primary?.LCK || '0'}%</div></div>
+                        </div>
+                        <div className="row" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2px 8px' }}>
+                          <div className="col"><div className="statName">AGI</div><div className="statValue">{hero.growthStats?.primary?.AGI || '0'}%</div></div>
+                          <div className="col"><div className="statName">VIT</div><div className="statValue">{hero.growthStats?.primary?.VIT || '0'}%</div></div>
+                          <div className="col"><div className="statName">END</div><div className="statValue">{hero.growthStats?.primary?.END || '0'}%</div></div>
+                          <div className="col"><div className="statName">DEX</div><div className="statValue">{hero.growthStats?.primary?.DEX || '0'}%</div></div>
+                        </div>
+                        <div className="row">
+                          <div className="growth-section-title" style={{ gridColumn: '1 / -1', textAlign: 'center', fontWeight: 500 }}>Secondary Growth</div>
+                        </div>
+                        <div className="row" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2px 8px' }}>
+                          <div className="col"><div className="statName">STR</div><div className="statValue">{hero.growthStats?.secondary?.STR || '0'}%</div></div>
+                          <div className="col"><div className="statName">INT</div><div className="statValue">{hero.growthStats?.secondary?.INT || '0'}%</div></div>
+                          <div className="col"><div className="statName">WIS</div><div className="statValue">{hero.growthStats?.secondary?.WIS || '0'}%</div></div>
+                          <div className="col"><div className="statName">LCK</div><div className="statValue">{hero.growthStats?.secondary?.LCK || '0'}%</div></div>
+                        </div>
+                        <div className="row" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2px 8px' }}>
+                          <div className="col"><div className="statName">AGI</div><div className="statValue">{hero.growthStats?.secondary?.AGI || '0'}%</div></div>
+                          <div className="col"><div className="statName">VIT</div><div className="statValue">{hero.growthStats?.secondary?.VIT || '0'}%</div></div>
+                          <div className="col"><div className="statName">END</div><div className="statValue">{hero.growthStats?.secondary?.END || '0'}%</div></div>
+                          <div className="col"><div className="statName">DEX</div><div className="statValue">{hero.growthStats?.secondary?.DEX || '0'}%</div></div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  {activeTab === 'abilities' && (
+                    <div style={{ padding: '0 10px' }}>
+                      <h3 style={styles.sectionTitle}>Ability Genes</h3>
+                      <div className="statList-vertical ability-genes">
+                        <div className="row"><div className="statName">Active 1</div><div className="statValue">{formatAbility(hero.abilityGenes?.active1?.name, activeAbilityMapping[Number(hero.originalStatGenes?.active1)])}</div></div>
+                        <div className="row"><div className="statName">Active 2</div><div className="statValue">{formatAbility(hero.abilityGenes?.active2?.name, activeAbilityMapping[Number(hero.originalStatGenes?.active2)])}</div></div>
+                        <div className="row"><div className="statName">Passive 1</div><div className="statValue">{formatAbility(hero.abilityGenes?.passive1?.name, passiveAbilityMapping[Number(hero.originalStatGenes?.passive1)])}</div></div>
+                        <div className="row"><div className="statName">Passive 2</div><div className="statValue">{formatAbility(hero.abilityGenes?.passive2?.name, passiveAbilityMapping[Number(hero.originalStatGenes?.passive2)])}</div></div>
+<div className="row"><div className="statName">Passive 2</div><div className="statValue">{formatAbility(hero.abilityGenes?.passive2?.name, passiveAbilityMapping[Number(hero.originalStatGenes?.passive2)])}</div></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === 'recessive1' && (
+                    <div style={{ padding: '0 10px' }}>
+                      <h3 style={styles.sectionTitle}>Recessive Genes (R1)</h3>
+                      <div className="statList-vertical recessive-genes">
+                        <div className="row paired-stats">
+                          <div className="stat-pair">
+                            <div className="statName">Class</div>
+                            <div className="statValue" style={{ color: '#e6c15a' }}>{hero.formattedRecessiveGenes?.stat?.r1?.mainClass || 'Unknown'}</div>
+                          </div>
+                          <div className="stat-pair">
+                            <div className="statName">Subclass</div>
+    <div className="statValue" style={{ color: '#d14f69' }}>{hero.formattedRecessiveGenes?.stat?.r1?.subClass || 'Unknown'}</div>
+  </div>
+</div>
+<div className="row"><div className="statName">Profession</div><div className="statValue" style={{ color: '#8bc34a' }}>{hero.formattedRecessiveGenes?.stat?.r1?.profession || 'Unknown'}</div></div>
+<div className="row paired-stats">
+  <div className="stat-pair">
+    <div className="statName">Stat Boost 1</div>
+    <div className="statValue" style={{ color: '#ff9800' }}>{hero.formattedRecessiveGenes?.stat?.r1?.statBoost1 || 'Unknown'}</div>
+  </div>
+  <div className="stat-pair">
+    <div className="statName">Stat Boost 2</div>
+    <div className="statValue" style={{ color: '#4caf50' }}>{hero.formattedRecessiveGenes?.stat?.r1?.statBoost2 || 'Unknown'}</div>
+  </div>
+</div>
+<div className="row"><div className="statName">Active 1</div><div className="statValue" style={{ color: '#2196f3' }}>{hero.formattedRecessiveGenes?.stat?.r1?.active1 || 'Unknown'}</div></div>
+<div className="row"><div className="statName">Active 2</div><div className="statValue" style={{ color: '#2196f3' }}>{hero.formattedRecessiveGenes?.stat?.r1?.active2 || 'Unknown'}</div></div>
+<div className="row"><div className="statName">Passive 1</div><div className="statValue" style={{ color: '#9c27b0' }}>{hero.formattedRecessiveGenes?.stat?.r1?.passive1 || 'Unknown'}</div></div>
+<div className="row"><div className="statName">Passive 2</div><div className="statValue" style={{ color: '#9c27b0' }}>{hero.formattedRecessiveGenes?.stat?.r1?.passive2 || 'Unknown'}</div></div>
+                      </div>
+                    </div>
+                  )}
+                  {activeTab === 'recessive2' && (
+                    <div style={{ padding: '0 10px' }}>
+                      <h3 style={styles.sectionTitle}>Recessive Genes (R2)</h3>
+                      <div className="statList-vertical recessive-genes">
+                        <div className="row paired-stats">
+  <div className="stat-pair">
+    <div className="statName">Class</div>
+    <div className="statValue" style={{ color: '#e6c15a' }}>{hero.formattedRecessiveGenes?.stat?.r2?.mainClass || 'Unknown'}</div>
+  </div>
+  <div className="stat-pair">
+    <div className="statName">Subclass</div>
+    <div className="statValue" style={{ color: '#d14f69' }}>{hero.formattedRecessiveGenes?.stat?.r2?.subClass || 'Unknown'}</div>
+  </div>
+</div>
+<div className="row"><div className="statName">Profession</div><div className="statValue" style={{ color: '#8bc34a' }}>{hero.formattedRecessiveGenes?.stat?.r2?.profession || 'Unknown'}</div></div>
+<div className="row paired-stats">
+  <div className="stat-pair">
+    <div className="statName">Stat Boost 1</div>
+    <div className="statValue" style={{ color: '#ff9800' }}>{hero.formattedRecessiveGenes?.stat?.r2?.statBoost1 || 'Unknown'}</div>
+  </div>
+  <div className="stat-pair">
+    <div className="statName">Stat Boost 2</div>
+    <div className="statValue" style={{ color: '#4caf50' }}>{hero.formattedRecessiveGenes?.stat?.r2?.statBoost2 || 'Unknown'}</div>
+  </div>
+</div>
+<div className="row"><div className="statName">Active 1</div><div className="statValue" style={{ color: '#2196f3' }}>{hero.formattedRecessiveGenes?.stat?.r2?.active1 || 'Unknown'}</div></div>
+<div className="row"><div className="statName">Active 2</div><div className="statValue" style={{ color: '#2196f3' }}>{hero.formattedRecessiveGenes?.stat?.r2?.active2 || 'Unknown'}</div></div>
+<div className="row"><div className="statName">Passive 1</div><div className="statValue" style={{ color: '#9c27b0' }}>{hero.formattedRecessiveGenes?.stat?.r2?.passive1 || 'Unknown'}</div></div>
+<div className="row"><div className="statName">Passive 2</div><div className="statValue" style={{ color: '#9c27b0' }}>{hero.formattedRecessiveGenes?.stat?.r2?.passive2 || 'Unknown'}</div></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
+              
+              {/* Tab navigation */}
+              <HeroCardTabs activeTab={activeTab} onTabChange={setActiveTab} />
             </div>
-            Placeholder for statSliders
           </div>
         </div>
         {!inModal && (

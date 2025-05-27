@@ -19,7 +19,8 @@ const BuyTab = ({ filters, sortOrder }) => {
     isLoadingMore,
     loadMoreHeroes,
     fetchHeroes,
-    setHeroes
+    setHeroes,
+    loadStats
   } = useBuyTab(connectedAddress, filters, sortOrder);
 
   const [pendingTransactions, setPendingTransactions] = React.useState(new Set());
@@ -101,16 +102,20 @@ const BuyTab = ({ filters, sortOrder }) => {
       )}
       {isConnected && isCorrectNetwork && (
         <>
-          {loading ? (
-            <div className="mt-8">
-              <LoadingIndicator />
-            </div>
-          ) : error ? (
+          {error ? (
             <div className="mt-8 text-center text-red-500">
               Error: {error}
             </div>
           ) : (
             <div className="mt-8">
+              {/* Show loading indicator at top while initially loading */}
+              {loading && displayedHeroes.length === 0 && (
+                <div className="flex justify-center items-center mb-8">
+                  <LoadingIndicator />
+                  <span className="ml-3">Loading heroes...</span>
+                </div>
+              )}
+              {/* Always render HeroGrid, even during loading */}
               <HeroGrid
                 heroes={displayedHeroes}
                 isBuyPage={true}
@@ -125,7 +130,21 @@ const BuyTab = ({ filters, sortOrder }) => {
                 pendingCancellations={new Set()}
                 pendingPriceUpdates={new Set()}
               />
-              {isLoadingMore && <LoadingIndicator />}
+              {/* Show loading indicator at bottom during pagination */}
+              {/* Only show loading indicator if we're still actively loading */}
+              {(loading || isLoadingMore) && displayedHeroes.length > 0 && !loadStats?.isDone && (
+                <div className="flex justify-center items-center mt-8">
+                  <LoadingIndicator />
+                  <span className="ml-3">Loading more heroes...</span>
+                </div>
+              )}
+              {/* Loading stats */}
+              {loadStats?.isDone && (
+                <div className="text-center mt-8 text-gray-500">
+                  Found {loadStats.totalHeroes} heroes on blockchain, displaying {loadStats.validHeroes} valid listings
+                  ({loadStats.filteredOut} filtered out) • Loaded in {(loadStats.loadTimeMs / 1000).toFixed(1)} seconds
+                </div>
+              )}
               {!isLoadingMore && !hasMore && displayedHeroes.length > 0 && (
                 <div className="text-center mt-8 text-gray-500">
                   No more heroes to load

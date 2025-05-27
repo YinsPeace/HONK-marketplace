@@ -127,6 +127,255 @@
   font-size: 16px;
 }
 
+/* Base vertical stat list styling */
+.statList-vertical {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.statList-vertical .row {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 4px;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.statList-vertical .statName {
+  font-weight: 500;
+  font-size: 12px;
+  color: #fbe375;
+  margin-bottom: 1px;
+  letter-spacing: 0.02em;
+}
+
+.statList-vertical .statValue {
+  font-size: 13px;
+  color: #e2e8f0;
+  word-break: break-word;
+}
+
+.statList-vertical .col {
+  display: block;
+  padding: 0;
+  margin: 0;
+}
+
+/* Compact styling specifically for Growth Stats tab */
+.growth-stats {
+  font-size: 13px;
+}
+
+/* Override base statList-vertical for growth stats specifically */
+.growth-stats .statList-vertical,
+.growth-stats > .statList-vertical,
+div.growth-stats .statList-vertical {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 2px 10px !important;
+  align-items: start !important;
+  flex-direction: unset !important;
+  max-width: 100% !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+  box-sizing: border-box !important;
+}
+
+.growth-stats {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  padding-bottom: 2px !important;
+}
+
+.growth-stats .row,
+.growth-stats .statList-vertical .row {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+}
+
+.growth-stats .row[style*='grid-template-columns'] {
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 2px 8px !important;
+  align-items: center !important;
+  justify-items: center !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.growth-stats .row[style*='grid-template-columns'] .col {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.growth-stats .statName,
+.growth-stats .row .statName,
+.growth-stats .statList-vertical .row .statName,
+.growth-stats .growth-section-title,
+.growth-stats .statValue,
+.growth-stats .row .statValue,
+.growth-stats .statList-vertical .row .statValue {
+  overflow-wrap: break-word !important;
+  word-break: break-word !important;
+  max-width: 100% !important;
+}
+
+/* Hide section headers completely - try multiple selectors */
+.growth-stats .row:first-child,
+.growth-stats .statList-vertical .row:first-child,
+.growth-stats .row:nth-child(9),
+.growth-stats .statList-vertical .row:nth-child(9) {
+  display: none !important;
+}
+
+/* All stat rows in compact grid layout - multiple selectors */
+.growth-stats .row,
+.growth-stats .statList-vertical .row {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  margin-bottom: 2px !important;
+  padding: 2px 1px !important;
+  border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+  text-align: center !important;
+  width: auto !important; /* Prevent full-width so grid columns work */
+}
+
+.growth-stats .statName,
+.growth-stats .row .statName,
+.growth-stats .statList-vertical .row .statName {
+  font-size: 15px !important;
+  margin-bottom: 1px !important;
+  line-height: 1.2 !important;
+  font-weight: 500 !important;
+  color: #fbe375 !important;
+  text-align: center !important;
+}
+
+.growth-stats .statValue,
+.growth-stats .row .statValue,
+.growth-stats .statList-vertical .row .statValue {
+  font-size: 16px !important;
+  line-height: 1.2 !important;
+  color: #e2e8f0 !important;
+  text-align: center !important;
+}
+
+.growth-stats .growth-section-title {
+  font-size: 19px !important;
+  font-weight: 500 !important;
+  color: #fbe375 !important;
+  margin: 7px 0 3px 0 !important;
+  letter-spacing: 0.02em !important;
+}
+
+.growth-stats .statValue,
+.growth-stats .row .statValue,
+.growth-stats .statList-vertical .row .statValue {
+  font-size: 12px !important;
+  line-height: 1.1 !important;
+  color: #e2e8f0 !important;
+  text-align: center !important;
+}
+
+/* Compact styling specifically for Recessive Genes tabs */
+.recessive-genes {
+  font-size: 12px;
+}
+
+.recessive-genes .row {
+  margin-bottom: 3px;
+  padding: 2px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.recessive-genes .statName {
+  font-size: 14px;
+  margin-bottom: 1px;
+  line-height: 0.5;
+  font-weight: 500;
+}
+
+.recessive-genes .statValue {
+  font-size: 16px;
+  line-height: 1.2;
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+/* Paired stats specific styling for recessive genes */
+.recessive-genes .row.paired-stats {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.recessive-genes .paired-stats .stat-pair {
+  display: flex;
+  flex-direction: column;
+  width: 48%;
+  min-width: 0;
+}
+
+.recessive-genes .paired-stats .stat-pair .statName {
+  font-size: 14px;
+  margin-bottom: 1px;
+}
+
+.recessive-genes .paired-stats .stat-pair .statValue {
+  font-size: 14px;
+  line-height: 1.2;
+}
+
+/* Section titles for Growth and Recessive tabs only */
+.growth-stats h3,
+.recessive-genes h3,
+.ability-genes h3 {
+  margin-top: 0 !important;
+  margin-bottom: 6px !important;
+  font-size: 15px !important;
+  padding-bottom: 3px !important;
+  line-height: 1.2;
+}
+
+/* Reduce section title spacing */
+div[style*="padding: 0 10px"] h3[style*="sectionTitle"] {
+  margin-top: 0;
+  margin-bottom: 4px;
+  font-size: 15px;
+  padding-bottom: 2px;
+}
+
+/* Ability Genes specific styling */
+.ability-genes .row {
+  margin-bottom: 2px;
+  padding: 4px 0;
+}
+
+.ability-genes .statName {
+  font-size: 16px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.ability-genes .statValue {
+  font-size: 16px;
+  line-height: 1;
+}
+
 .statList .statName,
 .skillList .skillName {
   font-family: 'Lora', serif;

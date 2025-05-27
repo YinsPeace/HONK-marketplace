@@ -144,6 +144,7 @@ const SidebarWithFilters = ({
     'Summoner',
     'Ninja',
     'Shapeshifter',
+    'Bard',
     'Dragoon',
     'Sage',
     'Spellbow',
@@ -353,6 +354,7 @@ const SidebarWithFilters = ({
   };
 
   const handleClearFilters = () => {
+    // Clear all filters
     onFiltersChange('class', defaultFilters.class);
     onFiltersChange('subclass', defaultFilters.subclass);
     onFiltersChange('profession', defaultFilters.profession);
@@ -369,6 +371,35 @@ const SidebarWithFilters = ({
     onFiltersChange('hideQuesting', defaultFilters.hideQuesting);
     onFiltersChange('hideListedHeroes', defaultFilters.hideListedHeroes);
     onFiltersChange('heroId', '');
+    
+    // Also clear the cache for the current tab
+    if (isActiveTab('buy')) {
+      // Clear BuyTab cache
+      if (window.marketplaceCache) {
+        window.marketplaceCache.clearListedHeroes();
+      }
+    } else {
+      // Clear SellTab cache
+      if (window.heroCache) {
+        const address = localStorage.getItem('lastConnectedAddress');
+        if (address) {
+          window.heroCache.remove(`sell-${address.toLowerCase()}`);
+        }
+      }
+    }
+
+    // Completely clear hero cache to force re-fetch
+    if (window.heroCache) {
+      if (typeof window.heroCache.clear === 'function') {
+        window.heroCache.clear();
+      } else if (typeof window.heroCache.store === 'object') {
+        // Fallback: iterate keys
+        Object.keys(window.heroCache.store).forEach(k=>window.heroCache.remove(k));
+      }
+    }
+
+    alert('Filters cleared and marketplace cache refreshed.');
+    window.location.reload();
   };
 
   return (
@@ -466,6 +497,47 @@ const SidebarWithFilters = ({
                   </option>
                 ))}
               </select>
+            </div>
+
+            <div className="space-y-2 mb-4">
+              <div className="flex space-x-2">
+                <button
+                  type="button"
+                  onClick={handleClearFilters}
+                  disabled={disabled}
+                  className="flex-1 py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  Clear Filters
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // Clear cache based on current tab
+                    if (isActiveTab('buy')) {
+                      // Clear BuyTab cache
+                      if (window.marketplaceCache) {
+                        window.marketplaceCache.clearListedHeroes();
+                        alert('Marketplace cache cleared. Refreshing...');
+                        window.location.reload();
+                      }
+                    } else {
+                      // Clear SellTab cache
+                      if (window.heroCache) {
+                        const address = localStorage.getItem('lastConnectedAddress');
+                        if (address) {
+                          window.heroCache.remove(`sell-${address.toLowerCase()}`);
+                          alert('Sell tab cache cleared. Refreshing...');
+                          window.location.reload();
+                        }
+                      }
+                    }
+                  }}
+                  disabled={disabled}
+                  className="flex-1 py-2 px-4 bg-orange-600 hover:bg-orange-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
+                >
+                  Clear Cache
+                </button>
+              </div>
             </div>
 
             <div className="space-y-2">

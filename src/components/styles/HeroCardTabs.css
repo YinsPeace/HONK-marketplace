@@ -1,0 +1,52 @@
+.hero-card-tabs {
+  position: absolute;
+  left: 50%;
+  bottom: 6px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 10;
+  justify-content: center;
+  align-items: center;
+}
+
+.hero-card-tab {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid #7e6d36;
+}
+
+.hero-card-tab:hover {
+  transform: scale(1.1);
+  background-color: rgba(0, 0, 0, 0.7);
+  border-color: #fbe375;
+}
+
+.hero-card-tab.active {
+  background-color: rgba(251, 227, 117, 0.3);
+  border: 2px solid #fbe375;
+}
+
+.hero-card-tab .tab-symbol {
+  font-size: 12px;
+  line-height: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.tab-symbol-recessive-gene {
+  color: #9c27b0 !important;
+  font-weight: bold !important;
+  background: none !important;
+  text-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+}

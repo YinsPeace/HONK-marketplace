@@ -2,18 +2,18 @@ import maleFirstNames from '../data/maleFirstNames.json';
 import femaleFirstNames from '../data/femaleFirstNames.json';
 import lastNames from '../data/lastNames.json';
 import { web3 } from '../Web3Config';
-
+import { enhanceHeroWithGeneData } from './heroGeneParser';
 
 // Mapping for crafting professions based on passive genes
 const craftingProfessionMapping = {
-  '0': 'blacksmithing',
-  '2': 'goldsmithing',
-  '4': 'armorsmithing',
-  '6': 'woodworking',
-  '8': 'leatherworking',
-  '10': 'tailoring',
-  '12': 'enchanting',
-  '14': 'alchemy',
+  '0': 'Blacksmithing',
+  '2': 'Goldsmithing',
+  '4': 'Armorsmithing',
+  '6': 'Woodworking',
+  '8': 'Leatherworking',
+  '10': 'Tailoring',
+  '12': 'Enchanting',
+  '14': 'Alchemy',
   'none': 'none'
 };
 
@@ -39,15 +39,23 @@ export const classMapping = {
   24: 'Dragoon',
   25: 'Sage',
   26: 'SpellBow',
-  28: 'DreadKnight',
+  28: 'DreadKnight'
 };
 
 export const rarityMapping = {
-  0: 'common',
-  1: 'uncommon',
-  2: 'rare',
-  3: 'legendary',
-  4: 'mythic',
+  0: 'Common',
+  1: 'Uncommon',
+  2: 'Rare',
+  3: 'Legendary',
+  4: 'Mythic'
+};
+
+// Profession mapping for hero professions
+export const professionMapping = {
+  0: 'mining',
+  2: 'gardening',
+  4: 'fishing',
+  6: 'foraging'
 };
 
 export const elementMapping = {
@@ -58,18 +66,18 @@ export const elementMapping = {
   8: 'lightning',
   10: 'ice',
   12: 'light',
-  14: 'dark',
+  14: 'dark'
 };
 
 export const backgroundMapping = {
-    0: "Desert",
-    2: "Forest",
-    4: "Plains",
-    6: "Island",
-    8: "Swamp",
-    10: "Mountains",
-    12: "City",
-    14: "Arctic"
+  0: 'desert',
+  2: 'forest',
+  4: 'plains',
+  6: 'island',
+  8: 'swamp',
+  10: 'mountains',
+  12: 'city',
+  14: 'arctic'
 };
 
 export const statsMapping = {
@@ -80,7 +88,64 @@ export const statsMapping = {
   8: 'LCK',
   10: 'VIT',
   12: 'END',
-  14: 'DEX',
+  14: 'DEX'
+};
+
+// Active/Passive ability mapping - these map to Basic1, Basic2, etc.
+export const abilityMapping = {
+  0: "Basic1",
+  1: "Basic2", 
+  2: "Basic3",
+  3: "Basic4",
+  4: "Basic5",
+  5: "Basic6",
+  6: "Basic7",
+  7: "Basic8",
+  16: "Advanced1",
+  17: "Advanced2",
+  18: "Advanced3", 
+  19: "Advanced4",
+  24: "Elite1",
+  25: "Elite2",
+  28: "Exalted1"
+};
+
+// Specific ability names for reference
+export const activeAbilityMapping = {
+  0: "Poisoned Blade (Basic1)",    // Basic 1
+  1: "Blinding Winds (Basic2)",    // Basic 2  
+  2: "Heal (Basic3)",              // Basic 3
+  3: "Cleanse (Basic4)",           // Basic 4
+  4: "Iron Skin (Basic5)",         // Basic 5
+  5: "Critical Aim (Basic6)",      // Basic 6
+  6: "Speed (Basic7)",             // Basic 7
+  7: "Deathmark (Basic8)",         // Basic 8
+  16: "Exhaust (Advanced1)",       // Advanced 1
+  17: "Daze (Advanced2)",          // Advanced 2
+  18: "Explosion (Advanced3)",     // Advanced 3
+  19: "Hardened Shield (Advanced4)", // Advanced 4
+  24: "Stun (Elite1)",             // Elite 1
+  25: "Second Wind (Elite2)",      // Elite 2
+  28: "Resurrection (Exalted1)"    // Exalted 1
+};
+
+// Passive ability mappings
+export const passiveAbilityMapping = {
+  0: "Duelist (Basic1)",           // Basic 1
+  1: "Clutch (Basic2)",            // Basic 2
+  2: "Foresight (Basic3)",         // Basic 3
+  3: "Headstrong (Basic4)",        // Basic 4
+  4: "Clear Vision (Basic5)",      // Basic 5
+  5: "Fearless (Basic6)",          // Basic 6
+  6: "Chatterbox (Basic7)",        // Basic 7
+  7: "Stalwart (Basic8)",          // Basic 8
+  16: "Leadership (Advanced1)",    // Advanced 1
+  17: "Efficient (Advanced2)",     // Advanced 2
+  18: "Menacing (Advanced3)",      // Advanced 3
+  19: "Toxic (Advanced4)",         // Advanced 4
+  24: "Giant Slayer (Elite1)",     // Elite 1
+  25: "Last Stand (Elite2)",       // Elite 2
+  28: "Second Life (Exalted1)"     // Exalted 1
 };
 
 export const gatheringProfessionMapping = {
@@ -231,6 +296,22 @@ export const getHeroesData = async (heroIds) => {
           passive2
           active1
           active2
+          strengthGrowthP
+          strengthGrowthS
+          agilityGrowthP
+          agilityGrowthS
+          intelligenceGrowthP
+          intelligenceGrowthS
+          wisdomGrowthP
+          wisdomGrowthS
+          luckGrowthP
+          luckGrowthS
+          vitalityGrowthP
+          vitalityGrowthS
+          enduranceGrowthP
+          enduranceGrowthS
+          dexterityGrowthP
+          dexterityGrowthS
         }
       }
     `;
@@ -358,7 +439,11 @@ export const getHeroesData = async (heroIds) => {
       };
     }) || [];
 
-    return convertBigIntsToStrings(heroes);
+    // Convert BigInts to strings and enhance with gene data
+    const heroesWithStringValues = convertBigIntsToStrings(heroes);
+    
+    // Enhance each hero with gene data
+    return heroesWithStringValues.map(hero => enhanceHeroWithGeneData(hero));
   } catch (error) {
     return [];
   }
@@ -367,7 +452,14 @@ export const getHeroesData = async (heroIds) => {
 // For backward compatibility
 export const getHeroData = async (heroId) => {
   const heroes = await getHeroesData([heroId]);
-  return heroes[0] || null;
+  const hero = heroes[0] || null;
+  
+  if (hero) {
+    // Ensure hero data is enhanced with gene information
+    return enhanceHeroWithGeneData(hero);
+  }
+  
+  return null;
 };
 
 export const formatPrice = (price) => {
@@ -417,52 +509,85 @@ const fetchHeroMetadata = async (id) => {
 export const processHeroData = async (hero) => {
   if (!hero) return null;
 
-  // Get the gender from genes if not provided
-  const gender = hero.gender || getGenderFromGenes(hero.visualGenes);
-  
-  // Get names using indices from API
-  const nameList = gender === 'female' ? femaleFirstNames : maleFirstNames;
-  const firstName = typeof hero.firstName === 'number' 
-    ? getNameFromIndex(hero.firstName, nameList)
-    : (hero.firstName || 'Unknown');
-  const lastName = typeof hero.lastName === 'number'
-    ? getNameFromIndex(hero.lastName, lastNames)
-    : (hero.lastName || 'Unknown');
+  try {
+    // Get the gender from genes if not provided
+    const gender = hero.gender || getGenderFromGenes(hero.visualGenes);
+    
+    // Get names using indices from API
+    const nameList = gender === 'female' ? femaleFirstNames : maleFirstNames;
+    const firstName = typeof hero.firstName === 'number' 
+      ? getNameFromIndex(hero.firstName, nameList)
+      : (hero.firstName || 'Unknown');
+    const lastName = typeof hero.lastName === 'number'
+      ? getNameFromIndex(hero.lastName, lastNames)
+      : (hero.lastName || 'Unknown');
 
-  // Create attributes array for hero stats
-  const attributes = [
-    { trait_type: 'Strength', value: parseInt(hero.strength) || 0 },
-    { trait_type: 'Agility', value: parseInt(hero.agility) || 0 },
-    { trait_type: 'Endurance', value: parseInt(hero.endurance) || 0 },
-    { trait_type: 'Wisdom', value: parseInt(hero.wisdom) || 0 },
-    { trait_type: 'Dexterity', value: parseInt(hero.dexterity) || 0 },
-    { trait_type: 'Vitality', value: parseInt(hero.vitality) || 0 },
-    { trait_type: 'Intelligence', value: parseInt(hero.intelligence) || 0 },
-    { trait_type: 'Luck', value: parseInt(hero.luck) || 0 }
-  ];
+    // Create attributes array for hero stats
+    const attributes = [
+      { trait_type: 'Strength', value: parseInt(hero.strength) || 0 },
+      { trait_type: 'Agility', value: parseInt(hero.agility) || 0 },
+      { trait_type: 'Endurance', value: parseInt(hero.endurance) || 0 },
+      { trait_type: 'Wisdom', value: parseInt(hero.wisdom) || 0 },
+      { trait_type: 'Dexterity', value: parseInt(hero.dexterity) || 0 },
+      { trait_type: 'Vitality', value: parseInt(hero.vitality) || 0 },
+      { trait_type: 'Intelligence', value: parseInt(hero.intelligence) || 0 },
+      { trait_type: 'Luck', value: parseInt(hero.luck) || 0 }
+    ];
 
-  return {
-    ...hero,
-    firstName,
-    lastName,
-    name: `${firstName} ${lastName}`,
-    gender,
-    mainClass: hero.mainClass || 'Unknown',
-    subClass: hero.subClass || 'Unknown',
-    level: parseInt(hero.level) || 0,
-    generation: parseInt(hero.generation) || 0,
-    summons: parseInt(hero.summons) || 0,
-    maxSummons: parseInt(hero.maxSummons) || 0,
-    statBoost1: statsMapping[hero.statBoost1] || 'None',
-    statBoost2: statsMapping[hero.statBoost2] || 'None',
-    element: elementMapping[hero.element] || 'Unknown',
-    background: backgroundMapping[hero.background] || 'Unknown',
-    isQuesting: hero.isQuesting || false,
-    isListed: hero.isListed || false,
-    price: hero.price || '0',
-    owner: hero.owner || '',
-    attributes // Add the attributes array
-  };
+    // Preserve the original gene data for later processing
+    const originalStatGenes = hero.statGenes;
+    const originalVisualGenes = hero.visualGenes;
+    
+    // Process basic hero data
+    const processedHero = {
+      ...hero,
+      firstName,
+      lastName,
+      name: `${firstName} ${lastName}`,
+      gender,
+      mainClass: hero.mainClassStr || hero.mainClass || 'Unknown',
+      subClass: hero.subClassStr || hero.subClass || 'Unknown',
+      level: parseInt(hero.level) || 0,
+      generation: parseInt(hero.generation) || 0,
+      summons: parseInt(hero.summons) || 0,
+      maxSummons: parseInt(hero.maxSummons) || 0,
+      statBoost1: statsMapping[parseInt(hero.statBoost1)] || 'None',
+      statBoost2: statsMapping[parseInt(hero.statBoost2)] || 'None',
+      element: elementMapping[parseInt(hero.element)] || hero.element || 'Unknown',
+      background: backgroundMapping[parseInt(hero.background)] || hero.background || 'Unknown',
+      isQuesting: hero.isQuesting || false,
+      isListed: hero.isListed || false,
+      price: hero.price || '0',
+      owner: hero.owner || '',
+      attributes, // Add the attributes array
+      passive1: parseInt(hero.passive1 || 0),
+      passive2: parseInt(hero.passive2 || 0),
+      active1: parseInt(hero.active1 || 0),
+      active2: parseInt(hero.active2 || 0),
+      hairStyle: parseInt(hero.hairStyle || 0),
+      hairColor: parseInt(hero.hairColor || 0),
+      eyeColor: parseInt(hero.eyeColor || 0),
+      skinColor: parseInt(hero.skinColor || 0),
+      headAppendage: parseInt(hero.headAppendage || 0),
+      backAppendage: parseInt(hero.backAppendage || 0),
+      appendageColor: parseInt(hero.appendageColor || 0),
+      backAppendageColor: parseInt(hero.backAppendageColor || 0),
+      
+      // Store the raw gene data in multiple formats for fallback parsing
+      originalStatGenes: originalStatGenes,
+      originalVisualGenes: originalVisualGenes,
+      statGenesRaw: originalStatGenes ? originalStatGenes.toString() : null,
+      visualGenesRaw: originalVisualGenes ? originalVisualGenes.toString() : null
+    };
+    
+    // Enhance hero with gene data (growth stats, abilities, visual genes, recessive genes)
+    const enhancedHero = enhanceHeroWithGeneData(processedHero);
+    
+    return enhancedHero;
+  } catch (error) {
+    console.error('Error processing hero data:', error);
+    return hero; // Return the original hero if processing fails
+  }
 };
 
 export const processHeroesData = async (heroes) => {
@@ -492,9 +617,13 @@ export const getHeroesDataBatch = async (heroIds, onProgress) => {
   return batchProcessor(fetchRequests);
 };
 
-export const getHeroesByOwner = async (ownerAddress) => {
-  const batchSize = 1000;
-  const PARALLEL_LIMIT = 8; // Increased concurrency – adjust if you hit rate limits
+export const getHeroesByOwner = async (ownerAddress, onProgress = null) => {
+  // Mark start time for benchmarking
+  const fetchStart = performance.now();
+  // console.log(`[HONK] Starting to fetch heroes for owner: ${ownerAddress}`);
+
+  const batchSize = 100;
+  const PARALLEL_LIMIT = 3;
   const MAX_RETRIES_LOCAL = MAX_RETRIES;
   const RETRY_DELAY_LOCAL = RETRY_DELAY;
   
@@ -550,6 +679,34 @@ export const getHeroesByOwner = async (ownerAddress) => {
               statsUnknown2
               originRealm
               network
+              passive1
+              passive2
+              active1
+              active2
+              strengthGrowthP
+              strengthGrowthS
+              agilityGrowthP
+              agilityGrowthS
+              intelligenceGrowthP
+              intelligenceGrowthS
+              wisdomGrowthP
+              wisdomGrowthS
+              luckGrowthP
+              luckGrowthS
+              vitalityGrowthP
+              vitalityGrowthS
+              enduranceGrowthP
+              enduranceGrowthS
+              dexterityGrowthP
+              dexterityGrowthS
+              hairStyle
+              hairColor
+              eyeColor
+              skinColor
+              headAppendage
+              backAppendage
+              appendageColor
+              backAppendageColor
             }
           }
         `;
@@ -597,6 +754,8 @@ export const getHeroesByOwner = async (ownerAddress) => {
   let allHeroes = [];
   let skip = 0;
   let hasMore = true;
+  let processedCount = 0;
+  let firstBatchReturned = false;
 
   while (hasMore) {
     // Prepare a batch of parallel requests up to the limit
@@ -606,13 +765,103 @@ export const getHeroesByOwner = async (ownerAddress) => {
       parallelSkips.map((s) => fetchBatch(s))
     );
 
+    // Process and return the first batch immediately
+    const newHeroes = [];
+    
     // Concatenate and check if we've hit the end
     for (const heroes of results) {
-      allHeroes = allHeroes.concat(heroes);
+      newHeroes.push(...heroes);
       if (heroes.length < batchSize) {
         hasMore = false;
       }
     }
+    
+    // Process this batch of heroes
+    const processedHeroes = newHeroes.map((hero) => {
+      // Process each hero (same as existing code below)
+      const gender = getGenderFromApi(hero.gender);
+      const fullId = hero.id.toString();
+      
+      // Get names using indices from API
+      const nameList = gender === 'female' ? femaleFirstNames : maleFirstNames;
+      let firstName = hero.firstName;
+      let lastName = hero.lastName;
+      
+      // Only use name generation if we have numeric indices
+      if (typeof hero.firstName === 'number' || (typeof hero.firstName === 'string' && !isNaN(hero.firstName))) {
+        firstName = getNameFromIndex(parseInt(hero.firstName), nameList);
+      } else if (typeof hero.firstName === 'string') {
+        firstName = hero.firstName; // Use the actual name from API
+      } else {
+        firstName = 'Unknown';
+      }
+      
+      if (typeof hero.lastName === 'number' || (typeof hero.lastName === 'string' && !isNaN(hero.lastName))) {
+        lastName = getNameFromIndex(parseInt(hero.lastName), lastNames);
+      } else if (typeof hero.lastName === 'string') {
+        lastName = hero.lastName; // Use the actual name from API
+      } else {
+        lastName = 'Unknown';
+      }
+      
+      // Get formatted values
+      const mainClass = classMapping[parseInt(hero.mainClass)] || 'Unknown';
+      const subClass = classMapping[parseInt(hero.subClass)] || 'Unknown';
+      const rarity = rarityMapping[parseInt(hero.rarity)] || 'common';
+      
+      // Format element and background
+      let element = elementMapping[parseInt(hero.element)] || 'neutral';
+      if (typeof element === 'string') element = element.toLowerCase();
+      
+      let background = backgroundMapping[parseInt(hero.background)] || 'plains';
+      if (typeof background === 'string') background = background.toLowerCase();
+      
+      // Create image URL
+      const imageUrl = `https://heroes.defikingdoms.com/image/${fullId}`;
+      
+      return enhanceHeroWithGeneData({
+        ...hero,
+        id: hero.id.toString(),
+        fullId,
+        firstName,
+        lastName,
+        name: `${firstName} ${lastName}`,
+        mainClass,
+        subClass,
+        rarity,
+        element,
+        background,
+        image: imageUrl,
+        summons: parseInt(hero.summons) || 0,
+        maxSummons: parseInt(hero.maxSummons) || 0,
+        mining: parseInt(hero.mining) || 0,
+        gardening: parseInt(hero.gardening) || 0,
+        foraging: parseInt(hero.foraging) || 0,
+        fishing: parseInt(hero.fishing) || 0,
+        stamina: parseInt(hero.stamina) || 0,
+        owner: ownerAddress
+      });
+    });
+    
+    // Add processed heroes to the main array
+    allHeroes.push(...processedHeroes);
+    processedCount += processedHeroes.length;
+    
+    // Call the progress callback if provided
+    if (onProgress && processedHeroes.length > 0) {
+      const elapsed = performance.now() - fetchStart;
+      const isFirstBatch = !firstBatchReturned;
+      firstBatchReturned = true;
+      
+      onProgress({
+        heroes: processedHeroes,
+        totalProcessed: processedCount,
+        isFirstBatch,
+        hasMore,
+        elapsedMs: Math.round(elapsed)
+      });
+    }
+    
     skip += PARALLEL_LIMIT * batchSize;
   }
 
