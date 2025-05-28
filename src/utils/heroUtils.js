@@ -186,7 +186,7 @@ class RateLimiter {
   }
 }
 
-const apiRateLimiter = new RateLimiter(5, 1000); // 5 requests per second
+const apiRateLimiter = new RateLimiter(10, 1000); // 10 requests per second
 
 // Batch processor for parallel requests
 const batchProcessor = async (requests, batchSize = 5) => {
@@ -622,10 +622,13 @@ export const getHeroesByOwner = async (ownerAddress, onProgress = null) => {
   const fetchStart = performance.now();
   // console.log(`[HONK] Starting to fetch heroes for owner: ${ownerAddress}`);
 
-  const batchSize = 100;
+  const REQUEST_BATCH_SIZE = 1000; // GraphQL API limit
   const PARALLEL_LIMIT = 3;
   const MAX_RETRIES_LOCAL = MAX_RETRIES;
   const RETRY_DELAY_LOCAL = RETRY_DELAY;
+  
+  // Track processed hero IDs to prevent duplicates
+  const processedHeroIds = new Set();
   
   // eslint-disable-next-line no-loop-func
   const fetchBatch = async (skip) => {
@@ -635,7 +638,7 @@ export const getHeroesByOwner = async (ownerAddress, onProgress = null) => {
         await apiRateLimiter.acquire();
         const query = `
           query getHeroesByOwner($owner: String!, $skip: Int!) {
-            heroes(where: { owner: $owner }, first: 1000, skip: $skip, orderBy: id) {
+            heroes(where: { owner: $owner }, first: ${REQUEST_BATCH_SIZE}, skip: $skip, orderBy: id) {
               id
               mainClass
               subClass
@@ -758,27 +761,49 @@ export const getHeroesByOwner = async (ownerAddress, onProgress = null) => {
   let firstBatchReturned = false;
 
   while (hasMore) {
-    // Prepare a batch of parallel requests up to the limit
-    const parallelSkips = Array.from({ length: PARALLEL_LIMIT }, (_, i) => skip + i * batchSize);
+    // Prepare parallel requests with proper skip values
+    const parallelSkips = Array.from({ length: PARALLEL_LIMIT }, (_, i) => skip + i * REQUEST_BATCH_SIZE);
+    
     // eslint-disable-next-line no-loop-func
     const results = await Promise.all(
       parallelSkips.map((s) => fetchBatch(s))
     );
 
-    // Process and return the first batch immediately
+    // Process results and check for end condition
     const newHeroes = [];
+    let shouldStop = false;
     
-    // Concatenate and check if we've hit the end
     for (const heroes of results) {
-      newHeroes.push(...heroes);
-      if (heroes.length < batchSize) {
-        hasMore = false;
+      if (heroes.length === 0) {
+        shouldStop = true;
+        break;
+      }
+      
+      // Filter out duplicates based on hero ID
+      const uniqueHeroes = heroes.filter(hero => {
+        const heroId = hero.id.toString();
+        if (processedHeroIds.has(heroId)) {
+          return false;
+        }
+        processedHeroIds.add(heroId);
+        return true;
+      });
+      
+      newHeroes.push(...uniqueHeroes);
+      
+      // Check if we've reached the end (fewer heroes than requested)
+      if (heroes.length < REQUEST_BATCH_SIZE) {
+        shouldStop = true;
       }
     }
     
-    // Process this batch of heroes
+    if (shouldStop || newHeroes.length === 0) {
+        hasMore = false;
+    }
+    
+    // Process this batch of heroes only once
+    if (newHeroes.length > 0) {
     const processedHeroes = newHeroes.map((hero) => {
-      // Process each hero (same as existing code below)
       const gender = getGenderFromApi(hero.gender);
       const fullId = hero.id.toString();
       
@@ -818,81 +843,6 @@ export const getHeroesByOwner = async (ownerAddress, onProgress = null) => {
       
       // Create image URL
       const imageUrl = `https://heroes.defikingdoms.com/image/${fullId}`;
-      
-      return enhanceHeroWithGeneData({
-        ...hero,
-        id: hero.id.toString(),
-        fullId,
-        firstName,
-        lastName,
-        name: `${firstName} ${lastName}`,
-        mainClass,
-        subClass,
-        rarity,
-        element,
-        background,
-        image: imageUrl,
-        summons: parseInt(hero.summons) || 0,
-        maxSummons: parseInt(hero.maxSummons) || 0,
-        mining: parseInt(hero.mining) || 0,
-        gardening: parseInt(hero.gardening) || 0,
-        foraging: parseInt(hero.foraging) || 0,
-        fishing: parseInt(hero.fishing) || 0,
-        stamina: parseInt(hero.stamina) || 0,
-        owner: ownerAddress
-      });
-    });
-    
-    // Add processed heroes to the main array
-    allHeroes.push(...processedHeroes);
-    processedCount += processedHeroes.length;
-    
-    // Call the progress callback if provided
-    if (onProgress && processedHeroes.length > 0) {
-      const elapsed = performance.now() - fetchStart;
-      const isFirstBatch = !firstBatchReturned;
-      firstBatchReturned = true;
-      
-      onProgress({
-        heroes: processedHeroes,
-        totalProcessed: processedCount,
-        isFirstBatch,
-        hasMore,
-        elapsedMs: Math.round(elapsed)
-      });
-    }
-    
-    skip += PARALLEL_LIMIT * batchSize;
-  }
-
-  // Process heroes through mapping logic
-  return allHeroes.map((hero) => {
-    const gender = getGenderFromApi(hero.gender);
-    
-    // Ensure we have the full ID
-    const fullId = hero.id.toString();
-    
-    // Get names using indices from API
-    const nameList = gender === 'female' ? femaleFirstNames : maleFirstNames;
-    let firstName = hero.firstName;
-    let lastName = hero.lastName;
-    
-    // Only use name generation if we have numeric indices
-    if (typeof hero.firstName === 'number' || (typeof hero.firstName === 'string' && !isNaN(hero.firstName))) {
-      firstName = getNameFromIndex(parseInt(hero.firstName), nameList);
-    } else if (typeof hero.firstName === 'string') {
-      firstName = hero.firstName; // Use the actual name from API
-    } else {
-      firstName = 'Unknown';
-    }
-    
-    if (typeof hero.lastName === 'number' || (typeof hero.lastName === 'string' && !isNaN(hero.lastName))) {
-      lastName = getNameFromIndex(parseInt(hero.lastName), lastNames);
-    } else if (typeof hero.lastName === 'string') {
-      lastName = hero.lastName; // Use the actual name from API
-    } else {
-      lastName = 'Unknown';
-    }
     
     // Get crafting professions from statsUnknown
     const statsUnknown1Num = parseInt(hero.statsUnknown1);
@@ -918,25 +868,29 @@ export const getHeroesByOwner = async (ownerAddress, onProgress = null) => {
     const network = hero.network || '';
     const realmName = networkToRealm[network] || 'Unknown Realm';
     
-    return {
+        return enhanceHeroWithGeneData({
       ...hero,
       id: fullId,
+          fullId,
       displayId: fullId, // Use full ID for display
       shortId: fullId, // Use full ID here too
-      mainClass: classMapping[hero.mainClass] || 'Unknown',
-      subClass: classMapping[hero.subClass] || 'Unknown',
-      rarity: rarityMapping[hero.rarity] || 'Unknown',
-      element: elementMapping[hero.element] 
-        ? elementMapping[hero.element].toLowerCase() 
-        : (typeof hero.element === 'string' ? hero.element.toLowerCase() : 'unknown'),
-      background: backgroundMapping[hero.background] 
-        ? backgroundMapping[hero.background].toLowerCase() 
-        : (typeof hero.background === 'string' ? hero.background.toLowerCase() : 'plains'),
-      gender,
       firstName,
       lastName,
       name: `${firstName} ${lastName}`,
-      image: `https://heroes.defikingdoms.com/image/${hero.id}`,
+          mainClass,
+          subClass,
+          rarity,
+          element,
+          background,
+          image: imageUrl,
+          summons: parseInt(hero.summons) || 0,
+          maxSummons: parseInt(hero.maxSummons) || 0,
+          mining: parseInt(hero.mining) || 0,
+          gardening: parseInt(hero.gardening) || 0,
+          foraging: parseInt(hero.foraging) || 0,
+          fishing: parseInt(hero.fishing) || 0,
+          stamina: parseInt(hero.stamina) || 0,
+          owner: ownerAddress,
       network,
       realmName,
       statBoost1: statsMapping[hero.statBoost1] || '',
@@ -948,7 +902,6 @@ export const getHeroesByOwner = async (ownerAddress, onProgress = null) => {
       generation: parseInt(hero.generation) || 0,
       hp: parseInt(hero.hp) || 0,
       mp: parseInt(hero.mp) || 0,
-      stamina: parseInt(hero.stamina) || 0,
       xp: parseInt(hero.xp) || 0,
       strength: parseInt(hero.strength) || 0,
       dexterity: parseInt(hero.dexterity) || 0,
@@ -958,13 +911,7 @@ export const getHeroesByOwner = async (ownerAddress, onProgress = null) => {
       intelligence: parseInt(hero.intelligence) || 0,
       wisdom: parseInt(hero.wisdom) || 0,
       luck: parseInt(hero.luck) || 0,
-      mining: Math.floor(parseFloat(hero.mining)) || 0,
-      gardening: Math.floor(parseFloat(hero.gardening)) || 0,
-      fishing: Math.floor(parseFloat(hero.fishing)) || 0,
-      foraging: Math.floor(parseFloat(hero.foraging)) || 0,
       // Format summons as current/max
-      summons: parseInt(hero.summons) || 0,
-      maxSummons: parseInt(hero.maxSummons) || 0,
       summonsDisplay: `${parseInt(hero.summons) || 0}/${parseInt(hero.maxSummons) || 0}`,
       staminaFullAt: parseInt(hero.staminaFullAt) || 0,
       // Add attributes array for Modal component
@@ -984,8 +931,47 @@ export const getHeroesByOwner = async (ownerAddress, onProgress = null) => {
         { trait_type: 'Tailoring', value: Math.floor(parseFloat(hero.tailoring)) || 0 },
         { trait_type: 'Leatherworking', value: Math.floor(parseFloat(hero.leatherworking)) || 0 }
       ]
-    };
+        });
   });
+      
+      // Add processed heroes to the main array
+      allHeroes.push(...processedHeroes);
+      processedCount += processedHeroes.length;
+      
+      // Call the progress callback if provided
+      if (onProgress) {
+        const elapsed = performance.now() - fetchStart;
+        const isFirstBatch = !firstBatchReturned;
+        firstBatchReturned = true;
+        
+        onProgress({
+          heroes: processedHeroes,
+          totalProcessed: processedCount,
+          isFirstBatch,
+          hasMore,
+          isDone: !hasMore,
+          elapsedMs: Math.round(elapsed)
+        });
+      }
+    }
+    
+    // Move to next batch set
+    skip += PARALLEL_LIMIT * REQUEST_BATCH_SIZE;
+  }
+
+  // Final progress callback when done
+  if (onProgress && !firstBatchReturned) {
+    onProgress({
+      heroes: [],
+      totalProcessed: 0,
+      isFirstBatch: true,
+      hasMore: false,
+      isDone: true,
+      elapsedMs: Math.round(performance.now() - fetchStart)
+    });
+  }
+
+  return allHeroes;
 };
 
 export const getIdForName = (id, originRealm) => {

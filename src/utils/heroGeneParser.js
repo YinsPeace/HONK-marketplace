@@ -1,5 +1,5 @@
 // Hero Gene Parser - Utility functions for parsing hero genes
-import { classMapping, elementMapping, backgroundMapping, statsMapping, professionMapping, activeAbilityMapping, passiveAbilityMapping } from './heroUtils';
+import { classMapping, elementMapping, statsMapping, professionMapping, activeAbilityMapping, passiveAbilityMapping } from './heroUtils';
 
 // Helper to display ability as "Name (B7)" etc.
 export function abilityWithShortCode(abilityName) {

@@ -21,13 +21,83 @@ export const useHeroOperations = (connectedAddress, fetchHeroes, setHeroes) => {
       // Convert price to wei
       const priceInWei = web3.utils.toWei(newPrice.toString(), 'ether');
 
+      // First check if the hero exists in the marketplace
+      let heroData;
+      try {
+        heroData = await HONKMarketplaceContract.methods.getHero(heroId).call();
+        if (!heroData.isForSale) {
+          throw new Error('Hero is not listed for sale');
+        }
+        if (heroData.owner.toLowerCase() !== connectedAddress.toLowerCase()) {
+          throw new Error('You are not the owner of this hero listing');
+        }
+      } catch (checkError) {
+        console.error('Error checking hero before update:', checkError);
+        throw new Error(`Cannot update price: ${checkError.message}`);
+      }
+
+      // Check price update cooldown before attempting transaction
+      try {
+        const lastUpdateTime = await HONKMarketplaceContract.methods.lastPriceUpdateTime(heroId).call();
+        const cooldownPeriod = 15 * 60; // 15 minutes in seconds
+        const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
+        const nextAllowedUpdate = parseInt(lastUpdateTime) + cooldownPeriod;
+        
+        if (currentTime < nextAllowedUpdate) {
+          const remainingTime = nextAllowedUpdate - currentTime;
+          const minutes = Math.floor(remainingTime / 60);
+          const seconds = remainingTime % 60;
+          
+          let timeMessage;
+          if (minutes > 0) {
+            timeMessage = `${minutes} minute${minutes > 1 ? 's' : ''} and ${seconds} second${seconds !== 1 ? 's' : ''}`;
+          } else {
+            timeMessage = `${seconds} second${seconds !== 1 ? 's' : ''}`;
+          }
+          
+          throw new Error(`Price update cooldown active. You can update the price in ${timeMessage}. Please wait and try again.`);
+        }
+      } catch (cooldownError) {
+        // If it's our custom cooldown error, re-throw it
+        if (cooldownError.message.includes('Price update cooldown active')) {
+          throw cooldownError;
+        }
+        // Otherwise, log but continue (might be an older contract without this mapping)
+        console.warn('Could not check price update cooldown:', cooldownError);
+      }
+
+      // Estimate gas first to catch potential issues
+      let gasEstimate;
+      try {
+        gasEstimate = await HONKMarketplaceContract.methods.updatePrice(
+          heroId,
+          priceInWei
+        ).estimateGas({
+          from: connectedAddress
+        });
+        console.log(`Gas estimate for updatePrice: ${gasEstimate}`);
+      } catch (gasError) {
+        console.error('Gas estimation failed:', gasError);
+        
+        // Check for specific contract errors
+        const errorMessage = gasError.message || '';
+        if (errorMessage.includes('Price update too soon')) {
+          throw new Error('Price update cooldown active. You can only update a hero\'s price once every 15 minutes. Please wait and try again.');
+        }
+        
+        throw new Error(`Transaction would fail: ${gasError.message}`);
+      }
+
+      // Use estimated gas with buffer, minimum 400,000
+      const gasLimit = Math.max(Math.floor(Number(gasEstimate) * 1.5), 400000);
+
       // Use the correct method name from the contract: updatePrice
       const tx = await HONKMarketplaceContract.methods.updatePrice(
         heroId,
         priceInWei
       ).send({
         from: connectedAddress,
-        gasLimit: 300000
+        gasLimit: gasLimit
       });
 
       if (tx.status) {
@@ -46,10 +116,21 @@ export const useHeroOperations = (connectedAddress, fetchHeroes, setHeroes) => {
       }
     } catch (error) {
       console.error('Error updating price:', error);
-      toast.error(`Failed to update price: ${error.message || 'Unknown error'}`);
+      
+      // Provide more specific error messages based on common issues
+      let errorMessage = error.message || 'Unknown error';
+      if (errorMessage.includes('revert')) {
+        errorMessage = 'Transaction was reverted by the contract. Please check if the hero is still listed and you own it.';
+      } else if (errorMessage.includes('gas')) {
+        errorMessage = 'Transaction failed due to gas issues. Please try again.';
+      } else if (errorMessage.includes('insufficient funds')) {
+        errorMessage = 'Insufficient funds for gas fees.';
+      }
+      
+      toast.error(`Failed to update price: ${errorMessage}`);
       return {
         success: false,
-        error: error.message || 'Unknown error'
+        error: errorMessage
       };
     } finally {
       setPendingPriceUpdates(prev => {
@@ -172,11 +253,52 @@ export const useHeroOperations = (connectedAddress, fetchHeroes, setHeroes) => {
     }
   }, [connectedAddress, cancelListing]);
 
+  // Helper function to check price update cooldown status
+  const checkPriceUpdateCooldown = useCallback(async (heroId) => {
+    if (!heroId) {
+      return { canUpdate: false, error: 'Invalid hero ID' };
+    }
+
+    try {
+      const lastUpdateTime = await HONKMarketplaceContract.methods.lastPriceUpdateTime(heroId).call();
+      const cooldownPeriod = 15 * 60; // 15 minutes in seconds
+      const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
+      const nextAllowedUpdate = parseInt(lastUpdateTime) + cooldownPeriod;
+      
+      if (currentTime < nextAllowedUpdate) {
+        const remainingTime = nextAllowedUpdate - currentTime;
+        const minutes = Math.floor(remainingTime / 60);
+        const seconds = remainingTime % 60;
+        
+        let timeMessage;
+        if (minutes > 0) {
+          timeMessage = `${minutes} minute${minutes > 1 ? 's' : ''} and ${seconds} second${seconds !== 1 ? 's' : ''}`;
+        } else {
+          timeMessage = `${seconds} second${seconds !== 1 ? 's' : ''}`;
+        }
+        
+        return {
+          canUpdate: false,
+          remainingTime: remainingTime,
+          timeMessage: timeMessage,
+          nextAllowedUpdate: nextAllowedUpdate
+        };
+      }
+      
+      return { canUpdate: true };
+    } catch (error) {
+      console.warn('Could not check price update cooldown:', error);
+      // If we can't check, assume it's okay to try (for backward compatibility)
+      return { canUpdate: true };
+    }
+  }, []);
+
   return {
     updatePrice,
     cancelListing,
     checkAndCancelIfMoved,
     pendingCancellations,
-    pendingPriceUpdates
+    pendingPriceUpdates,
+    checkPriceUpdateCooldown
   };
 };

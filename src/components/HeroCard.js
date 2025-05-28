@@ -86,7 +86,6 @@ const HeroCard = React.memo(
     const [price, setPrice] = useState('');
     const [isBuying, setIsBuying] = useState(false);
     const [isFlipped, setIsFlipped] = useState(false);
-    const [isUpdatingPrice, setIsUpdatingPrice] = useState(false);
     const [activeTab, setActiveTab] = useState('stats');
 
     useEffect(() => {
@@ -169,10 +168,6 @@ const HeroCard = React.memo(
         setPrice(value);
       }
     }, []);
-
-    const formatPrice = (price) => {
-      return price ? web3.utils.fromWei(price.toString(), 'ether') : '0';
-    };
 
     const formatPriceForDisplay = (price) => {
       if (!price) return '0';
@@ -338,18 +333,17 @@ const HeroCard = React.memo(
                   min="0"
                   step="0.000000000000000001"
                   title="Enter price in HONK (up to 18 decimal places)"
-                  disabled={isUpdatingPrice}
                 />
                 <button
                   className={`modal-button update-price-button ${
-                    !price || isNaN(parseFloat(price)) || isUpdatingPrice
+                    !price || isNaN(parseFloat(price))
                       ? 'opacity-50 cursor-not-allowed'
                       : ''
                   }`}
                   onClick={handleUpdatePrice}
-                  disabled={!price || isNaN(parseFloat(price)) || isUpdatingPrice}
+                  disabled={!price || isNaN(parseFloat(price))}
                 >
-                  {isUpdatingPrice ? 'Updating...' : 'Update'}
+                  Update
                 </button>
               </div>
             ) : (
@@ -358,7 +352,6 @@ const HeroCard = React.memo(
                   <button
                     onClick={() => setIsEditing(true)}
                     className="button"
-                    disabled={isUpdatingPrice || isCancelling}
                   >
                     Edit Price
                   </button>
@@ -386,7 +379,6 @@ const HeroCard = React.memo(
                 <button
                   onClick={handleCancelListing}
                   className="button"
-                  disabled={isUpdatingPrice || isCancelling}
                 >
                   Cancel Listing
                 </button>

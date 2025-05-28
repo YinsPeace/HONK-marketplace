@@ -17,6 +17,7 @@ import { HeroProvider } from './context/HeroContext';
 
 const BuyTab = lazy(() => import('./components/BuyTab'));
 const SellTab = lazy(() => import('./components/SellTab'));
+const TestInterface = lazy(() => import('./components/TestInterface'));
 
 const ConnectionStatus = ({
   isConnected,
@@ -328,6 +329,10 @@ const App = () => {
                           sortOrder={sortOrder}
                         />
                       }
+                    />
+                    <Route
+                      path="/test"
+                      element={<TestInterface />}
                     />
                   </Routes>
                 </Suspense>

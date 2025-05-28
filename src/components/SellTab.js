@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import HeroGrid from './HeroGrid';
+import { useWallet } from '../hooks/useWallet';
+import { useHeroManagement } from '../hooks/useHeroManagement';
+import { useHeroListing } from '../hooks/useHeroListing';
+import { useDFKTavernCheck } from '../hooks/useDFKTavernCheck';
+import LoadingIndicator from './LoadingIndicator';
+import VirtualizedHeroGrid from './VirtualizedHeroGrid';
+import { enhanceHeroWithGeneData } from '../utils/heroGeneParser';
+import { toast } from 'react-toastify';
 import honkLogo from '../assets/images/honk/honkCoin.webp';
 import { formatPrice } from '../utils/heroUtils';
 import WarningModal from './WarningModal';
-import LoadingIndicator from './LoadingIndicator';
-import { useHeroManagement } from '../hooks/useHeroManagement';
-import { useWallet } from '../hooks/useWallet';
-import { useHeroListing } from '../hooks/useHeroListing';
+import { Modal, HeroDetails } from './Modal';
 import { useHeroOperations } from '../hooks/useHeroOperations.js';
-import { useDFKTavernCheck } from '../hooks/useDFKTavernCheck';
-import { toast } from 'react-toastify';
 import { applyFiltersAndSort as applyFiltersAndSortUtil } from '../utils/filterUtils';
 
 const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
@@ -17,6 +19,12 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
   const { isConnected, isCorrectNetwork, connect, switchNetwork } = useWallet();
   const [heroes, setHeroes] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState({ loaded: 0, total: 0 });
+
+  // Modal state for hero listing
+  const [selectedHero, setSelectedHero] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [price, setPrice] = useState('');
 
   // All hero-related hooks use userAddress
   const { listingHeroId, listHeroForSale, listedHeroes, fetchListedHeroes } = useHeroListing(
@@ -74,7 +82,55 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
     }
   }, [tavernListedHeroes]);
 
-  // Combine and filter heroes
+  // Handle hero listing - opens modal
+  const handleList = (heroId) => {
+    const hero = heroes.find(h => h.id === heroId);
+    if (hero) {
+      setSelectedHero(hero);
+      setPrice('');
+      setIsModalOpen(true);
+    }
+  };
+
+  // Handle modal close
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedHero(null);
+    setPrice('');
+  };
+
+  // Handle actual listing with price from modal
+  const handleModalList = async (heroId, priceValue) => {
+    if (!priceValue || parseFloat(priceValue) <= 0) {
+      toast.error('Please enter a valid price');
+      return;
+    }
+
+    try {
+      const hero = heroes.find(h => h.id === heroId);
+      const result = await listHeroForSale(heroId, priceValue, false, hero);
+      
+      if (result.success) {
+        toast.success(`Hero ${heroId} listed successfully!`);
+        fetchListedHeroes();
+        handleCloseModal();
+      } else {
+        if (result.warnings && result.warnings.length > 0) {
+          setCurrentWarnings(result.warnings);
+          setHeroToList(heroId);
+          setPriceToList(priceValue);
+          setWarningModalOpen(true);
+        } else {
+          toast.error(`Failed to list hero: ${result.errors.join(', ')}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error listing hero:', error);
+      toast.error(`Failed to list hero: ${error.message}`);
+    }
+  };
+
+  // Combine and filter heroes - optimized for large collections
   const displayedHeroes = useMemo(() => {
     // Handle initial loading state
     if (!heroesFromManagement) {
@@ -89,7 +145,7 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
       return baseId;
     };
 
-    // Get list of base hero IDs that are on DFKTavern
+    // Get list of base hero IDs that are on DFKTavern - memoize this expensive operation
     const tavernHeroes = tavernHeroesState || [];
     const tavernHeroIds = new Set(tavernHeroes.map(h => getBaseHeroId(h.id)));
 
@@ -101,10 +157,18 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
       return !isInTavern;
     });
     
+    // Create a map of listed heroes for O(1) lookup instead of O(n) find operations
+    const listedHeroesMap = new Map();
+    if (listedHeroes && Array.isArray(listedHeroes)) {
+      listedHeroes.forEach(listed => {
+        listedHeroesMap.set(listed.heroId, listed);
+      });
+    }
+    
     // Combine filtered regular heroes with tavern heroes
-    const allHeroes = [...filteredRegularHeroes, ...(tavernHeroesState || [])].map(hero => {
-      // Check if the hero is listed in HONKMarketplace
-      const listedHero = listedHeroes.find(listed => listed.heroId === hero.id);
+    const allHeroes = [...filteredRegularHeroes, ...tavernHeroes].map(hero => {
+      // Check if the hero is listed in HONKMarketplace using map lookup
+      const listedHero = listedHeroesMap.get(hero.id);
       if (listedHero) {
         return {
           ...hero,
@@ -131,7 +195,7 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
       return true;
     });
 
-    // Sort heroes
+    // Sort heroes - optimized sort functions
     const sortFunctions = {
       'price-asc': (a, b) => {
         // First sort by marketplace
@@ -212,12 +276,20 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
     const sortFn = sortFunctions[sortOrder] || sortFunctions['level-desc'];
     return [...filteredHeroes].sort(sortFn);
 
-  }, [heroesFromManagement, tavernHeroesState, isFullyLoaded, filters, sortOrder]);
+  }, [heroesFromManagement, tavernHeroesState, listedHeroes, filters, sortOrder]);
 
   // Update loading state when fetching changes
   useEffect(() => {
     const isLoading = loadingFromManagement || isChecking;
     setLoading(isLoading);
+    
+    // Update progress tracking
+    if (loadingFromManagement) {
+      setLoadingProgress({ loaded: heroesFromManagement?.length || 0, total: 0 });
+    } else if (!isLoading) {
+      setLoadingProgress({ loaded: 0, total: 0 });
+    }
+    
     // Set global loading flag for HeroGrid to detect
     window.isLoadingHeroes = isLoading;
     
@@ -225,7 +297,7 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
     return () => {
       window.isLoadingHeroes = false;
     };
-  }, [loadingFromManagement, isChecking]);
+  }, [loadingFromManagement, isChecking, heroesFromManagement]);
 
   // Update heroes state with filtered heroes
   useEffect(() => {
@@ -312,96 +384,48 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
     setPriceToList(null);
   };
 
-  const handleListHeroForSale = async (heroId, price, bypass = false, heroData = null) => {
-    if (!price) {
-      toast.error('Please enter a price before listing');
-      return;
-    }
-    
-    // Find the hero in our local state if not provided
-    const hero = heroData || heroes.find(h => h.id === heroId);
-
-    const result = await listHeroForSale(heroId, price, bypass, hero);
-    if (!result.success) {
-      if (result.warnings.length > 0) {
-        setCurrentWarnings(result.warnings);
-        setHeroToList(heroId);
-        setPriceToList(price);
-        setWarningModalOpen(true);
-      } else if (result.errors.length > 0) {
-        toast.error(`Failed to list hero: ${result.errors.join(', ')}`);
-      }
-    } else {
-      toast.success(`Hero ${heroId} listed successfully.`);
-      fetchListedHeroes();
-    }
-  };
-
-  const handleConnect = async () => {
-    try {
-      await connect();
-    } catch (error) {
-      toast.error(`Failed to connect wallet: ${error.message}`);
-    }
-  };
-
-  const handleSwitchNetwork = async () => {
-    try {
-      await switchNetwork();
-    } catch (error) {
-      toast.error(`Failed to switch network: ${error.message}`);
-    }
-  };
-
   return (
     <div>
-      {!isConnected && (
+      {loading && (
         <div className="mt-4 text-center">
-          <p>Please connect your wallet to view and list your heroes.</p>
-          <button
-            onClick={handleConnect}
-            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Connect Wallet
-          </button>
+          <div className="flex justify-center items-center">
+            <div className="animate-spin rounded-full h-6 w-6 border-4 border-yellow-500 border-t-transparent mr-3"></div>
+            <span className="text-lg">
+              Loading heroes... ({loadingProgress.loaded} loaded so far)
+            </span>
+        </div>
         </div>
       )}
-      {isConnected && !isCorrectNetwork && (
-        <div className="mt-4 text-center">
-          <p>Please switch to the correct network.</p>
-          <button
-            onClick={handleSwitchNetwork}
-            className="mt-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-          >
-            Switch Network
-          </button>
-        </div>
-      )}
-      {isConnected && isCorrectNetwork && (
-        <div className="relative">
-          <HeroGrid
+      
+      <VirtualizedHeroGrid
             heroes={heroes}
             isBuyPage={false}
             honkLogo={honkLogo}
-            onList={handleListHeroForSale}
+        onList={handleList}
             onCancelListing={cancelListing}
             onUpdatePrice={updatePrice}
             formatPrice={formatPrice}
-            lastHeroRef={lastHeroElementRef}
             isConnected={isConnected}
             listedHeroes={listedHeroes}
             pendingCancellations={pendingCancellations}
             pendingPriceUpdates={pendingPriceUpdates}
           />
-          {isLoadingMore && <LoadingIndicator />}
-          {!isLoadingMore && !hasMore && heroes.length > 0 && (
-            <p className="mt-4 text-center">No more heroes to load.</p>
-          )}
-          {!loading && heroes.length === 0 && (
-            <p className="mt-4 text-center">No heroes match your current filters.</p>
-          )}
-        </div>
+      
+      {/* Hero Listing Modal */}
+      {isModalOpen && selectedHero && (
+        <Modal onClose={handleCloseModal}>
+          <HeroDetails
+            hero={selectedHero}
+            honkLogo={honkLogo}
+            price={price}
+            setPrice={setPrice}
+            onList={handleModalList}
+            isBuyPage={false}
+            onClose={handleCloseModal}
+          />
+        </Modal>
       )}
+      
       <WarningModal
         isOpen={warningModalOpen}
         onClose={handleWarningClose}

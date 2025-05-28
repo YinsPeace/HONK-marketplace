@@ -1,4 +1,5 @@
-import { web3, DFKHeroContract } from '../Web3Config';
+import { DFKHeroContract } from '../Web3Config';
+import { enhanceHeroWithGeneData } from './heroGeneParser';
 
 // Memoize filter results for performance
 const memoizedResults = new Map();

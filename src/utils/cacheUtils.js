@@ -1,4 +1,5 @@
 const CACHE_DURATION = 15 * 60 * 1000; // 15 minutes in milliseconds
+const MAX_LOCALSTORAGE_SIZE = 5 * 1024 * 1024; // 5MB limit for localStorage
 
 class HeroCache {
     constructor() {
@@ -11,18 +12,29 @@ class HeroCache {
             timestamp: Date.now()
         };
         this.cache.set(key, item);
-        // Persist to localStorage
+        
+        // Only try localStorage for smaller datasets to avoid quota exceeded errors
         try {
-            localStorage.setItem(`heroCache_${key}`,
-                JSON.stringify(item)
-            );
+            const serialized = JSON.stringify(item);
+            // Skip localStorage if the data is too large (likely 30k+ heroes)
+            if (serialized.length < MAX_LOCALSTORAGE_SIZE) {
+                localStorage.setItem(`heroCache_${key}`, serialized);
+            } else {
+                // console.log(`[HONK] Skipping localStorage cache for large dataset (${serialized.length} bytes)`);
+                // Remove any existing localStorage entry for this key
+                localStorage.removeItem(`heroCache_${key}`);
+            }
         } catch (e) {
-            // Fallback: ignore if localStorage is unavailable
+            // console.warn('[HONK] Failed to store in localStorage:', e.message);
+            // Try to clean up old cache entries if quota exceeded
+            if (e.name === 'QuotaExceededError') {
+                this.clearLocalStorageCache();
+            }
         }
     }
 
     get(key) {
-        // Try localStorage first
+        // Try localStorage first only if it's likely to be there (smaller datasets)
         try {
             const raw = localStorage.getItem(`heroCache_${key}`);
             if (raw) {
@@ -38,8 +50,14 @@ class HeroCache {
                 return cached.data;
             }
         } catch (e) {
-            // Fallback to in-memory
+            // Clean up corrupted localStorage entry
+            try {
+                localStorage.removeItem(`heroCache_${key}`);
+            } catch (cleanupError) {
+                // Ignore cleanup errors
+            }
         }
+        
         // In-memory fallback
         const cached = this.cache.get(key);
         if (!cached) return null;
@@ -51,14 +69,21 @@ class HeroCache {
         return cached.data;
     }
 
-    clear() {
-        this.cache.clear();
-        // Clear localStorage cache
+    clearLocalStorageCache() {
         if (typeof localStorage !== 'undefined') {
+            try {
             Object.keys(localStorage)
                 .filter(k => k.startsWith('heroCache_'))
                 .forEach(k => localStorage.removeItem(k));
+            } catch (e) {
+                // Ignore cleanup errors
+            }
         }
+    }
+
+    clear() {
+        this.cache.clear();
+        this.clearLocalStorageCache();
     }
 }
 

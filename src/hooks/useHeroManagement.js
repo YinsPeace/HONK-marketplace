@@ -148,6 +148,7 @@ const fetchHeroes = useCallback(async () => {
             // console.log(`[HONK] All ${currentHeroes.length} heroes loaded in ${getFetchTime()}ms`);
             // Store in cache
             heroCache.set(cacheKey, currentHeroes);
+            setLoading(false); // Ensure loading is turned off
             return currentHeroes;
           });
         }

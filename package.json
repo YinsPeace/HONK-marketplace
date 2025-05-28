@@ -31,8 +31,11 @@
     "http-proxy-middleware": "^3.0.3",
     "idb": "^8.0.1",
     "lodash": "^4.17.21",
+    "luxon": "^3.6.1",
+    "node-fetch": "^2.7.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-icons": "^5.5.0",
     "react-router-dom": "^6.22.3",
     "react-toastify": "^10.0.5",
     "viem": "^2.21.55",
@@ -56,7 +59,8 @@
     "package-win": "set DISABLE_ESLINT_PLUGIN=true && npm run build && pkg . -t node14-win-x64 -o dist/HONK-Marketplace-win.exe --public --compress GZip",
     "package-mac": "set DISABLE_ESLINT_PLUGIN=true && npm run build && pkg . -t node14-macos-x64 -o dist/HONK-Marketplace-mac --public --compress GZip",
     "package-linux": "set DISABLE_ESLINT_PLUGIN=true && npm run build && pkg . -t node14-linux-x64 -o dist/HONK-Marketplace-linux --public --compress GZip",
-    "package-all": "set DISABLE_ESLINT_PLUGIN=true && npm run package-win && npm run package-mac && npm run package-linux"
+    "package-all": "set DISABLE_ESLINT_PLUGIN=true && npm run package-win && npm run package-mac && npm run package-linux",
+    "test-hero-loading": "node test-hero-loading.js"
   },
   "eslintConfig": {
     "extends": [

@@ -91,7 +91,7 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
         <HeroCard hero={hero} honkLogo={honkLogo} inModal onQuestStatusChange={handleQuestStatusChange}/>
       </div>
       <div className="hero-details">
-        <h2>{hero.name}</h2>
+        <h2>{hero.firstName} {hero.lastName}</h2>
         <div className="stats">
           <div className="stats-section">
           <h2>Stats</h2>
