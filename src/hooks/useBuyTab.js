@@ -1,40 +1,44 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { HONKMarketplaceContract, DFKHeroContract } from '../Web3Config';
+import { HONKMarketplaceContract, DFKHeroContract, web3 } from '../Web3Config';
 import { getHeroData } from '../utils/heroUtils';
 import { applyFiltersAndSort as applyFiltersAndSortUtil } from '../utils/filterUtils';
 import { enhanceHeroWithGeneData } from '../utils/heroGeneParser';
 import { marketplaceCache } from '../utils/cacheUtils';
 
-const extractHeroIds = (rawResponse) => {
-  if (!rawResponse || !rawResponse[0] || !Array.isArray(rawResponse[0])) {
-    return [];
-  }
+// Zero address constant for private listing checks
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-  return rawResponse[0]
-    .filter(hero => {
-      // Filter out invalid heroes (id === 0 or null/undefined)
-      if (!hero || !hero.id || hero.id === 0n) return false;
-      return true;
-    })
-    .map(hero => hero.id);
-};
+const HEROES_PER_PAGE = 50;
 
 export const useBuyTab = (connectedAddress, filters, sortOrder) => {
-  const [heroes, setHeroes] = useState([]);
-  const [filteredHeroes, setFilteredHeroes] = useState([]);
-  const [displayedHeroes, setDisplayedHeroes] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [hasMore, setHasMore] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [isFetching, setIsFetching] = useState(false);
-  const [loadStats, setLoadStats] = useState({ totalHeroes: 0, loadTimeMs: 0, isDone: false });
-  const lastFetchRef = useRef(null);
-  const eventSubscriptions = useRef({ heroListed: null, heroPurchased: null });
-  const isSubscribed = useRef(false);
-  const displayStableRef = useRef(false);
+  // Core data stores
+  const [allHeroes, setAllHeroes] = useState([]); // All heroes fetched from contract
+  const [filteredHeroes, setFilteredHeroes] = useState([]); // Filtered and sorted heroes
+  const [displayedHeroes, setDisplayedHeroes] = useState([]); // Paginated heroes for display
+  const [bulkListings, setBulkListings] = useState([]); // State for grouped bulk listings
 
-  const HEROES_PER_PAGE = 8;
+  // State management
+  const [loading, setLoading] = useState(true); // Initial load state
+  const [isLoadingMore, setIsLoadingMore] = useState(false); // Loading more heroes during pagination
+  const [hasMore, setHasMore] = useState(false); // Whether more heroes can be loaded from pagination
+  const [error, setError] = useState(null);
+  const [page, setPage] = useState(1); // Current page for display pagination
+  const [hasMoreToDisplay, setHasMoreToDisplay] = useState(true); // If more items can be shown from filteredHeroes
+  const [refetchCount, setRefetchCount] = useState(0);
+
+  // Ref for preventing race conditions
+  const fetchIdRef = useRef(0);
+
+  // Load cached marketplace heroes for instant display while fresh data loads in background
+  useEffect(() => {
+    const cachedHeroes = marketplaceCache.getListedHeroes();
+    if (cachedHeroes && cachedHeroes.length > 0) {
+      setAllHeroes(cachedHeroes);
+      setLoading(false);
+    }
+  }, []);
+
+  const refetch = useCallback(() => setRefetchCount((c) => c + 1), []);
 
   const createDefaultHeroData = (heroId, marketplaceData) => ({
     id: heroId.toString(),
@@ -45,560 +49,246 @@ export const useBuyTab = (connectedAddress, filters, sortOrder) => {
     generation: 1,
     price: marketplaceData.price.toString(),
     owner: marketplaceData.owner,
-    isForSale: true
+    isForSale: true,
   });
 
-  const applyFiltersAndSort = useCallback(
-    async (heroList) => {
-      if (!Array.isArray(heroList)) {
-        setError('Invalid hero data received');
-        return;
-      }
+  const groupHeroesByBulkListing = useCallback((heroList) => {
+    if (!heroList || !Array.isArray(heroList)) return [];
+    const individualListings = [];
+    const bulkGroups = new Map();
 
-      try {
-        // Use the same filtering system as SellTab
-        const filtered = await applyFiltersAndSortUtil(heroList, filters, sortOrder, false);
-        
-        setFilteredHeroes(filtered);
-        setDisplayedHeroes(filtered.slice(0, HEROES_PER_PAGE));
-        setHasMore(filtered.length > HEROES_PER_PAGE);
-      } catch (error) {
-        setError('Error filtering heroes');
-      }
-    },
-    [filters, sortOrder]
-  );
-
-  const fetchHeroes = useCallback(async (address) => {
-    const fetchId = Date.now();
-    lastFetchRef.current = fetchId;
-    
-    if (!address || isFetching) return;
-
-    try {
-      setIsFetching(true);
-      setLoading(true);
-      setError(null);
-      
-      // Debug counters to track hero processing
-      const filterDebug = {
-        total: 0,
-        marketplaceInvalid: 0,
-        wrongNetwork: 0,
-        ownershipMismatch: 0,
-        ownerIsUser: 0,
-        processingErrors: 0,
-        validHeroes: 0
-      };
-      
-      // Local array to track valid heroes (React state updates are async)
-      const validHeroesArray = [];
-
-      // Benchmark: mark fetch start
-      if (typeof window !== 'undefined') {
-        window.__honkFetchStart = performance.now();
-      }
-      setLoadStats({ totalHeroes: 0, loadTimeMs: 0, isDone: false });
-      
-      // Check cache first
-      // console.log('[HONK] Checking marketplace cache...');
-      const cachedHeroes = marketplaceCache.getListedHeroes();
-      if (cachedHeroes && cachedHeroes.length > 0) {
-        // console.log(`[HONK] Found ${cachedHeroes.length} heroes in cache!`);
-        // Ensure we have a fresh copy of the array
-        const cachedHeroesCopy = [...cachedHeroes];
-        
-        // Update state with cached heroes
-        setHeroes(cachedHeroesCopy);
-        setLoading(false);
-        setIsFetching(false);
-        
-        // Apply filters to cached heroes
-        await applyFiltersAndSort(cachedHeroesCopy);
-        
-        // Log and update UI
-        if (typeof window !== 'undefined' && window.__honkFetchStart) {
-          const loadTime = performance.now() - window.__honkFetchStart;
-          // console.log(`[HONK] Loaded from cache in ${loadTime.toFixed(0)} ms`);
-          
-          setLoadStats({
-            totalHeroes: cachedHeroesCopy.length,
-            validHeroes: cachedHeroesCopy.length,
-            filteredOut: 0,
-            loadTimeMs: Math.round(loadTime),
-            isDone: true,
-            fromCache: true
-          });
-        }
-        return;
-      }
-      
-      // If no cache, fetch from blockchain
-      const response = await HONKMarketplaceContract.methods.getListedHeroes().call();
-      const heroIds = extractHeroIds(response);
-      
-      // Log initial count of heroes from contract
-      // console.log(`[HONK] Initial heroes from contract: ${heroIds.length}`);
-      // console.log(`[HONK] Connected address: ${address}`);
-      filterDebug.total = heroIds.length;
-
-      if (!heroIds.length) {
-        setHeroes([]);
-        return;
-      }
-
-      // Reset current heroes to show loading placeholders
-      setHeroes([]);
-
-      // Process heroes incrementally to show them as soon as they are ready
-      const heroPromises = heroIds.map(async (heroId) => {
-        try {
-          if (lastFetchRef.current !== fetchId) return;
-
-          // Retrieve marketplace info first
-          const marketplaceData = await HONKMarketplaceContract.methods.getHero(heroId).call();
-
-          // Check if hero is for sale and not owned by current user
-          if (!marketplaceData || !marketplaceData.isForSale) {
-            filterDebug.marketplaceInvalid++;
-            // console.log(`[HONK] Hero ${heroId} filtered: not for sale or invalid marketplace data`);
-            return;
-          }
-          
-          if (marketplaceData.owner.toLowerCase() === address.toLowerCase()) {
-            filterDebug.ownerIsUser++;
-            // console.log(`[HONK] Hero ${heroId} filtered: owned by current user`);
-            return;
-          }
-
-          // Fetch hero core data (with fallback)
-          let heroData;
-          try {
-            heroData = await getHeroData(heroId);
-
-            if (heroData.network && heroData.network !== 'dfk') {
-              filterDebug.wrongNetwork++;
-              // console.log(`[HONK] Hero ${heroId} filtered: wrong network (${heroData.network})`);
-              return;
-            }
-
-            try {
-              const currentOwner = await DFKHeroContract.methods.ownerOf(heroId).call();
-              if (currentOwner.toLowerCase() !== marketplaceData.owner.toLowerCase()) {
-                filterDebug.ownershipMismatch++;
-                // console.log(`[HONK] Hero ${heroId} filtered: ownership mismatch`);
-                // console.log(`   Listed owner: ${marketplaceData.owner.toLowerCase()}`);
-                // console.log(`   Actual owner: ${currentOwner.toLowerCase()}`);
-                return;
-              }
-            } catch (error) {
-              filterDebug.processingErrors++;
-              // console.log(`[HONK] Error processing hero ${heroId}:`, error.message);
-              return;
-            }
-          } catch {
-            heroData = createDefaultHeroData(heroId, marketplaceData);
-          }
-
-          // === Build processed hero (same logic as before) ===
-          const statMapping = {
-            'mining': 'Mining',
-            'gardening': 'Gardening',
-            'foraging': 'Foraging',
-            'fishing': 'Fishing',
-            0: 'Blacksmithing',
-            2: 'Goldsmithing',
-            4: 'Armorsmithing',
-            6: 'Woodworking',
-            8: 'Leatherworking',
-            10: 'Tailoring',
-            12: 'Enchanting',
-            14: 'Alchemy'
-          };
-
-          const statsUnknown1 = heroData?.statsUnknown1 || 0;
-          const statsUnknown2 = heroData?.statsUnknown2 || 0;
-
-          const getProfessionFromStat = (statValue) => {
-            const professionMap = {
-              0: 'Blacksmithing',
-              2: 'Goldsmithing',
-              4: 'Armorsmithing',
-              6: 'Woodworking',
-              8: 'Leatherworking',
-              10: 'Tailoring',
-              12: 'Enchanting',
-              14: 'Alchemy'
-            };
-            return professionMap[statValue] || '';
-          };
-
-          const craftProf1 = getProfessionFromStat(statsUnknown1);
-          const craftProf2 = getProfessionFromStat(statsUnknown2);
-
-          const enrichedHero = enhanceHeroWithGeneData(heroData);
-
-          const processedHero = {
-            ...enrichedHero,
-            id: heroId.toString(),
-            price: marketplaceData.price.toString(),
-            owner: marketplaceData.owner,
+    heroList.forEach((hero) => {
+      if (!hero) return;
+      const bulkListingId = BigInt(hero.bulkListingId);
+      const isBulkListing = bulkListingId > 0n;
+      if (isBulkListing) {
+        if (!bulkGroups.has(bulkListingId)) {
+          bulkGroups.set(bulkListingId, {
+            id: `bulk-${bulkListingId}`,
+            bulkListingId: bulkListingId,
+            isBulkListing: bulkListingId > 0n,
+            heroes: [],
+            totalPrice: 0,
+            owner: hero.owner,
             isForSale: true,
-            mainClass: heroData?.mainClass || 'Unknown',
-            subClass: heroData?.subClass || 'Unknown',
-            stats: {
-              strength: parseInt(heroData?.strength) || 0,
-              dexterity: parseInt(heroData?.dexterity) || 0,
-              agility: parseInt(heroData?.agility) || 0,
-              vitality: parseInt(heroData?.vitality) || 0,
-              endurance: parseInt(heroData?.endurance) || 0,
-              intelligence: parseInt(heroData?.intelligence) || 0,
-              wisdom: parseInt(heroData?.wisdom) || 0,
-              luck: parseInt(heroData?.luck) || 0
-            },
-            mining: parseInt(heroData?.mining) || 0,
-            gardening: parseInt(heroData?.gardening) || 0,
-            foraging: parseInt(heroData?.foraging) || 0,
-            fishing: parseInt(heroData?.fishing) || 0,
-            level: parseInt(heroData?.level) || 0,
-            stamina: parseInt(heroData?.stamina) || 0,
-            xp: parseInt(heroData?.xp) || 0,
-            craftProf1,
-            craftProf2,
-            craftSkill1: statsUnknown1 > 0 ? 0 : 0,
-            craftSkill2: statsUnknown2 > 0 ? 0 : 0,
-            rarity: heroData?.rarity || 'common'
-          };
-
-          // === Push hero incrementally ===
-          if (lastFetchRef.current === fetchId) {
-            filterDebug.validHeroes++;
-            // console.log(`[HONK] Hero ${heroId} passed all checks and is valid`);
-            
-            // Add to our local tracking array
-            validHeroesArray.push(processedHero);
-            
-            setHeroes(prev => {
-              const updated = [...prev, processedHero];
-              
-              // If we've got at least HEROES_PER_PAGE heroes or this is the first hero,
-              // update the filtered list
-              if (updated.length >= HEROES_PER_PAGE || updated.length === 1) {
-                // Turn off loading when we have our first hero
-                if (loading) {
-                  setLoading(false);
-                }
-                
-                // Only update displayed heroes if they're not yet stable
-                if (!displayStableRef.current) {
-                  setFilteredHeroes(updated);
-                  setDisplayedHeroes(updated.slice(0, HEROES_PER_PAGE));
-                  
-                  // Once we have a full page, mark display as stable
-                  if (updated.length >= HEROES_PER_PAGE) {
-                    displayStableRef.current = true;
-                  }
-                }
-              }
-              
-              return updated;
-            });
-          }
-        } catch {
-          // swallow individual errors to keep loading others
-        }
-      });
-
-      await Promise.allSettled(heroPromises);
-      
-      // Log detailed filtering statistics
-      // console.log(`[HONK] ===== Hero Filtering Summary =====`);
-      // console.log(`[HONK] Total heroes from contract: ${filterDebug.total}`);
-      // console.log(`[HONK] Heroes filtered out due to:`);
-      // console.log(`[HONK]   - Not for sale/invalid data: ${filterDebug.marketplaceInvalid}`);
-      // console.log(`[HONK]   - Owned by current user: ${filterDebug.ownerIsUser}`);
-      // console.log(`[HONK]   - Wrong network: ${filterDebug.wrongNetwork}`);
-      // console.log(`[HONK]   - Ownership mismatch: ${filterDebug.ownershipMismatch}`);
-      // console.log(`[HONK]   - Processing errors: ${filterDebug.processingErrors}`);
-      // console.log(`[HONK] Valid heroes after filtering: ${filterDebug.validHeroes}`);
-      // console.log(`[HONK] ================================`);
-
-      // Finalize
-      if (lastFetchRef.current === fetchId) {
-        setIsFetching(false);
-        
-        // Reset display stability for next time
-        displayStableRef.current = false;
-        
-        // Final filter pass to ensure we have properly sorted heroes
-        // Use our local array which has the correct heroes count
-        if (validHeroesArray.length > 0) {
-          // One final state update with all heroes to ensure consistency
-          setHeroes(validHeroesArray);
-          await applyFiltersAndSort(validHeroesArray);
-        }
-        
-        // Calculate and display total load time with filtering details
-        if (typeof window !== 'undefined' && window.__honkFetchStart) {
-          const loadTime = performance.now() - window.__honkFetchStart;
-          
-          // Log heroes count from our tracked array, not from async state
-          // console.log(`[HONK] Heroes in validHeroesArray: ${validHeroesArray.length}`);
-          // console.log(`[HONK] Filtered heroes: ${filteredHeroes.length}`);
-          // console.log(`[HONK] Displayed heroes: ${displayedHeroes.length}`);
-          
-          // Use our local count instead of relying on React state
-          const validCount = validHeroesArray.length;
-          const filteredOut = heroIds.length - validCount;
-          
-          // console.log(`[HONK] All ${heroIds.length} heroes processed in ${loadTime.toFixed(0)} ms`);
-          // console.log(`[HONK] ${validCount} valid heroes kept, ${filteredOut} heroes filtered out`);
-          
-          // Store in cache for future use
-          if (validHeroesArray.length > 0) {
-            // console.log(`[HONK] Storing ${validHeroesArray.length} heroes in cache`);
-            marketplaceCache.setListedHeroes([...validHeroesArray]); // Create a deep copy to avoid reference issues
-          } else {
-            // console.log(`[HONK] Not caching heroes: empty or invalid (${validHeroesArray.length})`);
-          }
-          
-          setLoadStats({
-            totalHeroes: heroIds.length,
-            validHeroes: validCount,
-            filteredOut: filteredOut,
-            loadTimeMs: Math.round(loadTime),
-            isDone: true,
-            fromCache: false
+            mainClass: hero.mainClass,
+            subClass: hero.subClass,
+            rarity: hero.rarity,
+            generation: hero.generation,
+            level: hero.level,
           });
         }
-      }
-    } catch (error) {
-      if (lastFetchRef.current === fetchId) {
-        setError('Failed to fetch heroes: ' + error.message);
-        setHeroes([]);
-      }
-    } finally {
-      if (lastFetchRef.current === fetchId) {
-        setIsFetching(false);
-      }
-    }
-  }, []);
+        const bulkGroup = bulkGroups.get(bulkListingId);
+        bulkGroup.heroes.push(hero);
 
-  useEffect(() => {
-    const applyFilters = async () => {
-      if (heroes.length > 0) {
-        await applyFiltersAndSort(heroes);
-      }
-    };
-    applyFilters();
-  }, [heroes, filters, sortOrder, applyFiltersAndSort]);
-
-  useEffect(() => {
-    if (connectedAddress) {
-      fetchHeroes(connectedAddress);
-    }
-    return () => {
-      lastFetchRef.current = null;
-    };
-  }, [connectedAddress, fetchHeroes]);
-
-  const setupSubscriptions = useCallback(() => {
-    if (!HONKMarketplaceContract || isSubscribed.current) {
-      return;
-    }
-
-    try {
-      const heroListedEvent = HONKMarketplaceContract.events.HeroListed();
-      const heroPurchasedEvent = HONKMarketplaceContract.events.HeroPurchased();
-
-      eventSubscriptions.current = {
-        heroListed: heroListedEvent,
-        heroPurchased: heroPurchasedEvent
-      };
-
-      heroListedEvent.on('data', () => {
-        fetchHeroes(connectedAddress);
-      });
-
-      heroPurchasedEvent.on('data', () => {
-        fetchHeroes(connectedAddress);
-      });
-
-      isSubscribed.current = true;
-    } catch (error) {
-      setError('Failed to setup event subscriptions');
-    }
-  }, [connectedAddress, fetchHeroes]);
-
-  const cleanupSubscriptions = useCallback(() => {
-    if (!eventSubscriptions.current) return;
-
-    Object.values(eventSubscriptions.current).forEach(subscription => {
-      if (subscription) {
-        subscription.unsubscribe();
+        // Convert hero price from Wei to HONK (ether units) for human-readable totals
+        let heroPrice = 0;
+        try {
+          if (hero.price && hero.price !== '0') {
+            heroPrice = parseFloat(web3.utils.fromWei(hero.price.toString(), 'ether'));
+          }
+        } catch (e) {
+          heroPrice = parseFloat(hero.price || 0);
+        }
+        if (!isNaN(heroPrice)) {
+          bulkGroup.totalPrice += heroPrice;
+        }
+      } else {
+        individualListings.push(hero);
       }
     });
 
-    eventSubscriptions.current = { heroListed: null, heroPurchased: null };
-    isSubscribed.current = false;
+    const bulkListingsArray = Array.from(bulkGroups.values()).map((group) => {
+      group.heroCount = group.heroes.length;
+      // derive bulk allowed buyer and privacy
+      const firstHero = group.heroes[0];
+      group.allowedBuyer = firstHero ? firstHero.allowedBuyer : undefined;
+      group.isPrivate = group.allowedBuyer && group.allowedBuyer !== ZERO_ADDRESS;
+
+      // Convert BigInt to string for display and return a new object
+      return {
+        ...group,
+        bulkListingId: group.bulkListingId.toString(),
+      };
+    });
+
+    return [...individualListings, ...bulkListingsArray];
   }, []);
-  
-  useEffect(() => {
-    if (!connectedAddress || !HONKMarketplaceContract?.methods || isSubscribed.current) {
-      return;
-    }
 
-    // Setup event handling for market events with cache clearing
-    try {
-      const heroListedEvent = HONKMarketplaceContract.events.HeroListed();
-      const heroPurchasedEvent = HONKMarketplaceContract.events.HeroPurchased();
-      
-      eventSubscriptions.current = {
-        heroListed: heroListedEvent,
-        heroPurchased: heroPurchasedEvent
-      };
-      
-      // On market events, clear cache and refetch
-      const onMarketEvent = () => {
-        // console.log('[HONK] Market event detected, clearing cache');
-        marketplaceCache.clearListedHeroes();
-        fetchHeroes(connectedAddress);
-      };
-      
-      heroListedEvent.on('data', onMarketEvent);
-      heroPurchasedEvent.on('data', onMarketEvent);
-      
-      isSubscribed.current = true;
-    } catch (error) {
-      setError('Failed to setup event subscriptions');
-    }
-    
-    // Cleanup function
-    return () => {
-      if (!isSubscribed.current) return;
-      
-      try {
-        if (eventSubscriptions.current.heroPurchased) {
-          eventSubscriptions.current.heroPurchased.unsubscribe();
-          eventSubscriptions.current.heroPurchased = null;
-        }
-        isSubscribed.current = false;
-      } catch (error) {
-        // Error handling without console.error
-      }
-    };
+  const processAndEnhanceHeroes = useCallback(
+    async (heroesFromContract, currentFetchId) => {
+      // Process in parallel to speed up; drop heavy ownerOf check for performance (assume marketplace data is correct)
+      const results = await Promise.all(
+        heroesFromContract.map(async (hero) => {
+          if (fetchIdRef.current !== currentFetchId) return null; // Abort if a new fetch has started
+          if (!hero || !hero.id || hero.id === 0n || !hero.isForSale) return null;
+          if (hero.owner.toLowerCase() === connectedAddress?.toLowerCase()) return null;
 
-    const setupSubscriptions = async () => {
-      if (isSubscribed.current) {
-        return;
-      }
+          try {
+            const heroData = await getHeroData(hero.id);
+            if (!heroData || (heroData.network && heroData.network !== 'dfk')) return null;
 
-      try {
-        // Create event subscriptions only if contract is ready
-        if (HONKMarketplaceContract?.events) {
-          const heroListedEvent = HONKMarketplaceContract.events.HeroListed({}, {
-            fromBlock: 'latest'
-          });
+            const allowedBuyer = await HONKMarketplaceContract.methods.heroAllowedBuyer(hero.id).call();
+            
+            const isPrivate = allowedBuyer !== ZERO_ADDRESS;
+            if (isPrivate && allowedBuyer.toLowerCase() !== connectedAddress?.toLowerCase()) {
+              return null;
+            }
 
-          if (heroListedEvent) {
-            heroListedEvent.on('data', async (event) => {
-              if (!isFetching) {
-                await fetchHeroes(connectedAddress);
-              }
-            });
+            const enhancedHero = await enhanceHeroWithGeneData(heroData);
+            const bulkListingId = BigInt(hero.bulkListingId);
 
-            heroListedEvent.on('error', (error) => {
-              // Error handling without console.error
-            });
-
-            eventSubscriptions.current.heroListed = heroListedEvent;
+            return {
+              ...enhancedHero,
+              allowedBuyer,
+               isPrivate,
+              id: hero.id.toString(),
+              price: hero.price.toString(),
+              owner: hero.owner,
+              isForSale: true,
+              bulkListingId: bulkListingId.toString(),
+              isBulkListing: bulkListingId > 0n,
+              isPrivate: isPrivate
+            };
+          } catch (e) {
+            console.error(`Error processing hero ${hero.id}:`, e);
+            return null;
           }
+        })
+      );
 
-          const heroPurchasedEvent = HONKMarketplaceContract.events.HeroPurchased({}, {
-            fromBlock: 'latest'
-          });
+      return results.filter(Boolean);
+    },
+    [connectedAddress]
+  );
 
-          if (heroPurchasedEvent) {
-            heroPurchasedEvent.on('data', async (event) => {
-              if (!isFetching) {
-                await fetchHeroes(connectedAddress);
-              }
-            });
+  const fetchAllHeroesPaginated = useCallback(
+    async (currentFetchId) => {
+      let allFetchedHeroes = [];
+      let hasMoreToFetch = true;
+      let offset = 0;
 
-            heroPurchasedEvent.on('error', (error) => {
-              // Error handling without console.error
-            });
+      while (hasMoreToFetch) {
+        if (fetchIdRef.current !== currentFetchId) return; // Abort
 
-            eventSubscriptions.current.heroPurchased = heroPurchasedEvent;
+        try {
+          const heroesPage = await HONKMarketplaceContract.methods
+            .getListedHeroesPaginated(offset, HEROES_PER_PAGE)
+            .call();
+
+          if (heroesPage && heroesPage.length > 0) {
+            const validHeroes = heroesPage.filter(h => h && h.id && h.id !== 0n);
+            const processedPage = await processAndEnhanceHeroes(validHeroes, currentFetchId);
+            allFetchedHeroes.push(...processedPage);
+            setAllHeroes([...allFetchedHeroes]); // Update state incrementally for better UX
+
+            if (validHeroes.length < HEROES_PER_PAGE) {
+              hasMoreToFetch = false;
+            } else {
+              offset += HEROES_PER_PAGE;
+            }
+          } else {
+            hasMoreToFetch = false;
           }
-
-          isSubscribed.current = true;
+        } catch (err) {
+          const errorMessage = err.message || (err.data && err.data.message) || '';
+          if (errorMessage.includes('Offset out of bounds')) {
+            hasMoreToFetch = false; // Normal end of pagination
+          } else {
+            console.error('Error fetching a page of heroes:', err);
+            setError('Failed to fetch heroes from the marketplace.');
+            hasMoreToFetch = false; // Stop fetching on other critical errors
+          }
         }
-      } catch (error) {
-        cleanupSubscriptions();
+      }
+    },
+    [processAndEnhanceHeroes]
+  );
+
+  // Main effect to trigger fetching when address changes
+  useEffect(() => {
+    if (connectedAddress) {
+      fetchIdRef.current += 1;
+      const currentFetchId = fetchIdRef.current;
+
+      setLoading(true);
+      setError(null);
+      setAllHeroes([]);
+      setFilteredHeroes([]);
+      setDisplayedHeroes([]);
+      setPage(1);
+      setHasMoreToDisplay(true);
+
+      fetchAllHeroesPaginated(currentFetchId).finally(() => {
+        if (fetchIdRef.current === currentFetchId) {
+          setLoading(false);
+        }
+      });
+    }
+  }, [connectedAddress, fetchAllHeroesPaginated, refetchCount]);
+
+  useEffect(() => {
+    const applyFiltersAndGrouping = async () => {
+      if (allHeroes.length > 0) {
+        const groupedResult = groupHeroesByBulkListing(allHeroes);
+
+        const individualHeroes = groupedResult.filter(item => !item.isBulkListing);
+        const bulkGroups = groupedResult.filter(item => item.isBulkListing);
+
+        const filtered = await applyFiltersAndSortUtil(individualHeroes, filters, sortOrder);
+        setFilteredHeroes(filtered);
+        setBulkListings(bulkGroups);
+
+        setHasMoreToDisplay(true);
+        setPage(1);
+        setDisplayedHeroes(filtered.slice(0, HEROES_PER_PAGE));
+      } else {
+        setFilteredHeroes([]);
+        setDisplayedHeroes([]);
+        setBulkListings([]);
       }
     };
+    applyFiltersAndGrouping();
+  }, [allHeroes, filters, sortOrder, groupHeroesByBulkListing, applyFiltersAndSortUtil]);
 
-    setupSubscriptions();
+  const loadMore = useCallback(() => {
+    if (hasMoreToDisplay && !isLoadingMore) {
+        setIsLoadingMore(true);
+        setPage((prevPage) => prevPage + 1);
+    }
+  }, [hasMoreToDisplay, isLoadingMore]);
 
-    return () => {
-      cleanupSubscriptions();
-    };
-  }, [connectedAddress, fetchHeroes, HONKMarketplaceContract, isFetching]);
-
-  // Effect: Log when first hero becomes visible
   useEffect(() => {
-    if (heroes.length === 1 && typeof window !== 'undefined' && window.__honkFetchStart) {
-      const delta = performance.now() - window.__honkFetchStart;
-      // eslint-disable-next-line no-console
-      // console.log(`[HONK] First hero visible after ${delta.toFixed(0)} ms`);
-    }
-  }, [heroes]);
+    // The filter/sort effect is responsible for setting the initial page (page 1).
+    // This effect should only handle appending subsequent pages.
+    if (page > 1) {
+        const startIndex = (page - 1) * HEROES_PER_PAGE;
+        const endIndex = page * HEROES_PER_PAGE;
+        const newHeroes = filteredHeroes.slice(startIndex, endIndex);
 
-  // Effect: Log when displayed heroes first non-empty
-  useEffect(() => {
-    if (displayedHeroes.length === 1 && typeof window !== 'undefined' && window.__honkFetchStart) {
-      const delta = performance.now() - window.__honkFetchStart;
-      // eslint-disable-next-line no-console
-      // console.log(`[HONK] First hero displayed (after filters) in ${delta.toFixed(0)} ms`);
-    }
-  }, [displayedHeroes]);
-
-  const loadMoreHeroes = useCallback(() => {
-    if (isLoadingMore || !hasMore || !Array.isArray(filteredHeroes)) {
-      setIsLoadingMore(false);
-      return;
+        if (newHeroes.length > 0) {
+            setDisplayedHeroes((prev) => [...prev, ...newHeroes]);
+        }
     }
 
-    setIsLoadingMore(true);
-    
-    const startIndex = displayedHeroes.length;
-    const endIndex = startIndex + HEROES_PER_PAGE;
-    const newHeroes = filteredHeroes.slice(startIndex, endIndex);
-
-    if (newHeroes.length === 0) {
-      setHasMore(false);
-      setIsLoadingMore(false);
-      return;
-    }
-
-    setDisplayedHeroes(prev => [...prev, ...newHeroes]);
-    setHasMore(endIndex < filteredHeroes.length);
-    setIsLoadingMore(false);
-  }, [isLoadingMore, hasMore, displayedHeroes.length, filteredHeroes]);
-
-
+    // Always update the 'hasMore' flags after a page change.
+    const moreAvailable = page * HEROES_PER_PAGE < filteredHeroes.length;
+    setHasMore(moreAvailable);
+    setHasMoreToDisplay(moreAvailable);
+    setIsLoadingMore(false); // Done loading for this page
+  }, [page, filteredHeroes]);
 
   return {
-    heroes,
+    heroes: displayedHeroes,
     displayedHeroes,
+    bulkListings,
     loading,
     error,
     hasMore,
     isLoadingMore,
-    loadMoreHeroes,
-    fetchHeroes,
-    setHeroes,
-    loadStats
+    loadMoreHeroes: loadMore,
+    fetchHeroes: refetch,
+    setHeroes: setAllHeroes,
+    loadStats: () => {},
   };
 };

@@ -32,7 +32,7 @@ app.use(
       proxyRes.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS';
       proxyRes.headers['Access-Control-Allow-Headers'] = 'Content-Type';
     },
-    onError: function(err, req, res) {
+    onError: function (err, req, res) {
       log(`Proxy error: ${err.message}`);
       res.status(500).send('Proxy Error');
     },
@@ -52,14 +52,17 @@ app.listen(PORT, () => {
   log(`Server running at ${url}`);
   log(`Current directory: ${__dirname}`);
   log(`Build directory exists: ${fs.existsSync(path.join(__dirname, 'build'))}`);
-  
+
   // Open browser automatically
   log('Opening browser...');
   // Use different commands based on platform
-  const cmd = process.platform === 'win32' ? `start ${url}` : 
-              process.platform === 'darwin' ? `open ${url}` : 
-              `xdg-open ${url}`;
-  
+  const cmd =
+    process.platform === 'win32'
+      ? `start ${url}`
+      : process.platform === 'darwin'
+        ? `open ${url}`
+        : `xdg-open ${url}`;
+
   exec(cmd, (err) => {
     if (err) {
       log(`Failed to open browser: ${err.message}`);

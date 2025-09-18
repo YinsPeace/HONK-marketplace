@@ -19,6 +19,8 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
   const SELLER_FEE_PERCENTAGE = 0.01;
 
   const [isQuesting, setIsQuesting] = useState(false);
+  const [isPrivateSale, setIsPrivateSale] = useState(false);
+  const [recipient, setRecipient] = useState('');
 
   const handleQuestStatusChange = (status) => {
     setIsQuesting(status);
@@ -27,39 +29,39 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
   // Get stat value directly from hero object
   const getStatValue = (statName) => {
     if (!hero || !hero.stats) return 'N/A';
-    
+
     // Map stat names to their property names in the hero object
     const statMap = {
-      'Strength': 'strength',
-      'Dexterity': 'dexterity',
-      'Agility': 'agility',
-      'Vitality': 'vitality',
-      'Endurance': 'endurance',
-      'Intelligence': 'intelligence',
-      'Wisdom': 'wisdom',
-      'Luck': 'luck'
+      Strength: 'strength',
+      Dexterity: 'dexterity',
+      Agility: 'agility',
+      Vitality: 'vitality',
+      Endurance: 'endurance',
+      Intelligence: 'intelligence',
+      Wisdom: 'wisdom',
+      Luck: 'luck',
     };
-    
+
     const statKey = statMap[statName];
     return statKey && hero.stats ? hero.stats[statKey] || 'N/A' : 'N/A';
   };
-  
+
   // Get profession value directly from hero object
   const getProfessionValue = (profName) => {
     if (!hero) return 'N/A';
-    
+
     // Map profession names to their property names in the hero object
     const profMap = {
-      'Mining': 'mining',
-      'Gardening': 'gardening',
-      'Fishing': 'fishing',
-      'Foraging': 'foraging'
+      Mining: 'mining',
+      Gardening: 'gardening',
+      Fishing: 'fishing',
+      Foraging: 'foraging',
     };
-    
+
     const profKey = profMap[profName];
     return profKey && hero[profKey] !== undefined ? Math.floor(hero[profKey] / 10) : 'N/A';
   };
-  
+
   // This function was removed as we now directly use hero.craftProf1/2 properties
 
   const calculateSellerFee = (amount) => {
@@ -80,7 +82,7 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
     if (isBuyPage) {
       onBuy(hero.id, hero.price);
     } else {
-      onList(hero.id, price);
+      onList(hero.id, price, isPrivateSale, recipient);
     }
     onClose();
   };
@@ -88,57 +90,64 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
   return (
     <div className="modal-body">
       <div className="modal-hero-image">
-        <HeroCard hero={hero} honkLogo={honkLogo} inModal onQuestStatusChange={handleQuestStatusChange}/>
+        <HeroCard
+          hero={hero}
+          honkLogo={honkLogo}
+          inModal
+          onQuestStatusChange={handleQuestStatusChange}
+        />
       </div>
       <div className="hero-details">
-        <h2>{hero.firstName} {hero.lastName}</h2>
+        <h2>
+          {hero.firstName} {hero.lastName}
+        </h2>
         <div className="stats">
           <div className="stats-section">
-          <h2>Stats</h2>
-          <div className="stat-grid">
-            <div className="stat-col">
-              <ul>
-                <li>
-                  <span className="stat-label">Strength:</span>
-                  <span className="stat-value">{getStatValue('Strength')}</span>
-                </li>
-                <li>
-                  <span className="stat-label">Agility:</span>
-                  <span className="stat-value">{getStatValue('Agility')}</span>
-                </li>
-                <li>
-                  <span className="stat-label">Endurance:</span>
-                  <span className="stat-value">{getStatValue('Endurance')}</span>
-                </li>
-                <li>
-                  <span className="stat-label">Wisdom:</span>
-                  <span className="stat-value">{getStatValue('Wisdom')}</span>
-                </li>
-              </ul>
-            </div>
-            <div className="stat-col">
-              <ul>
-                <li>
-                  <span className="stat-label">Dexterity:</span>
-                  <span className="stat-value">{getStatValue('Dexterity')}</span>
-                </li>
-                <li>
-                  <span className="stat-label">Vitality:</span>
-                  <span className="stat-value">{getStatValue('Vitality')}</span>
-                </li>
-                <li>
-                  <span className="stat-label">Intelligence:</span>
-                  <span className="stat-value">{getStatValue('Intelligence')}</span>
-                </li>
-                <li>
-                  <span className="stat-label">Luck:</span>
-                  <span className="stat-value">{getStatValue('Luck')}</span>
-                </li>
-              </ul>
+            <h2>Stats</h2>
+            <div className="stat-grid">
+              <div className="stat-col">
+                <ul>
+                  <li>
+                    <span className="stat-label">Strength:</span>
+                    <span className="stat-value">{getStatValue('Strength')}</span>
+                  </li>
+                  <li>
+                    <span className="stat-label">Agility:</span>
+                    <span className="stat-value">{getStatValue('Agility')}</span>
+                  </li>
+                  <li>
+                    <span className="stat-label">Endurance:</span>
+                    <span className="stat-value">{getStatValue('Endurance')}</span>
+                  </li>
+                  <li>
+                    <span className="stat-label">Wisdom:</span>
+                    <span className="stat-value">{getStatValue('Wisdom')}</span>
+                  </li>
+                </ul>
+              </div>
+              <div className="stat-col">
+                <ul>
+                  <li>
+                    <span className="stat-label">Dexterity:</span>
+                    <span className="stat-value">{getStatValue('Dexterity')}</span>
+                  </li>
+                  <li>
+                    <span className="stat-label">Vitality:</span>
+                    <span className="stat-value">{getStatValue('Vitality')}</span>
+                  </li>
+                  <li>
+                    <span className="stat-label">Intelligence:</span>
+                    <span className="stat-value">{getStatValue('Intelligence')}</span>
+                  </li>
+                  <li>
+                    <span className="stat-label">Luck:</span>
+                    <span className="stat-value">{getStatValue('Luck')}</span>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
-        </div>  
-        <h3 className="section-title">Professions</h3>
+          <h3 className="section-title">Professions</h3>
           <hr />
           <div className="profession-grid">
             <div className="profession-col">
@@ -169,7 +178,8 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
           <h3 className="section-title">Crafting Professions</h3>
           <hr />
           <div className="profession-grid">
-            {(hero.craftProf1 && hero.craftProf1 !== 'none') || (hero.craftProf2 && hero.craftProf2 !== 'none') ? (
+            {(hero.craftProf1 && hero.craftProf1 !== 'none') ||
+            (hero.craftProf2 && hero.craftProf2 !== 'none') ? (
               <>
                 {hero.craftProf1 && hero.craftProf1 !== 'none' && (
                   <div className="profession-col single-col">
@@ -181,16 +191,18 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
                     </ul>
                   </div>
                 )}
-                {hero.craftProf2 && hero.craftProf2 !== 'none' && hero.craftProf2 !== hero.craftProf1 && (
-                  <div className="profession-col single-col">
-                    <ul>
-                      <li>
-                        <span className="profession-label">{hero.craftProf2}:</span>
-                        <span className="profession-value">0</span>
-                      </li>
-                    </ul>
-                  </div>
-                )}
+                {hero.craftProf2 &&
+                  hero.craftProf2 !== 'none' &&
+                  hero.craftProf2 !== hero.craftProf1 && (
+                    <div className="profession-col single-col">
+                      <ul>
+                        <li>
+                          <span className="profession-label">{hero.craftProf2}:</span>
+                          <span className="profession-value">0</span>
+                        </li>
+                      </ul>
+                    </div>
+                  )}
               </>
             ) : (
               <p>No crafting professions</p>
@@ -226,9 +238,34 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
                 onChange={(e) => setPrice(e.target.value)}
                 placeholder="Price in HONK"
                 disabled={isQuesting}
-                className={isQuesting ? 'input-disabled' : ''}
+                className={`w-full rounded-lg border border-gray-700 bg-gray-900 text-white px-4 py-2 mt-2 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all ${isQuesting ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title={isQuesting ? 'Hero is currently on a quest and cannot be listed' : ''}
               />
+              {/* Private Sale Toggle */}
+              <div className="flex items-center mt-2">
+                <input
+                  id="privateSaleToggle"
+                  type="checkbox"
+                  checked={isPrivateSale}
+                  onChange={() => setIsPrivateSale((prev) => !prev)}
+                  className="mr-2"
+                  disabled={isQuesting}
+                />
+                <label htmlFor="privateSaleToggle" className="select-none">
+                  Private Sale
+                </label>
+              </div>
+              {/* Recipient Address */}
+              {isPrivateSale && (
+                <input
+                  type="text"
+                  value={recipient}
+                  onChange={(e) => setRecipient(e.target.value)}
+                  placeholder="Recipient 0x address"
+                  disabled={isQuesting}
+                  className={`w-full rounded-lg border border-gray-700 bg-gray-900 text-white px-4 py-2 mt-2 focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all ${isQuesting ? 'opacity-50 cursor-not-allowed' : ''}`}
+                />
+              )}
               <div className="fee-details">
                 <p>Marketplace Fee (1%): {calculateSellerFee(price).toFixed(2)} HONK</p>
                 <p>You will receive: {calculateSellerProceeds(price).toFixed(2)} HONK</p>
@@ -238,8 +275,8 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
                   className={`modal-button ${isQuesting ? 'button-disabled' : ''}`}
                   onClick={isQuesting ? undefined : handleAction}
                   disabled={isQuesting}
-                  style={isQuesting? { pointerEvents: 'none' } : {}}
-                  title={isQuesting ? 'Hero is currently on a quest and cannot be listed' : ''}                
+                  style={isQuesting ? { pointerEvents: 'none' } : {}}
+                  title={isQuesting ? 'Hero is currently on a quest and cannot be listed' : ''}
                 >
                   {isQuesting ? 'Questing' : 'List for Sale'}
                 </button>
@@ -255,7 +292,7 @@ const HeroDetails = ({ hero, honkLogo, price, setPrice, onList, isBuyPage, onClo
             </>
           )}
         </div>
-        {(!isBuyPage && !isQuesting) && (
+        {!isBuyPage && !isQuesting && (
           <div className="disclaimer">
             <p>
               Disclaimer: By proceeding with this listing, you acknowledge that a 1% fee will be

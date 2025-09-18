@@ -87,3 +87,9 @@ truffle-config.js
 /src/contracts
 # /src/data - We need these files for hero names
 /slither.config.json
+
+# Documentation (stored in docs/ folder but kept out of main repo)
+/docs
+
+# Claude AI assistant files
+/.claude

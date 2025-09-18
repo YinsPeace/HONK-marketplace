@@ -1,6 +1,8 @@
 import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import honkLogo from './assets/images/honk/honkCoin.webp';
+// Dev-only: performance testing helpers
+import { generateFakeHeroes } from './utils/fakeHeroGenerator';
 import './index.css';
 import './App.css';
 import { ToastContainer, toast } from 'react-toastify';
@@ -14,6 +16,8 @@ import SidebarWithFilters from './components/SidebarWithFilters';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faDonate } from '@fortawesome/free-solid-svg-icons';
 import { HeroProvider } from './context/HeroContext';
+import NetworkSwitcher from './components/NetworkSwitcher';
+import { APP_VERSION } from './constants';
 
 const BuyTab = lazy(() => import('./components/BuyTab'));
 const SellTab = lazy(() => import('./components/SellTab'));
@@ -47,25 +51,23 @@ const ConnectionStatus = ({
   return (
     <div className="absolute top-2 right-4 text-right">
       {isConnected ? (
-        <div className="flex flex-col items-end">
-          <div className="flex items-center mb-2">
-            <span
-              className={`inline-block w-2 h-2 ${
-                isCorrectNetwork ? 'bg-green-400' : 'bg-yellow-400'
-              } rounded-full mr-2`}
-            ></span>
-            <span className="text-sm mr-4">
-              {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
-            </span>
-            {!isCorrectNetwork && (
-              <button
-                onClick={handleSwitchNetwork}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs"
-              >
-                Switch Network
-              </button>
-            )}
+        <div className="flex flex-col items-end space-y-2">
+          <div className="flex items-center space-x-3">
+            {/* Network Switcher */}
+            <NetworkSwitcher />
+
+            <div className="flex items-center">
+              <span
+                className={`inline-block w-2 h-2 ${
+                  isCorrectNetwork ? 'bg-green-400' : 'bg-yellow-400'
+                } rounded-full mr-2`}
+              ></span>
+              <span className="text-sm">
+                {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+              </span>
+            </div>
           </div>
+
           <div className="text-sm flex items-center">
             <button
               onClick={handleRefreshClick}
@@ -93,12 +95,17 @@ const ConnectionStatus = ({
           </div>
         </div>
       ) : (
-        <button
-          onClick={handleConnect}
-          className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-sm"
-        >
-          Connect Wallet
-        </button>
+        <div className="flex flex-col items-end space-y-2">
+          {/* Network Switcher for non-connected users */}
+          <NetworkSwitcher />
+
+          <button
+            onClick={handleConnect}
+            className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded text-sm"
+          >
+            Connect Wallet
+          </button>
+        </div>
       )}
     </div>
   );
@@ -241,6 +248,13 @@ const App = () => {
     initializeWeb3AndContracts();
   }, [debouncedToast, isInitialized]);
 
+  // Safety fallback: avoid being stuck on the loading indicator forever in production
+  useEffect(() => {
+    if (!isLoading) return;
+    const t = setTimeout(() => setIsLoading(false), 6000);
+    return () => clearTimeout(t);
+  }, [isLoading]);
+
   const handleFiltersChange = (filterType, value) => {
     setFilters((prev) => ({
       ...prev,
@@ -301,46 +315,54 @@ const App = () => {
                 className="mr-4"
                 style={{ width: '100px', height: 'auto' }}
               />
-              <h1 className="text-4xl font-bold my-8 text-white">HONK Marketplace</h1>
+              <div className="flex flex-col items-center">
+                <h1 className="text-4xl font-bold my-8 text-white">HONK Marketplace</h1>
+                <span className="text-sm text-gray-400">v{APP_VERSION}</span>
+              </div>
             </div>
             {isConnected ? (
-              isCorrectNetwork ? (
-                <Suspense fallback={<div>Loading...</div>}>
-                  <Routes>
+              <Suspense fallback={<div>Loading...</div>}>
+                <Routes>
+                  <Route
+                    path="/"
+                    element={
+                      <BuyTab
+                        connectedAddress={connectedAddress}
+                        honkLogo={honkLogo}
+                        filters={filters}
+                        sortOrder={sortOrder}
+                        onBalanceChange={updateBalance}
+                        isConnected={isConnected}
+                      />
+                    }
+                  />
+                  <Route
+                    path="/sell"
+                    element={
+                      <SellTab
+                        userAddress={connectedAddress}
+                        filters={filters}
+                        sortOrder={sortOrder}
+                      />
+                    }
+                  />
+                  <Route path="/test" element={<TestInterface />} />
+                  {process.env.NODE_ENV === 'development' && (
                     <Route
-                      path="/"
-                      element={
-                        <BuyTab
-                          connectedAddress={connectedAddress}
-                          honkLogo={honkLogo}
-                          filters={filters}
-                          sortOrder={sortOrder}
-                          onBalanceChange={updateBalance}
-                          isConnected={isConnected}
-                        />
-                      }
-                    />
-                    <Route
-                      path="/sell"
+                      path="/sell-test"
                       element={
                         <SellTab
                           userAddress={connectedAddress}
                           filters={filters}
                           sortOrder={sortOrder}
+                          // 30k fake heroes for stress-testing render performance
+                          testHeroes={generateFakeHeroes(30000)}
                         />
                       }
                     />
-                    <Route
-                      path="/test"
-                      element={<TestInterface />}
-                    />
-                  </Routes>
-                </Suspense>
-              ) : (
-                <div className="text-center mt-10">
-                  <p>Please switch to the DFK mainnet to access the marketplace.</p>
-                </div>
-              )
+                  )}
+                </Routes>
+              </Suspense>
             ) : (
               <div className="text-center mt-10">
                 <p>Please connect your wallet to access the marketplace.</p>

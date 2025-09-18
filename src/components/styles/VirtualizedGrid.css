@@ -38,7 +38,7 @@ body {
 
 .hero-card-wrapper {
   width: 300px;
-  min-height: 650px;
+  min-height: 530px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;

@@ -19,6 +19,14 @@ const HeroGrid = ({
   pendingTransactions,
   pendingCancellations,
   pendingPriceUpdates,
+  // Bulk listing props
+  isBulkMode,
+  selectedHeroes,
+  onToggleSelection,
+  onBuyBulkListing,
+  onCancelBulkListing,
+  onBulkListingClick,
+  showPrivateBadge, // Add this prop
 }) => {
   const [selectedHero, setSelectedHero] = useState(null);
   const [price, setPrice] = useState('');
@@ -88,6 +96,7 @@ const HeroGrid = ({
       <VirtualizedHeroGrid
         heroes={heroes}
         isBuyPage={isBuyPage}
+        isConnected={isConnected}
         honkLogo={honkLogo}
         onList={handleList}
         onCancelListing={onCancelListing}
@@ -95,12 +104,18 @@ const HeroGrid = ({
         onBuyHero={onBuyHero}
         formatPrice={formatPrice}
         lastHeroRef={lastHeroRef}
-        isConnected={isConnected}
         purchasedHeroes={purchasedHeroes}
         listedHeroes={listedHeroes}
         pendingTransactions={pendingTransactions}
         pendingCancellations={pendingCancellations}
         pendingPriceUpdates={pendingPriceUpdates}
+        isBulkMode={isBulkMode}
+        selectedHeroes={selectedHeroes}
+        onToggleSelection={onToggleSelection}
+        onBuyBulkListing={onBuyBulkListing}
+        onCancelBulkListing={onCancelBulkListing}
+        onBulkListingClick={onBulkListingClick}
+        showPrivateBadge={showPrivateBadge} // Pass this prop
       />
       {selectedHero && (
         <Modal onClose={closeModal}>

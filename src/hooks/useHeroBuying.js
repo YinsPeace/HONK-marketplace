@@ -7,10 +7,9 @@ const MAX_UINT256 =
 
 export const useHeroBuying = (
   connectedAddress,
-  fetchHeroes,
+  onPurchaseSuccess,
   onBalanceChange,
-  setPendingTransactions,
-  setHeroes
+  setPendingTransactions
 ) => {
   const [buyingHeroId, setBuyingHeroId] = useState(null);
   const [purchasedHeroes, setPurchasedHeroes] = useState(new Set());
@@ -163,18 +162,18 @@ export const useHeroBuying = (
 
       if (tx.status) {
         toast.success(`Successfully purchased hero ${heroId}!`);
-        fetchHeroes(connectedAddress);
         onBalanceChange();
 
-        // Mark the hero as purchased
+        // Mark the hero as purchased and trigger refresh via callback
         setPurchasedHeroes((prev) => new Set([...prev, heroId]));
+        if (onPurchaseSuccess) {
+          onPurchaseSuccess();
+        }
 
-        // Update the local state immediately
-        setHeroes((prevHeroes) =>
-          prevHeroes.map((h) =>
-            h.id === heroId ? { ...h, isForSale: false, owner: connectedAddress } : h
-          )
-        );
+        // Notify other tabs (e.g., SellTab) to refresh
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('honkMarketplaceUpdate'));
+        }
       } else {
         throw new Error('Transaction failed');
       }

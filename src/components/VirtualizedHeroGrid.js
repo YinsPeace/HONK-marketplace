@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import HeroCard from './HeroCard';
+import BulkHeroCard from './BulkHeroCard';
 import './styles/VirtualizedGrid.css';
 
 const HERO_CARD_HEIGHT = 650; // Further increased to ensure buttons are visible
@@ -24,6 +25,13 @@ const VirtualizedHeroGrid = ({
   pendingTransactions,
   pendingCancellations,
   pendingPriceUpdates,
+  // Bulk listing props
+  isBulkMode,
+  selectedHeroes,
+  onToggleSelection,
+  onBuyBulkListing,
+  onCancelBulkListing,
+  onBulkListingClick,
 }) => {
   const parentRef = useRef(null);
   const [columnCount, setColumnCount] = useState(MINIMUM_COLUMNS);
@@ -31,7 +39,7 @@ const VirtualizedHeroGrid = ({
   const [renderStats, setRenderStats] = useState({
     visibleItems: 0,
     totalItems: heroes.length,
-    renderTime: 0
+    renderTime: 0,
   });
 
   // Calculate number of columns based on container width
@@ -66,20 +74,22 @@ const VirtualizedHeroGrid = ({
     onChange: (instance) => {
       const virtualItems = instance.getVirtualItems();
       const lastItem = virtualItems[virtualItems.length - 1];
-      
+
       // If we're near the end, call the lastHeroRef
       if (lastItem && lastItem.index === rowCount - 1 && lastHeroRef) {
-        const lastHeroElement = document.querySelector(`[data-hero-id="${heroes[heroes.length - 1].id}"]`);
+        const lastHeroElement = document.querySelector(
+          `[data-hero-id="${heroes[heroes.length - 1].id}"]`
+        );
         if (lastHeroElement) {
           lastHeroRef(lastHeroElement);
         }
       }
 
-      setRenderStats(prev => ({
+      setRenderStats((prev) => ({
         ...prev,
-        visibleItems: virtualItems.length * columnCount
+        visibleItems: virtualItems.length * columnCount,
       }));
-    }
+    },
   });
 
   // Update total height when row count or column count changes
@@ -88,10 +98,7 @@ const VirtualizedHeroGrid = ({
   }, [rowCount]);
 
   return (
-    <div
-      ref={parentRef}
-      className="virtualized-grid-container"
-    >
+    <div ref={parentRef} className="virtualized-grid-container">
       <div
         className="virtualized-grid-content"
         style={{
@@ -114,31 +121,47 @@ const VirtualizedHeroGrid = ({
               }}
             >
               {rowHeroes.map((hero) => (
-                <div 
-                  key={hero.id} 
+                <div
+                  key={hero.id}
                   className="hero-card-wrapper"
                   data-hero-id={hero.id}
                   style={{
                     height: `${HERO_CARD_HEIGHT}px`,
-                    marginBottom: '20px' // Add some margin between rows
+                    marginBottom: '20px', // Add some margin between rows
                   }}
                 >
-                  <HeroCard
-                    hero={hero}
-                    isBuyPage={isBuyPage}
-                    honkLogo={honkLogo}
-                    onList={onList}
-                    onCancelListing={onCancelListing}
-                    onUpdatePrice={onUpdatePrice}
-                    onBuyHero={onBuyHero}
-                    formatPrice={formatPrice}
-                    isConnected={isConnected}
-                    purchasedHeroes={purchasedHeroes}
-                    listedHeroes={listedHeroes}
-                    pendingTransactions={pendingTransactions}
-                    pendingCancellations={pendingCancellations}
-                    pendingPriceUpdates={pendingPriceUpdates}
-                  />
+                  {hero.isBulkListing ? (
+                    <BulkHeroCard
+                      bulkListing={hero}
+                      formatPrice={formatPrice}
+                      onBuyBulkListing={onBuyBulkListing}
+                      onCancelBulkListing={onCancelBulkListing}
+                      isBuyPage={isBuyPage}
+                      pendingCancellations={pendingCancellations}
+                      isConnected={isConnected}
+                      onClick={onBulkListingClick}
+                    />
+                  ) : (
+                    <HeroCard
+                      hero={hero}
+                      isBuyPage={isBuyPage}
+                      honkLogo={honkLogo}
+                      onList={onList}
+                      onCancelListing={onCancelListing}
+                      onUpdatePrice={onUpdatePrice}
+                      onBuyHero={onBuyHero}
+                      formatPrice={formatPrice}
+                      purchasedHeroes={purchasedHeroes}
+                      listedHeroes={listedHeroes}
+                      pendingTransactions={pendingTransactions}
+                      pendingCancellations={pendingCancellations}
+                      pendingPriceUpdates={pendingPriceUpdates}
+                      isBulkMode={isBulkMode}
+                      selectedHeroes={selectedHeroes}
+                      onToggleSelection={onToggleSelection}
+                      isConnected={isConnected}
+                    />
+                  )}
                 </div>
               ))}
             </div>

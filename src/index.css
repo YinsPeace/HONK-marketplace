@@ -29,8 +29,32 @@ body {
   letter-spacing: 0.05em; /* Adds light spacing for body text */
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #1a202c; /* Dark background */
-  color: #e2e8f0; /* Light text color */
+  background-color: #1a202c; /* Dark background color */
+  color: #cbd5e0; /* Light text color */
+}
+
+/* Custom Scrollbar for Modals */
+.bulk-modal-scrollable-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.bulk-modal-scrollable-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bulk-modal-scrollable-content::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.3); /* gray-400 with opacity */
+  border-radius: 4px;
+}
+
+.bulk-modal-scrollable-content::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.5);
+}
+
+/* For Firefox */
+.bulk-modal-scrollable-content {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.3) transparent; /* thumb and track */
 }
 
 /* Heading Styles */
@@ -161,7 +185,7 @@ button {
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
   position: absolute;
-  top: 0;
+  top: 4px;
   left: 0;
   visibility: visible;
   opacity: 1;

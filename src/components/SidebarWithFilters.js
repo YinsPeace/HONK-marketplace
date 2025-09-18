@@ -29,23 +29,23 @@ const SidebarWithFilters = ({
     // Update range slider fills when switching tabs or when filters change
     const updateRangeSliderFills = () => {
       const sliders = document.querySelectorAll('.relative[data-filter]');
-      sliders.forEach(slider => {
+      sliders.forEach((slider) => {
         const filterType = slider.getAttribute('data-filter').toLowerCase();
         const fill = slider.querySelector('.range-slider-fill');
         const minInput = slider.querySelector('.range-input-min');
         const maxInput = slider.querySelector('.range-input-max');
-        
+
         if (fill && minInput && maxInput) {
           const min = parseInt(minInput.min);
           const max = parseInt(maxInput.max);
           const minVal = parseInt(minInput.value);
           const maxVal = parseInt(maxInput.value);
-          
+
           // Adjust the percentage calculation to account for slider width
           const range = max - min;
           const minPercent = ((minVal - min) / range) * 92 + 5; // Add 5% offset from left
           const maxPercent = ((maxVal - min) / range) * 92 + 5; // Add 5% offset from left
-          
+
           fill.style.left = `${minPercent}%`;
           fill.style.width = `${maxPercent - minPercent}%`;
         }
@@ -147,15 +147,10 @@ const SidebarWithFilters = ({
     'Dragoon',
     'Sage',
     'Spellbow',
-    'Dreadknight'
+    'Dreadknight',
   ];
 
-  const professionOptions = [
-    'Mining',
-    'Gardening',
-    'Fishing',
-    'Foraging',
-  ];
+  const professionOptions = ['Mining', 'Gardening', 'Fishing', 'Foraging'];
 
   const craftingOptions = [
     'Blacksmithing',
@@ -182,10 +177,14 @@ const SidebarWithFilters = ({
             <label key={option} className="flex items-center text-sm">
               <input
                 type="checkbox"
-                checked={filters[filterType]?.map(f => f.toLowerCase()).includes(option.toLowerCase())}
+                checked={filters[filterType]
+                  ?.map((f) => f.toLowerCase())
+                  .includes(option.toLowerCase())}
                 onChange={() => {
                   const updatedFilter = filters[filterType]?.includes(option)
-                    ? filters[filterType].filter((item) => item.toLowerCase() !== option.toLowerCase())
+                    ? filters[filterType].filter(
+                        (item) => item.toLowerCase() !== option.toLowerCase()
+                      )
                     : [...(filters[filterType] || []), option];
                   handleFilterChange(filterType, updatedFilter);
                 }}
@@ -233,10 +232,14 @@ const SidebarWithFilters = ({
                   <label key={option} className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={filters.class?.map(f => f.toLowerCase()).includes(option.toLowerCase())}
+                      checked={filters.class
+                        ?.map((f) => f.toLowerCase())
+                        .includes(option.toLowerCase())}
                       onChange={() => {
                         const updatedFilter = filters.class?.includes(option)
-                          ? filters.class.filter((item) => item.toLowerCase() !== option.toLowerCase())
+                          ? filters.class.filter(
+                              (item) => item.toLowerCase() !== option.toLowerCase()
+                            )
                           : [...(filters.class || []), option];
                         handleFilterChange('class', updatedFilter);
                       }}
@@ -255,10 +258,14 @@ const SidebarWithFilters = ({
                   <label key={option} className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={filters.subclass?.map(f => f.toLowerCase()).includes(option.toLowerCase())}
+                      checked={filters.subclass
+                        ?.map((f) => f.toLowerCase())
+                        .includes(option.toLowerCase())}
                       onChange={() => {
                         const updatedFilter = filters.subclass?.includes(option)
-                          ? filters.subclass.filter((item) => item.toLowerCase() !== option.toLowerCase())
+                          ? filters.subclass.filter(
+                              (item) => item.toLowerCase() !== option.toLowerCase()
+                            )
                           : [...(filters.subclass || []), option];
                         handleFilterChange('subclass', updatedFilter);
                       }}
@@ -370,7 +377,7 @@ const SidebarWithFilters = ({
     onFiltersChange('hideQuesting', defaultFilters.hideQuesting);
     onFiltersChange('hideListedHeroes', defaultFilters.hideListedHeroes);
     onFiltersChange('heroId', '');
-    
+
     // Also clear the cache for the current tab
     if (isActiveTab('buy')) {
       // Clear BuyTab cache
@@ -393,7 +400,7 @@ const SidebarWithFilters = ({
         window.heroCache.clear();
       } else if (typeof window.heroCache.store === 'object') {
         // Fallback: iterate keys
-        Object.keys(window.heroCache.store).forEach(k=>window.heroCache.remove(k));
+        Object.keys(window.heroCache.store).forEach((k) => window.heroCache.remove(k));
       }
     }
 
@@ -482,7 +489,9 @@ const SidebarWithFilters = ({
           <form className="space-y-4 relative">
             {activeTab === 'main' ? renderMainFilters() : renderProfessionFilters()}
 
-            <div className={`sort-section space-y-2 mb-2 ${activeTab === 'main' ? 'sort-section-main' : ''}`}>
+            <div
+              className={`sort-section space-y-2 mb-2 ${activeTab === 'main' ? 'sort-section-main' : ''}`}
+            >
               <label className="block text-sm font-medium text-gray-300">Sort By</label>
               <select
                 onChange={(e) => handleSortChange(e.target.value)}
@@ -498,46 +507,7 @@ const SidebarWithFilters = ({
               </select>
             </div>
 
-            <div className="space-y-2 mb-4">
-              <div className="flex space-x-2">
-                <button
-                  type="button"
-                  onClick={handleClearFilters}
-                  disabled={disabled}
-                  className="flex-1 py-2 px-4 bg-gray-700 hover:bg-gray-600 text-white rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  Clear Filters
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    // Clear cache based on current tab
-                    if (isActiveTab('buy')) {
-                      // Clear BuyTab cache
-                      if (window.marketplaceCache) {
-                        window.marketplaceCache.clearListedHeroes();
-                        alert('Marketplace cache cleared. Refreshing...');
-                        window.location.reload();
-                      }
-                    } else {
-                      // Clear SellTab cache
-                      if (window.heroCache) {
-                        const address = localStorage.getItem('lastConnectedAddress');
-                        if (address) {
-                          window.heroCache.remove(`sell-${address.toLowerCase()}`);
-                          alert('Sell tab cache cleared. Refreshing...');
-                          window.location.reload();
-                        }
-                      }
-                    }
-                  }}
-                  disabled={disabled}
-                  className="flex-1 py-2 px-4 bg-orange-600 hover:bg-orange-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-orange-500"
-                >
-                  Clear Cache
-                </button>
-              </div>
-            </div>
+
 
             <div className="space-y-2">
               <label className="flex items-center">
@@ -561,7 +531,6 @@ const SidebarWithFilters = ({
                   />
                   <span className="text-sm font-medium text-gray-300">Hide Listed Heroes</span>
                 </label>
-                
               )}
             </div>
           </form>

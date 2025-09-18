@@ -1,15 +1,21 @@
 # HONK Marketplace Refactoring Plan
 
 ## Overview
+
 This plan combines comprehensive improvements with a streamlined, practical implementation approach. The focus is on essential improvements while maintaining the option for future enhancements.
 
 ## Phase 1: TypeScript Migration and Core Infrastructure
+
 1. **Initial TypeScript Setup**
+
    - [ ] Add TypeScript and essential dependencies
+
    ```bash
    npm install typescript @types/react @types/node
    ```
+
    - [ ] Create focused tsconfig.json with strict mode
+
    ```json
    {
      "compilerOptions": {
@@ -28,6 +34,7 @@ This plan combines comprehensive improvements with a streamlined, practical impl
    ```
 
 2. **Core Type Definitions**
+
    ```typescript
    // src/types/marketplace.ts
    interface HeroListing {
@@ -49,7 +56,9 @@ This plan combines comprehensive improvements with a streamlined, practical impl
    - [ ] Generate typed contracts from ABIs
 
 ## Phase 2: Core Functionality and Error Handling
+
 1. **Streamlined Contract Service**
+
    ```typescript
    // src/services/MarketplaceService.ts
    class MarketplaceService {
@@ -101,6 +110,7 @@ This plan combines comprehensive improvements with a streamlined, practical impl
    ```
 
 2. **Error Handling System**
+
    ```typescript
    // src/utils/errors.ts
    enum MarketplaceError {
@@ -108,7 +118,7 @@ This plan combines comprehensive improvements with a streamlined, practical impl
      INSUFFICIENT_BALANCE = 'Insufficient balance',
      ALREADY_LISTED = 'Hero already listed',
      NETWORK_ERROR = 'Network error occurred',
-     NOT_LISTED = 'Hero is not listed'
+     NOT_LISTED = 'Hero is not listed',
    }
 
    function handleMarketplaceError(error: any): void {
@@ -128,7 +138,9 @@ This plan combines comprehensive improvements with a streamlined, practical impl
    ```
 
 ## Phase 3: State Management
+
 1. **Essential Zustand Store**
+
    ```typescript
    // src/store/marketplaceStore.ts
    const useMarketplaceStore = create<MarketplaceStore>((set) => ({
@@ -140,30 +152,28 @@ This plan combines comprehensive improvements with a streamlined, practical impl
        set((state) => ({
          pendingTransactions: {
            ...state.pendingTransactions,
-           [id]: isPending
-         }
+           [id]: isPending,
+         },
        })),
-     addListing: (listing) => 
-       set((state) => ({ 
-         listings: [...state.listings, listing] 
+     addListing: (listing) =>
+       set((state) => ({
+         listings: [...state.listings, listing],
        })),
      removeListing: (heroId) =>
        set((state) => ({
-         listings: state.listings.filter(l => l.id !== heroId)
-       }))
+         listings: state.listings.filter((l) => l.id !== heroId),
+       })),
    }));
    ```
 
 2. **Transaction Management Hook**
+
    ```typescript
    // src/hooks/useMarketplaceTransaction.ts
    function useMarketplaceTransaction() {
-     const setPending = useMarketplaceStore(state => state.setPendingTransaction);
-     
-     const executeTransaction = async (
-       fn: () => Promise<boolean>,
-       id: string
-     ) => {
+     const setPending = useMarketplaceStore((state) => state.setPendingTransaction);
+
+     const executeTransaction = async (fn: () => Promise<boolean>, id: string) => {
        setPending(id, true);
        try {
          const result = await fn();
@@ -179,12 +189,14 @@ This plan combines comprehensive improvements with a streamlined, practical impl
    }
    ```
 
-2. **Apollo Client Integration** (Optional Enhancement)
+3. **Apollo Client Integration** (Optional Enhancement)
    - [ ] Set up Apollo Client caching
    - [ ] Implement optimistic updates
 
 ## Phase 4: Testing Strategy
+
 1. **Essential Tests**
+
    ```typescript
    // src/services/__tests__/MarketplaceService.test.ts
    describe('MarketplaceService', () => {
@@ -208,7 +220,9 @@ This plan combines comprehensive improvements with a streamlined, practical impl
    - [ ] Performance testing
 
 ## Phase 5: Security and Performance
+
 1. **Essential Security**
+
    - [ ] Input validation for price and hero IDs
    - [ ] Basic contract allowance checks
    - [ ] User-friendly error messages
@@ -219,7 +233,9 @@ This plan combines comprehensive improvements with a streamlined, practical impl
    - [ ] Advanced contract validation
 
 ## Phase 6: UI/UX Improvements
+
 1. **Core Improvements**
+
    - [ ] Loading indicators for transactions
    - [ ] Clear error messages
    - [ ] Transaction status feedback
@@ -232,12 +248,15 @@ This plan combines comprehensive improvements with a streamlined, practical impl
 ## DFK Chain Integration Updates
 
 ### RPC Connection Changes
+
 1. **Current Situation**
+
    - DFK Chain has discontinued WebSocket access to public RPC
    - AvaLabs recommends using Glacier Webhooks for real-time events
    - HTTP RPC endpoints remain available for basic interactions
 
 2. **Required Changes**
+
    ```typescript
    // src/services/MarketplaceService.ts
    class MarketplaceService {
@@ -249,7 +268,7 @@ This plan combines comprehensive improvements with a streamlined, practical impl
      // Add webhook subscription for real-time updates
      async subscribeToMarketEvents(): Promise<void> {
        if (!this.webhookUrl) return;
-       
+
        // Configure Glacier webhook for:
        // - New listings
        // - Price updates
@@ -280,12 +299,15 @@ This plan combines comprehensive improvements with a streamlined, practical impl
    ```
 
 ### Implementation Changes
+
 1. **Replace WebSocket Listeners**
+
    - Remove WebSocket-based event listeners
    - Implement Glacier webhook endpoints
    - Add webhook verification and security
 
 2. **State Updates**
+
    - Use HTTP polling as fallback for non-critical updates
    - Implement optimistic updates for better UX
    - Cache recent events to reduce RPC calls
@@ -298,30 +320,35 @@ This plan combines comprehensive improvements with a streamlined, practical impl
 ## Implementation Phases
 
 ### Phase 1: TypeScript + Core Contract Interactions
+
 - TypeScript setup and configuration
 - Core marketplace service implementation
 - Contract type definitions
 - Basic transaction handling
 
 ### Phase 2: Transaction Management + Error Handling
+
 - Transaction status tracking
 - Error handling system
 - Transaction management hook
 - User feedback mechanisms
 
 ### Phase 3: UI Components + State Management
+
 - Zustand store implementation
 - UI components with loading states
 - Transaction status indicators
 - Form validation and error display
 
 ### Phase 4: Testing + Bug Fixes
+
 - Core service tests
 - Transaction flow testing
 - UI component testing
 - Bug fixes and optimizations
 
 ## Directory Structure
+
 ```
 src/
 ├── services/
@@ -341,17 +368,21 @@ src/
 ```
 
 ## Implementation Timeline
+
 1. **Week 1: Core TypeScript and Services**
+
    - TypeScript setup
    - Core marketplace service
    - Basic error handling
 
 2. **Week 2: State and UI**
+
    - Zustand store implementation
    - Essential UI components
    - Loading states
 
 3. **Week 3: Testing and Refinement**
+
    - Core test implementation
    - Error handling improvements
    - Transaction feedback
@@ -362,7 +393,9 @@ src/
    - Additional features as needed
 
 ## Getting Started
+
 1. Install core dependencies:
+
    ```bash
    npm install typescript @types/react @types/node zustand
    ```
@@ -373,6 +406,7 @@ src/
    ```
 
 ## Notes
+
 - Start with essential improvements and add enhancements as needed
 - Maintain backwards compatibility during migration
 - Focus on user experience and reliability

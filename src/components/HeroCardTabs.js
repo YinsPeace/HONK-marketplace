@@ -13,13 +13,13 @@ const HeroCardTabs = ({ activeTab, onTabChange }) => {
     { id: 'growth', symbol: '📈', label: 'Growth' },
     { id: 'abilities', symbol: '⚔️', label: 'Abilities' },
     { id: 'recessive1', symbol: '🧬', label: 'Recessive 1' },
-    { id: 'recessive2', symbol: '🧬2', label: 'Recessive 2' }
+    { id: 'recessive2', symbol: '🧬2', label: 'Recessive 2' },
   ];
 
   return (
     <div className="hero-card-tabs">
-      {tabs.map(tab => (
-        <div 
+      {tabs.map((tab) => (
+        <div
           key={tab.id}
           className={`hero-card-tab ${activeTab === tab.id ? 'active' : ''}`}
           onClick={(e) => {
@@ -29,23 +29,37 @@ const HeroCardTabs = ({ activeTab, onTabChange }) => {
           title={tab.label}
         >
           {tab.id === 'recessive1' ? (
-  <span className="tab-symbol tab-symbol-recessive-gene" style={{ color: '#9c27b0' }}>🧬</span>
-) : tab.id === 'recessive2' ? (
-  <span className="tab-symbol tab-symbol-recessive-gene" style={{ color: '#9c27b0', position: 'relative', display: 'inline-flex', alignItems: 'flex-end' }}>
-    🧬
-    <span style={{
-      fontSize: '9px',
-      color: '#fff',
-      position: 'absolute',
-      left: '60%',
-      fontWeight: 700,
-      pointerEvents: 'none',
-      bottom: '-4px',
-    }}>2</span>
-  </span>
-) : (
-  <span className="tab-symbol">{tab.symbol}</span>
-)}
+            <span className="tab-symbol tab-symbol-recessive-gene" style={{ color: '#9c27b0' }}>
+              🧬
+            </span>
+          ) : tab.id === 'recessive2' ? (
+            <span
+              className="tab-symbol tab-symbol-recessive-gene"
+              style={{
+                color: '#9c27b0',
+                position: 'relative',
+                display: 'inline-flex',
+                alignItems: 'flex-end',
+              }}
+            >
+              🧬
+              <span
+                style={{
+                  fontSize: '9px',
+                  color: '#fff',
+                  position: 'absolute',
+                  left: '60%',
+                  fontWeight: 700,
+                  pointerEvents: 'none',
+                  bottom: '-4px',
+                }}
+              >
+                2
+              </span>
+            </span>
+          ) : (
+            <span className="tab-symbol">{tab.symbol}</span>
+          )}
         </div>
       ))}
     </div>

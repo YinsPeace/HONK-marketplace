@@ -2,33 +2,35 @@ import Web3 from 'web3';
 
 const TAVERN_ABI = [
   {
-    "inputs": [{"internalType": "address","name": "_owner","type": "address"}],
-    "name": "getUserAuctions",
-    "outputs": [{"internalType": "uint256[]","name": "","type": "uint256[]"}],
-    "stateMutability": "view",
-    "type": "function"
+    inputs: [{ internalType: 'address', name: '_owner', type: 'address' }],
+    name: 'getUserAuctions',
+    outputs: [{ internalType: 'uint256[]', name: '', type: 'uint256[]' }],
+    stateMutability: 'view',
+    type: 'function',
   },
   {
-    "inputs": [{"internalType": "uint256[]","name": "_tokenIds","type": "uint256[]"}],
-    "name": "getAuctions",
-    "outputs": [{
-      "components": [
-        {"internalType": "uint256","name": "id","type": "uint256"},
-        {"internalType": "address","name": "seller","type": "address"},
-        {"internalType": "uint256","name": "startingPrice","type": "uint256"},
-        {"internalType": "uint256","name": "endingPrice","type": "uint256"},
-        {"internalType": "uint256","name": "duration","type": "uint256"},
-        {"internalType": "uint256","name": "startedAt","type": "uint256"},
-        {"internalType": "address","name": "winner","type": "address"},
-        {"internalType": "bool","name": "open","type": "bool"}
-      ],
-      "internalType": "struct IHeroAuction.Auction[]",
-      "name": "",
-      "type": "tuple[]"
-    }],
-    "stateMutability": "view",
-    "type": "function"
-  }
+    inputs: [{ internalType: 'uint256[]', name: '_tokenIds', type: 'uint256[]' }],
+    name: 'getAuctions',
+    outputs: [
+      {
+        components: [
+          { internalType: 'uint256', name: 'id', type: 'uint256' },
+          { internalType: 'address', name: 'seller', type: 'address' },
+          { internalType: 'uint256', name: 'startingPrice', type: 'uint256' },
+          { internalType: 'uint256', name: 'endingPrice', type: 'uint256' },
+          { internalType: 'uint256', name: 'duration', type: 'uint256' },
+          { internalType: 'uint256', name: 'startedAt', type: 'uint256' },
+          { internalType: 'address', name: 'winner', type: 'address' },
+          { internalType: 'bool', name: 'open', type: 'bool' },
+        ],
+        internalType: 'struct IHeroAuction.Auction[]',
+        name: '',
+        type: 'tuple[]',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
 ];
 
 const TAVERN_ADDRESS = '0xc390fAA4C7f66E4D62E59C231D5beD32Ff77BEf0';

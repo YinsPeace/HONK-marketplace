@@ -1,162 +1,242 @@
-import React, { useEffect, useState } from 'react';
-import HeroGrid from './HeroGrid';
-import LoadingIndicator from './LoadingIndicator';
-import { toast } from 'react-toastify';
+import React, { useState, useEffect } from 'react';
 import { useWallet } from '../hooks/useWallet';
-import { useHeroBuying } from '../hooks/useHeroBuying';
 import { useBuyTab } from '../hooks/useBuyTab';
+import { useHeroBuying } from '../hooks/useHeroBuying';
+import { toast } from 'react-toastify';
+import LoadingIndicator from './LoadingIndicator';
+import HeroGrid from './HeroGrid';
+
+import BulkListingDetailModal from './BulkListingDetailModal';
+import BulkSelectionControls from './BulkSelectionControls';
 import honkLogo from '../assets/images/honk/honkCoin.webp';
+import { HONKMarketplaceContract, HONKTokenContract, web3 } from '../Web3Config';
 
 const BuyTab = ({ filters, sortOrder }) => {
   const { isConnected, isCorrectNetwork, connectedAddress, connect, switchNetwork, updateBalance } =
     useWallet();
 
-  const {
-    displayedHeroes,
-    loading,
-    error,
-    hasMore,
-    isLoadingMore,
-    loadMoreHeroes,
-    fetchHeroes,
-    setHeroes,
-    loadStats
-  } = useBuyTab(connectedAddress, filters, sortOrder);
-
-  const [pendingTransactions, setPendingTransactions] = React.useState(new Set());
-
-  const { buyingHeroId, buyHero, checkHONKBalance } = useHeroBuying(
+  const { heroes, bulkListings, loading, error, hasMore, loadMoreHeroes, fetchHeroes } = useBuyTab(
     connectedAddress,
-    fetchHeroes,
-    updateBalance,
-    setPendingTransactions,
-    setHeroes
+    filters,
+    sortOrder
   );
 
+  const { buyHero, purchasedHeroes } = useHeroBuying(
+    connectedAddress,
+    fetchHeroes, // onPurchaseSuccess callback
+    updateBalance,
+    () => {} // setPendingTransactions (not used here, but required by hook)
+  );
+
+  const [pendingTransactions, setPendingTransactions] = useState(new Set());
+
+
+  const [selectedBulkListing, setSelectedBulkListing] = useState(null);
+  const [isBulkDetailModalOpen, setIsBulkDetailModalOpen] = useState(false);
+  const [isBulkMode, setIsBulkMode] = useState(false);
+
+  const toggleBulkMode = () => {
+    setIsBulkMode((prev) => !prev);
+  };
+
   const handleBuyHero = async (heroId) => {
-    if (!isConnected) {
-      toast.error('Please connect your wallet to buy a hero.');
-      try {
-        await connect();
-      } catch (error) {
-        toast.error('Failed to connect wallet. Please try again.');
-      }
+    if (!isConnected || !isCorrectNetwork) {
+      toast.error('Please connect your wallet and switch to the correct network.');
       return;
     }
-
-    if (!isCorrectNetwork) {
-      toast.error('Please switch to the correct network.');
-      try {
-        await switchNetwork();
-      } catch (error) {
-        toast.error('Failed to switch network. Please try again.');
-      }
-      return;
-    }
-
+    setPendingTransactions((prev) => new Set([...prev, heroId]));
     try {
-      const honkBalance = await checkHONKBalance();
-      if (parseFloat(honkBalance) <= 0) {
-        toast.error('Insufficient HONK balance. Please add funds to your wallet.');
-        return;
-      }
-
-      const success = await buyHero(heroId);
-      if (success) {
-        toast.success('Hero purchase successful!');
-      }
-    } catch (error) {
-      toast.error(`Failed to buy hero: ${error.message}`);
+      await buyHero(heroId);
+    } catch (err) {
+      toast.error(`Failed to buy hero: ${err.message}`);
+    } finally {
+      setPendingTransactions((prev) => {
+        const newSet = new Set(prev);
+        newSet.delete(heroId);
+        return newSet;
+      });
     }
   };
 
-  useEffect(() => {
-    if (!isConnected || !isCorrectNetwork || !connectedAddress) {
+  const handleCardClick = (hero) => {
+    // For individual heroes, clicking the card can open a detail view in the future.
+    // For now, the buy button is on the card itself.
+  };
+
+  const handleBulkCardClick = (bulkListing) => {
+    setSelectedBulkListing(bulkListing);
+    setIsBulkDetailModalOpen(true);
+  };
+
+  const handleBuyBulkListing = async (bulkListingId) => {
+    if (!isConnected || !isCorrectNetwork) {
+      toast.error('Please connect your wallet and switch to the correct network.');
       return;
     }
-  }, [isConnected, isCorrectNetwork, connectedAddress]);
 
-  return (
-    <div className="container mx-auto px-4">
-      {!isConnected && (
-        <div className="mt-8 text-center">
-          <p className="text-lg mb-4">Please connect your wallet to access the marketplace.</p>
-          <button
-            onClick={connect}
-            className="mt-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-semibold text-lg"
-          >
-            Connect Wallet
+    const bulkListing = bulkListings.find((b) => b.bulkListingId.toString() === bulkListingId.toString());
+    if (!bulkListing) {
+      toast.error('Bulk listing not found.');
+      return;
+    }
+
+    const heroIdsInBulk = bulkListing.heroes.map((h) => h.id);
+    setPendingTransactions((prev) => new Set([...prev, ...heroIdsInBulk]));
+    toast.info(`Purchasing ${heroIdsInBulk.length} heroes in bulk...`);
+
+    try {
+      const priceInWei = web3.utils.toWei(bulkListing.totalPrice.toString(), 'ether');
+      const allowance = await HONKTokenContract.methods
+        .allowance(connectedAddress, HONKMarketplaceContract.options.address)
+        .call();
+
+      if (BigInt(allowance) < BigInt(priceInWei)) {
+        toast.info('Requesting approval for HONK spending...');
+        await HONKTokenContract.methods
+          .approve(
+            HONKMarketplaceContract.options.address,
+            '115792089237316195423570985008687907853269984665640564039457584007913129639935' // Max uint256
+          )
+          .send({ from: connectedAddress });
+        toast.success('Approval successful! Proceeding with purchase.');
+      }
+
+      const tx = await HONKMarketplaceContract.methods
+        .purchaseBulkListing(bulkListingId)
+        .send({ from: connectedAddress });
+
+      if (tx.status) {
+        toast.success(`Successfully purchased ${heroIdsInBulk.length} heroes!`);
+        fetchHeroes();
+        updateBalance();
+        setIsBulkDetailModalOpen(false);
+      } else {
+        throw new Error('Bulk purchase transaction failed.');
+      }
+    } catch (err) {
+      toast.error(`Bulk purchase failed: ${err.message}`);
+    } finally {
+      setPendingTransactions((prev) => {
+        const newSet = new Set(prev);
+        heroIdsInBulk.forEach((id) => newSet.delete(id));
+        return newSet;
+      });
+    }
+  };
+
+  const renderContent = () => {
+    if (!isConnected) {
+      return (
+        <div className="flex justify-center items-center h-full">
+          <button onClick={connect} className="bg-yellow-500 text-black px-6 py-3 rounded-lg font-bold hover:bg-yellow-400">
+            Connect Wallet to View Marketplace
           </button>
         </div>
-      )}
-      {isConnected && !isCorrectNetwork && (
-        <div className="mt-8 text-center">
-          <p className="text-lg mb-4">Please switch to the DFK Chain network to continue.</p>
-          <button
-            onClick={switchNetwork}
-            className="mt-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 font-semibold text-lg"
-          >
+      );
+    }
+
+    if (!isCorrectNetwork) {
+      return (
+        <div className="flex justify-center items-center h-full">
+          <button onClick={switchNetwork} className="bg-red-500 text-white px-6 py-3 rounded-lg font-bold hover:bg-red-400">
             Switch to DFK Chain
           </button>
         </div>
+      );
+    }
+
+    if (loading && heroes.length === 0 && bulkListings.length === 0) {
+      return <LoadingIndicator message="Loading heroes from the marketplace..." />;
+    }
+
+    if (error) {
+      return <p className="text-red-500 text-center">Error: {error}</p>;
+    }
+
+    if (isBulkMode && bulkListings.length === 0) {
+      return <p className="text-center mt-8">No bulk listings available.</p>;
+    }
+
+    if (!isBulkMode && heroes.length === 0) {
+      return <p className="text-center mt-8">No individual heroes for sale.</p>;
+    }
+
+    return (
+      <>
+        {isBulkMode ? (
+          <HeroGrid
+            heroes={bulkListings}
+            honkLogo={honkLogo}
+            onBulkListingClick={handleBulkCardClick}
+            isBuyPage={true}
+            isBulkMode={true}
+            showPrivateBadge={true}
+            isConnected={isConnected}
+            pendingTransactions={pendingTransactions}
+            purchasedHeroes={purchasedHeroes}
+          />
+        ) : (
+          <HeroGrid
+            heroes={heroes}
+            honkLogo={honkLogo}
+            onCardClick={handleCardClick}
+            onBuyHero={handleBuyHero}
+            showPrivateBadge={true}
+            isConnected={isConnected}
+            isBuyPage={true}
+            pendingTransactions={pendingTransactions}
+            purchasedHeroes={purchasedHeroes}
+          />
+        )}
+        {hasMore && !isBulkMode && (
+          <div className="flex justify-center mt-4">
+            <button
+              onClick={loadMoreHeroes}
+              disabled={loading}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition-colors duration-300 disabled:bg-gray-500"
+            >
+              {loading ? 'Loading...' : 'Load More'}
+            </button>
+          </div>
+        )}
+      </>
+    );
+  };
+
+  return (
+    <div className="flex-grow flex flex-col p-4 bg-gray-900 text-white relative">
+      {isBulkDetailModalOpen && selectedBulkListing && (
+        <BulkListingDetailModal
+          isOpen={isBulkDetailModalOpen}
+          onClose={() => setIsBulkDetailModalOpen(false)}
+          bulkListing={selectedBulkListing}
+          onBuyBulkListing={handleBuyBulkListing}
+          onCancelBulkListing={null}
+          isConnected={isConnected}
+          pendingTransactions={pendingTransactions}
+          isSeller={false}
+        />
       )}
-      {isConnected && isCorrectNetwork && (
-        <>
-          {error ? (
-            <div className="mt-8 text-center text-red-500">
-              Error: {error}
-            </div>
-          ) : (
-            <div className="mt-8">
-              {/* Show loading indicator at top while initially loading */}
-              {loading && displayedHeroes.length === 0 && (
-                <div className="flex justify-center items-center mb-8">
-                  <LoadingIndicator />
-                  <span className="ml-3">Loading heroes...</span>
-                </div>
-              )}
-              {/* Always render HeroGrid, even during loading */}
-              <HeroGrid
-                heroes={displayedHeroes}
-                isBuyPage={true}
-                honkLogo={honkLogo}
-                onBuyHero={handleBuyHero}
-                lastHeroRef={hasMore ? loadMoreHeroes : undefined}
-                isConnected={isConnected}
-                loading={isLoadingMore}
-                purchasedHeroes={new Set()}
-                listedHeroes={new Set()}
-                pendingTransactions={pendingTransactions}
-                pendingCancellations={new Set()}
-                pendingPriceUpdates={new Set()}
-              />
-              {/* Show loading indicator at bottom during pagination */}
-              {/* Only show loading indicator if we're still actively loading */}
-              {(loading || isLoadingMore) && displayedHeroes.length > 0 && !loadStats?.isDone && (
-                <div className="flex justify-center items-center mt-8">
-                  <LoadingIndicator />
-                  <span className="ml-3">Loading more heroes...</span>
-                </div>
-              )}
-              {/* Loading stats */}
-              {loadStats?.isDone && (
-                <div className="text-center mt-8 text-gray-500">
-                  Found {loadStats.totalHeroes} heroes on blockchain, displaying {loadStats.validHeroes} valid listings
-                  ({loadStats.filteredOut} filtered out) • Loaded in {(loadStats.loadTimeMs / 1000).toFixed(1)} seconds
-                </div>
-              )}
-              {!isLoadingMore && !hasMore && displayedHeroes.length > 0 && (
-                <div className="text-center mt-8 text-gray-500">
-                  No more heroes to load
-                </div>
-              )}
-              {!isLoadingMore && displayedHeroes.length === 0 && (
-                <p className="mt-8 text-center">No heroes match your current filters.</p>
-              )}
-            </div>
-          )}
-        </>
-      )}
+
+      <div className="mb-4">
+        <BulkSelectionControls
+          isBulkMode={false} // Not in selection mode
+          toggleBulkMode={() => {}} // No-op
+          isSellBulkMode={isBulkMode} // Controls the view toggle
+          toggleSellBulkMode={toggleBulkMode} // Toggles the view
+          selectedHeroes={new Set()} // Not used
+          selectAllHeroes={() => {}} // No-op
+          clearAllSelections={() => {}} // No-op
+          onOpenBulkModal={() => {}} // No-op
+          visibleHeroes={[]} // Not used
+          totalHeroes={0} // Not used
+          hideBulkSelect={true} // Hides selection-related controls
+          onRefresh={fetchHeroes}
+          loading={loading}
+        />
+      </div>
+
+      {renderContent()}
     </div>
   );
 };

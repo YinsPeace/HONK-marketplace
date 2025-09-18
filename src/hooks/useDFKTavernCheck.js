@@ -18,47 +18,47 @@ export const useDFKTavernCheck = (connectedAddress, heroes, isLoading, shouldChe
       try {
         // Initialize DFK Tavern interface
         const tavern = new DFKTavernInterface();
-        
+
         // Get user auctions (hero IDs)
         const auctionIds = await tavern.getUserAuctions(connectedAddress);
-        
+
         if (auctionIds && auctionIds.length > 0) {
           // Get detailed auction data
           const auctions = await tavern.getAuctions(auctionIds);
-          
+
           if (auctions && auctions.length > 0) {
             // Process each auction using the same GraphQL query we use for other heroes
             const tavernHeroPromises = auctions
-              .filter(auction => auction && auction.open) // Only open auctions
-              .map(async auction => {
-            try {
+              .filter((auction) => auction && auction.open) // Only open auctions
+              .map(async (auction) => {
+                try {
                   const heroData = await getHeroData(auction.id);
-              
-              if (!heroData) {
+
+                  if (!heroData) {
                     console.warn(`Failed to fetch hero data for ${auction.id} - no data returned`);
-                return null;
-              }
+                    return null;
+                  }
 
-              // Combine the hero data with tavern-specific information
-              return {
-                ...heroData,
-                isDFKTavernListing: true,
+                  // Combine the hero data with tavern-specific information
+                  return {
+                    ...heroData,
+                    isDFKTavernListing: true,
                     crystalPrice: auction.startingPrice, // Use starting price
-                marketplace: 'dfk',
+                    marketplace: 'dfk',
                     seller: auction.seller,
-              };
-            } catch (error) {
+                  };
+                } catch (error) {
                   console.error(`Error processing tavern hero ${auction.id}:`, error);
-              return null;
-            }
-          });
+                  return null;
+                }
+              });
 
-          // Wait for all hero data to be fetched
-          const processedHeroes = await Promise.all(tavernHeroPromises);
-          // Filter out any null results from failed fetches
-          const validHeroes = processedHeroes.filter(hero => hero !== null);
-          
-          setTavernListedHeroes(validHeroes);
+            // Wait for all hero data to be fetched
+            const processedHeroes = await Promise.all(tavernHeroPromises);
+            // Filter out any null results from failed fetches
+            const validHeroes = processedHeroes.filter((hero) => hero !== null);
+
+            setTavernListedHeroes(validHeroes);
           } else {
             setTavernListedHeroes([]);
           }
@@ -78,6 +78,6 @@ export const useDFKTavernCheck = (connectedAddress, heroes, isLoading, shouldChe
 
   return {
     tavernListedHeroes,
-    isChecking
+    isChecking,
   };
 };

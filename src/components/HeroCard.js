@@ -3,8 +3,21 @@ import HeroCardTabs from './HeroCardTabs';
 import { calculateRequiredXp, calculateRemainingStamina } from '../utils/stamExpCalc';
 import { statBoosts } from '../utils/heroStatskills';
 import { DFKHeroContract, web3 } from '../Web3Config';
-import { getFirstName, getLastName, classMapping, professionMapping, elementMapping, statsMapping, activeAbilityMapping, passiveAbilityMapping } from '../utils/heroUtils';
-import { getActiveAbilityName, getPassiveAbilityName, abilityWithShortCode } from '../utils/heroGeneParser';
+import {
+  getFirstName,
+  getLastName,
+  classMapping,
+  professionMapping,
+  elementMapping,
+  statsMapping,
+  activeAbilityMapping,
+  passiveAbilityMapping,
+} from '../utils/heroUtils';
+import {
+  getActiveAbilityName,
+  getPassiveAbilityName,
+  abilityWithShortCode,
+} from '../utils/heroGeneParser';
 import '../components/styles/HeroCard.css';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -43,6 +56,9 @@ import crystalIcon from '../assets/images/hero/icons/crystal.png';
 import jewelIcon from '../assets/images/hero/icons/jewel.png';
 import jadeIcon from '../assets/images/hero/icons/jade.png';
 
+// Zero address constant used for private listing checks
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
+
 const craftingProfessionMapping = {
   0: 'Blacksmithing',
   2: 'Goldsmithing',
@@ -51,7 +67,7 @@ const craftingProfessionMapping = {
   8: 'Leatherworking',
   10: 'Tailoring',
   12: 'Enchanting',
-  14: 'Alchemy'
+  14: 'Alchemy',
 };
 
 // Helper function to format and escape ability names
@@ -59,6 +75,30 @@ const formatAbility = (abilityName, fallback, unknown = 'Unknown') => {
   const formattedAbility = abilityWithShortCode(abilityName || fallback || unknown);
   // No need to escape here as we're returning a string, not JSX
   return formattedAbility;
+};
+
+// Helper function to format price with 0-2 decimal places
+const formatPriceHelper = (price) => {
+  if (!price) return '0';
+  try {
+    // Convert from Wei if it's in Wei format
+    let formattedPrice;
+    if (typeof price === 'string' && price.length > 10) {
+      formattedPrice = web3.utils.fromWei(price.toString(), 'ether');
+    } else {
+      formattedPrice = price.toString();
+    }
+    return parseFloat(formattedPrice).toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
+  } catch (error) {
+    console.error('Error formatting price:', error);
+    return parseFloat(price || 0).toLocaleString(undefined, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    });
+  }
 };
 
 const HeroCard = React.memo(
@@ -79,8 +119,19 @@ const HeroCard = React.memo(
     pendingTransactions,
     pendingCancellations,
     pendingPriceUpdates,
-    onQuestStatusChange
+    onQuestStatusChange,
+    // Bulk listing props
+    isBulkMode = false,
+    selectedHeroes = new Set(),
+    onToggleSelection,
+    onBuyBulkListing,
+    onCancelBulkListing,
+    // New prop to disable buying functionality
+    disableBuying = false,
+    formatPrice: externalFormatPrice,
   }) => {
+
+
     const [isOnQuest, setIsOnQuest] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [price, setPrice] = useState('');
@@ -88,7 +139,10 @@ const HeroCard = React.memo(
     const [isFlipped, setIsFlipped] = useState(false);
     const [activeTab, setActiveTab] = useState('stats');
 
+    // Skip blockchain calls when rendering placeholder heroes for performance testing
     useEffect(() => {
+      if (hero.isPlaceholder) return;
+
       const checkQuestStatus = async () => {
         const heroState = await DFKHeroContract.methods.getHeroState(hero.id).call();
         const questStatus = heroState.currentQuest !== '0x0000000000000000000000000000000000000000';
@@ -98,8 +152,9 @@ const HeroCard = React.memo(
           onQuestStatusChange(questStatus);
         }
       };
+
       checkQuestStatus();
-    }, [hero.id, onQuestStatusChange]);
+    }, [hero.id, onQuestStatusChange, hero.isPlaceholder]);
 
     const handleBuy = useCallback(async () => {
       if (isBuying || !isConnected || pendingTransactions?.has(hero.id)) return;
@@ -108,9 +163,13 @@ const HeroCard = React.memo(
       try {
         await onBuyHero(hero.id);
       } catch (error) {
-        console.error('Error in handleBuy:', error);
+        // Errors from onBuyHero (like actual transaction failures) will be caught here.
+        // Toast messages for these are often handled within onBuyHero itself or useHeroBuying.
+        console.error('Error during onBuyHero call in HeroCard:', error);
+        // Optionally, show a generic error toast if not already handled by onBuyHero
+        // toast.error(`An error occurred: ${error.message}`);
+      } finally {
         setIsBuying(false);
-        toast.error(`Failed to buy hero: ${error.message}`);
       }
     }, [isBuying, isConnected, hero.id, onBuyHero, pendingTransactions]);
 
@@ -176,13 +235,13 @@ const HeroCard = React.memo(
         const formattedPrice = web3.utils.fromWei(price.toString(), 'ether');
         return parseFloat(formattedPrice).toLocaleString(undefined, {
           minimumFractionDigits: 0,
-          maximumFractionDigits: 2
+          maximumFractionDigits: 2,
         });
       } catch (error) {
         // If fromWei fails, the price is probably already in the correct format
         return parseFloat(price).toLocaleString(undefined, {
           minimumFractionDigits: 0,
-          maximumFractionDigits: 2
+          maximumFractionDigits: 2,
         });
       }
     };
@@ -193,20 +252,20 @@ const HeroCard = React.memo(
         // For Crystal realm, ensure prefix starts with 1
         // For Jade realm, ensure prefix starts with 2
         const prefix = originRealm === 'CRY' ? '1' : '2';
-        
+
         // Find the first non-zero digit after the prefix
         const match = id.match(new RegExp(`^${prefix}0*([1-9][0-9]*)$`));
         if (match) {
           return match[1]; // Return everything after the prefix and leading zeros
         }
       }
-      
+
       // For other realms or if no match, return id as is
       return id;
     };
 
     const getRealmIcon = (originRealm) => {
-      switch(originRealm) {
+      switch (originRealm) {
         case 'CRY':
           return crystalIcon;
         case 'SER':
@@ -261,17 +320,25 @@ const HeroCard = React.memo(
       if (hero.isDFKTavernListing) {
         return (
           <div className="price-container flex flex-col items-center justify-center gap-2">
-            <div className="crystal-price" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-              {formatPriceForDisplay(hero.crystalPrice)} 
-              <img 
-                src={crystalIcon} 
-                alt="CRYSTAL" 
-                style={{ 
-                  width: '16px', 
+            <div
+              className="crystal-price"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+              }}
+            >
+              {formatPriceForDisplay(hero.crystalPrice)}
+              <img loading="lazy"
+                src={crystalIcon}
+                alt="CRYSTAL"
+                style={{
+                  width: '16px',
                   height: '16px',
                   position: 'relative',
-                  top: '1px'
-                }} 
+                  top: '1px',
+                }}
               />
               CRYSTAL
             </div>
@@ -286,43 +353,104 @@ const HeroCard = React.memo(
         );
       }
 
-      // If the hero is being cancelled, show a loading state
-      if (hero.isCancelling || pendingCancellations?.has(hero.id)) {
-        return <div className="text-gray-400">Cancelling listing...</div>;
-      }
-
-      // If the hero is being purchased, show a loading state
-      if (pendingTransactions?.has(hero.id)) {
-        return <div className="text-gray-400">Processing purchase...</div>;
-      }
-
-      // If the hero was just purchased by this user
-      if (purchasedHeroes?.has(hero.id)) {
-        return <div className="text-green-500">Purchase complete!</div>;
-      }
+      // Subtle UX: keep buttons visible and show inline spinners instead of replacing the whole UI
 
       if (hero.isForSale) {
         // We only need to know if there's a pending update
         const isPriceUpdatePending = pendingPriceUpdates?.has(hero.id);
-        const displayPrice = hero.price;  // Always use current price
+        const displayPrice = hero.price; // Always use current price
 
         return (
           <>
             <div className="price-container flex flex-col items-center justify-center gap-2">
               <div className="flex items-center justify-center gap-2 text-white">
+                {hero.isPendingListing && (
+                  <div
+                    className="animate-spin rounded-full h-3 w-3 border-2 border-yellow-300 border-t-transparent"
+                    title="Listing is finalizing"
+                  ></div>
+                )}
                 <img src={honkLogo} alt="HONK" className="w-8 h-8" />
                 <span className="text-xl">{formatPriceForDisplay(displayPrice)}</span>
               </div>
             </div>
             {isBuyPage ? (
-              <button
-                onClick={() => onBuyHero(hero.id)}
-                className="button"
-                disabled={!isConnected || isBuying}
-              >
-                {isBuying ? 'Processing...' : 'Buy'}
-              </button>
-            ) : isEditing ? (
+              <div className="flex flex-col items-center gap-2">
+                <div className="flex flex-col items-center justify-between p-2 bg-gray-800 rounded-lg w-full">
+                  {renderPriceOrStatus()}
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                  {!disableBuying && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent card flip
+                        handleBuy();
+                      }}
+                      className={`button ${
+                        !isConnected ||
+                        isBuying ||
+                        pendingTransactions?.has(hero.id) ||
+                        purchasedHeroes?.has(hero.id)
+                          ? 'opacity-50 cursor-not-allowed'
+                          : ''
+                      }`}
+                      disabled={
+                        !isConnected ||
+                        isBuying ||
+                        pendingTransactions?.has(hero.id) ||
+                        purchasedHeroes?.has(hero.id)
+                      }
+                      title={
+                        !isConnected
+                          ? 'Connect wallet to buy heroes'
+                          : purchasedHeroes?.has(hero.id)
+                            ? 'Already purchased'
+                            : pendingTransactions?.has(hero.id) || isBuying
+                              ? 'Transaction in progress'
+                              : 'Buy this hero'
+                      }
+                    >
+                      {pendingTransactions?.has(hero.id) || isBuying ? (
+                        <span className="inline-flex items-center">
+                          <span className="animate-spin rounded-full h-3 w-3 border-2 border-white/80 border-t-transparent mr-2"></span>
+                          Buying...
+                        </span>
+                      ) : purchasedHeroes?.has(hero.id) ? (
+                        'Bought'
+                      ) : (
+                        'Buy'
+                      )}
+                    </button>
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent card flip
+                      window.open(
+                        `https://dfk-adventures.herokuapp.com/heroes/${hero.id}`,
+                        '_blank'
+                      );
+                    }}
+                    className="button"
+                    title="View hero details on ADFK"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <img loading="lazy"
+                      src="https://dfk-adventures.herokuapp.com/static/profile.png"
+                      alt="ADFK"
+                      style={{
+                        width: '16px',
+                        height: '16px',
+                        marginRight: '4px',
+                      }}
+                    />
+                    ADFK
+                  </button>
+                </div>
+              </div>
+            ) : isEditing && !hero.isPendingListing ? (
               <div className="hero-card-price-edit-container">
                 <input
                   type="number"
@@ -336,85 +464,235 @@ const HeroCard = React.memo(
                 />
                 <button
                   className={`modal-button update-price-button ${
-                    !price || isNaN(parseFloat(price))
+                    !price || isNaN(parseFloat(price)) || isPriceUpdatePending
                       ? 'opacity-50 cursor-not-allowed'
                       : ''
                   }`}
                   onClick={handleUpdatePrice}
-                  disabled={!price || isNaN(parseFloat(price))}
+                  disabled={!price || isNaN(parseFloat(price)) || isPriceUpdatePending}
                 >
-                  Update
+                  {isPriceUpdatePending ? (
+                    <span className="inline-flex items-center">
+                      <span className="animate-spin rounded-full h-3 w-3 border-2 border-white/80 border-t-transparent mr-2"></span>
+                      Updating...
+                    </span>
+                  ) : (
+                    'Update'
+                  )}
                 </button>
               </div>
             ) : (
               <>
                 <div className="flex gap-2 mb-2">
                   <button
-                    onClick={() => setIsEditing(true)}
-                    className="button"
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent card flip
+                      if (!hero.isPendingListing) {
+                        setIsEditing(true);
+                      }
+                    }}
+                    className={`button ${
+                      hero.isPendingListing || isPriceUpdatePending ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                    disabled={hero.isPendingListing || isPriceUpdatePending}
+                    title={
+                      hero.isPendingListing
+                        ? 'Please wait while the listing is being finalized'
+                        : isPriceUpdatePending
+                        ? 'Updating price...'
+                        : 'Edit price'
+                    }
                   >
-                    Edit Price
+                    {isPriceUpdatePending ? (
+                      <span className="inline-flex items-center">
+                        <span className="animate-spin rounded-full h-3 w-3 border-2 border-white/80 border-t-transparent mr-2"></span>
+                        Updating...
+                      </span>
+                    ) : (
+                      'Edit Price'
+                    )}
                   </button>
                   <button
-                    onClick={() => window.open(`https://dfk-adventures.herokuapp.com/heroes/${hero.id}`, '_blank')}
-                    className="button"
-                    title="View hero details on ADFK"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center'
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent card flip
+                      if (!hero.isPendingListing) {
+                        handleCancelListing();
+                      }
                     }}
+                    className={`button ${
+                      hero.isPendingListing || hero.isCancelling || pendingCancellations?.has(hero.id)
+                        ? 'opacity-50 cursor-not-allowed'
+                        : ''
+                    }`}
+                    disabled={
+                      hero.isPendingListing || hero.isCancelling || pendingCancellations?.has(hero.id)
+                    }
+                    title={
+                      hero.isPendingListing
+                        ? 'Please wait while the listing is being finalized'
+                        : hero.isCancelling || pendingCancellations?.has(hero.id)
+                        ? 'Cancelling listing...'
+                        : 'Cancel listing'
+                    }
                   >
-                    <img 
-                      src="https://dfk-adventures.herokuapp.com/static/profile.png" 
-                      alt="ADFK"
-                      style={{
-                        width: '16px',
-                        height: '16px',
-                        marginRight: '4px'
-                      }}
-                    />
-                    ADFK
+                    {hero.isCancelling || pendingCancellations?.has(hero.id) ? (
+                      <span className="inline-flex items-center">
+                        <span className="animate-spin rounded-full h-3 w-3 border-2 border-white/80 border-t-transparent mr-2"></span>
+                        Cancelling...
+                      </span>
+                    ) : (
+                      'Cancel Listing'
+                    )}
                   </button>
                 </div>
-                <button
-                  onClick={handleCancelListing}
-                  className="button"
-                >
-                  Cancel Listing
-                </button>
               </>
             )}
           </>
         );
       }
 
+      // Handle bulk mode vs normal mode for unlisted heroes
+      const isSelected = selectedHeroes?.has(hero.id);
+
+      if (isBulkMode) {
+        return (
+          <>
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent card flip
+                onToggleSelection?.(hero.id);
+              }}
+              className={`button mb-2 ${isSelected ? 'bg-gray-600 hover:bg-gray-700' : ''}`}
+              style={{
+                backgroundColor: isSelected ? '#4b5563' : undefined,
+                color: isSelected ? '#9ca3af' : undefined,
+              }}
+              disabled={isListing}
+            >
+              {isSelected ? 'Remove from bulk' : 'Add to bulk'}
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); // Prevent card flip
+                window.open(`https://dfk-adventures.herokuapp.com/heroes/${hero.id}`, '_blank');
+              }}
+              className="button"
+              title="View hero details on ADFK"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+              }}
+            >
+              <img loading="lazy"
+                src="https://dfk-adventures.herokuapp.com/static/profile.png"
+                alt="ADFK"
+                style={{
+                  width: '16px',
+                  height: '16px',
+                  marginRight: '4px',
+                }}
+              />
+              ADFK
+            </button>
+          </>
+        );
+      }
+
       return (
         <>
-          <button onClick={handleList} className="button mb-2" disabled={isListing}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent card flip
+              handleList();
+            }}
+            className="button mb-2"
+            disabled={isListing}
+          >
             List for Sale
           </button>
           <button
-            onClick={() => window.open(`https://dfk-adventures.herokuapp.com/heroes/${hero.id}`, '_blank')}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent card flip
+              window.open(`https://dfk-adventures.herokuapp.com/heroes/${hero.id}`, '_blank');
+            }}
             className="button"
             title="View hero details on ADFK"
             style={{
               display: 'inline-flex',
-              alignItems: 'center'
+              alignItems: 'center',
             }}
           >
-            <img 
-              src="https://dfk-adventures.herokuapp.com/static/profile.png" 
+            <img loading="lazy"
+              src="https://dfk-adventures.herokuapp.com/static/profile.png"
               alt="ADFK"
               style={{
                 width: '16px',
                 height: '16px',
-                marginRight: '4px'
+                marginRight: '4px',
               }}
             />
             ADFK
           </button>
         </>
       );
+    };
+
+    // Bulk listing handlers
+    const handleBuyBulkListing = (bulkListingId) => {
+      if (onBuyBulkListing) {
+        onBuyBulkListing(bulkListingId);
+      }
+    };
+
+    const handleCancelBulkListing = (bulkListingId) => {
+      if (onCancelBulkListing) {
+        // If this is a bulk listing card, pass the heroes data
+        if (hero.isBulkListing && hero.heroes) {
+          onCancelBulkListing(bulkListingId, hero.heroes);
+        } else {
+          onCancelBulkListing(bulkListingId);
+        }
+      }
+    };
+
+    const renderBulkButtons = () => {
+      if (!isBuyPage) {
+        // Seller's view - show both view details and cancel bulk listing buttons
+        return (
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={() => handleBuyBulkListing(hero.bulkListingId)}
+              className="button bg-blue-600 hover:bg-blue-700"
+            >
+              View Details
+            </button>
+            <button
+              onClick={() => handleCancelBulkListing(hero.bulkListingId)}
+              className="button bg-red-600 hover:bg-red-700"
+              disabled={pendingCancellations?.has(hero.bulkListingId)}
+            >
+              {pendingCancellations?.has(hero.bulkListingId)
+                ? 'Cancelling...'
+                : 'Cancel Bulk Listing'}
+            </button>
+          </div>
+        );
+      } else {
+        // Buyer's view - show buy bulk listing button
+        return (
+          <button
+            onClick={() => handleBuyBulkListing(hero.bulkListingId)}
+            className="button bg-green-600 hover:bg-green-700"
+            disabled={!isConnected || pendingTransactions?.has(hero.bulkListingId)}
+          >
+            {pendingTransactions?.has(hero.bulkListingId)
+              ? 'Purchasing...'
+              : isBuyPage
+                ? 'Buy All Heroes'
+                : 'View Details'}
+          </button>
+        );
+      }
     };
 
     if (!hero) {
@@ -426,28 +704,50 @@ const HeroCard = React.memo(
 
     const getAttribute = (traitType) => {
       switch (traitType) {
-        case 'Rarity': return hero.rarity;
-        case 'Element': return hero.element;
-        case 'Gender': return hero.gender;
-        case 'Background': return hero.background;
-        case 'HP': return hero.hp?.toString();
-        case 'MP': return hero.mp?.toString();
-        case 'Stamina': return hero.stamina?.toString();
-        case 'StaminaFullAt': return hero.staminaFullAt?.toString();
-        case 'XP': return hero.xp?.toString();
-        case 'Level': return hero.level?.toString();
-        case 'Strength': return hero.strength?.toString();
-        case 'Dexterity': return hero.dexterity?.toString();
-        case 'Agility': return hero.agility?.toString();
-        case 'Vitality': return hero.vitality?.toString();
-        case 'Intelligence': return hero.intelligence?.toString();
-        case 'Wisdom': return hero.wisdom?.toString();
-        case 'Luck': return hero.luck?.toString();
-        case 'Stat Boost 1': return hero.statBoost1;
-        case 'Stat Boost 2': return hero.statBoost2;
-        case 'Summons Remaining': return hero.summons?.toString();
-        case 'Max Summons': return hero.maxSummons?.toString();
-        default: return null;
+        case 'Rarity':
+          return hero.rarity;
+        case 'Element':
+          return hero.element;
+        case 'Gender':
+          return hero.gender;
+        case 'Background':
+          return hero.background;
+        case 'HP':
+          return hero.hp?.toString();
+        case 'MP':
+          return hero.mp?.toString();
+        case 'Stamina':
+          return hero.stamina?.toString();
+        case 'StaminaFullAt':
+          return hero.staminaFullAt?.toString();
+        case 'XP':
+          return hero.xp?.toString();
+        case 'Level':
+          return hero.level?.toString();
+        case 'Strength':
+          return hero.strength?.toString();
+        case 'Dexterity':
+          return hero.dexterity?.toString();
+        case 'Agility':
+          return hero.agility?.toString();
+        case 'Vitality':
+          return hero.vitality?.toString();
+        case 'Intelligence':
+          return hero.intelligence?.toString();
+        case 'Wisdom':
+          return hero.wisdom?.toString();
+        case 'Luck':
+          return hero.luck?.toString();
+        case 'Stat Boost 1':
+          return hero.statBoost1;
+        case 'Stat Boost 2':
+          return hero.statBoost2;
+        case 'Summons Remaining':
+          return hero.summons?.toString();
+        case 'Max Summons':
+          return hero.maxSummons?.toString();
+        default:
+          return null;
       }
     };
 
@@ -459,7 +759,9 @@ const HeroCard = React.memo(
     const heroStats = {
       hp: hero.hp?.toString() || '0',
       mp: hero.mp?.toString() || '0',
-      summonsRemaining: hero.maxSummons ? (parseInt(hero.maxSummons) - parseInt(hero.summons)).toString() : '0',
+      summonsRemaining: hero.maxSummons
+        ? (parseInt(hero.maxSummons) - parseInt(hero.summons)).toString()
+        : '0',
       maxSummons: hero.maxSummons?.toString() || '0',
       stamina: hero.stamina || 0,
       staminaFullAt: hero.staminaFullAt || 0,
@@ -495,7 +797,7 @@ const HeroCard = React.memo(
     const xpPercentage = `${(heroXp / requiredXpForNextLevel) * 100}%`;
     const staminaPercentage = `${(currentStamina / heroStamina) * 100}%`;
 
-    heroStats.summons = `${hero.maxSummons ? (parseInt(hero.maxSummons) - parseInt(hero.summons)) : 0}/${hero.maxSummons || 0}`;
+    heroStats.summons = `${hero.maxSummons ? parseInt(hero.maxSummons) - parseInt(hero.summons) : 0}/${hero.maxSummons || 0}`;
 
     const stats = [
       { value: 'strength', label: 'Strength', abbr: 'STR' },
@@ -533,32 +835,32 @@ const HeroCard = React.memo(
         backgroundColor: '#1a1b26',
         borderRadius: '8px',
         color: '#fff',
-        marginBottom: '1rem'
+        marginBottom: '1rem',
       },
       skillList: {
         display: 'grid',
         gridTemplateColumns: '1fr auto',
         gap: '0.5rem',
-        alignItems: 'center'
+        alignItems: 'center',
       },
       craftingList: {
         display: 'flex',
         flexDirection: 'column',
-        gap: '0.25rem'
+        gap: '0.25rem',
       },
       skillRow: {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        width: '100%'
+        width: '100%',
       },
       sectionTitle: {
-        marginTop: '.75rem'
+        marginTop: '.75rem',
       },
       mainProfession: {
         color: '#4ade80', // Bright green color
-        fontWeight: 'bold'
-      }
+        fontWeight: 'bold',
+      },
     };
 
     const formatProfessionLevel = (level) => {
@@ -615,7 +917,7 @@ const HeroCard = React.memo(
         <div className={`col`}>
           <h3 style={styles.sectionTitle}>Gathering Professions</h3>
           <div className={`skillList`}>
-            {['mining', 'gardening', 'fishing', 'foraging'].map(prof => {
+            {['mining', 'gardening', 'fishing', 'foraging'].map((prof) => {
               const isMainProfession = hero.professionStr?.toLowerCase() === prof;
               return (
                 <React.Fragment key={prof}>
@@ -623,9 +925,7 @@ const HeroCard = React.memo(
                     {capitalizeFirstLetter(prof)}
                     {isMainProfession && <span className={`tooltip`}>Main</span>}
                   </div>
-                  <div className={`skillValue`}>
-                    {formatProfessionLevel(hero[prof])}
-                  </div>
+                  <div className={`skillValue`}>{formatProfessionLevel(hero[prof])}</div>
                 </React.Fragment>
               );
             })}
@@ -635,75 +935,211 @@ const HeroCard = React.memo(
           <div className="skillList" style={styles.craftingList}>
             {hero.craftProf1 && hero.craftProf1 !== 'none' && (
               <div style={styles.skillRow}>
-                <div className={`skillName ${
-                  // Only add craftProf2 (blue color) if it's the only profession
-                  (!hero.craftProf2 || hero.craftProf2 === 'none' || hero.craftProf2 === hero.craftProf1) 
-                    ? 'craftProf2' 
-                    : 'craftProfTitle'
-                }`}>
+                <div
+                  className={`skillName ${
+                    // Only add craftProf2 (blue color) if it's the only profession
+                    !hero.craftProf2 ||
+                    hero.craftProf2 === 'none' ||
+                    hero.craftProf2 === hero.craftProf1
+                      ? 'craftProf2'
+                      : 'craftProfTitle'
+                  }`}
+                >
                   {capitalizeFirstLetter(hero.craftProf1)}
                 </div>
                 <div className={`skillLevel`}>0</div>
               </div>
             )}
-            {hero.craftProf2 && hero.craftProf2 !== 'none' && hero.craftProf2 !== hero.craftProf1 && (
-              <div style={styles.skillRow}>
-                <div className={`skillName craftProfTitle`}>
-                  {capitalizeFirstLetter(hero.craftProf2)}
+            {hero.craftProf2 &&
+              hero.craftProf2 !== 'none' &&
+              hero.craftProf2 !== hero.craftProf1 && (
+                <div style={styles.skillRow}>
+                  <div className={`skillName craftProfTitle`}>
+                    {capitalizeFirstLetter(hero.craftProf2)}
+                  </div>
+                  <div className={`skillLevel`}>0</div>
                 </div>
-                <div className={`skillLevel`}>0</div>
-              </div>
-            )}
-            {(!hero.craftProf1 || hero.craftProf1 === 'none') && 
-             (!hero.craftProf2 || hero.craftProf2 === 'none') && (
-              <div className={`noCrafting`}>No crafting professions</div>
-            )}
+              )}
+            {(!hero.craftProf1 || hero.craftProf1 === 'none') &&
+              (!hero.craftProf2 || hero.craftProf2 === 'none') && (
+                <div className={`noCrafting`}>No crafting professions</div>
+              )}
           </div>
         </div>
       </div>
     );
 
-    const isPriceUpdatePending = useMemo(() => 
-      pendingPriceUpdates?.has(hero.id), 
+    const isPriceUpdatePending = useMemo(
+      () => pendingPriceUpdates?.has(hero.id),
       [pendingPriceUpdates, hero.id]
     );
 
-    const isCancellationPending = useMemo(() => 
-      pendingCancellations?.has(hero.id),
+    const isCancellationPending = useMemo(
+      () => pendingCancellations?.has(hero.id),
       [pendingCancellations, hero.id]
     );
 
-    const isTransactionPending = useMemo(() => 
-      pendingTransactions?.has(hero.id),
+    const isTransactionPending = useMemo(
+      () => pendingTransactions?.has(hero.id),
       [pendingTransactions, hero.id]
     );
 
+    // Check if hero is selected in bulk mode for visual feedback
+    const isSelected = isBulkMode && selectedHeroes?.has(hero.id);
+
+    // Render bulk listing card
+    if (hero.isBulkListing) {
+      // Debug log for bulk listing data
+      console.log('[HeroCard] Rendering bulk listing:', {
+        id: hero.bulkListingId,
+        heroCount: hero.heroCount,
+        heroesLength: hero.heroes?.length,
+        totalPrice: hero.totalPrice,
+        heroes: hero.heroes,
+      });
+
+      return (
+        <div
+          className={`hero-card ${isBulkMode && selectedHeroes.has(hero.id) ? 'bulk-selected' : ''}`}
+        >
+          <div className="hero-image-container">
+            {/* Show up to 4 hero images in a 2x2 grid */}
+            <div className="bulk-hero-images grid grid-cols-2 gap-1 p-2">
+              {hero.heroes?.slice(0, 4).map((bulkHero, index) => (
+                <div
+                  key={bulkHero.id}
+                  className="relative w-16 h-16 rounded border overflow-hidden"
+                >
+                  <img loading="lazy"
+                    src={`https://heroes.defikingdoms.com/image/${bulkHero.id}`}
+                    alt={`Hero ${bulkHero.id}`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      e.target.src =
+                        'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjMzc0MTUxIi8+CjxwYXRoIGQ9Ik0yMCAyOEMyMCAyNiAyMiAyNCAyNCAyNEgzNkMzOCAyNCA0MCAyNiA0MCAyOFY0MEMzOCA0MCAzNiA0MiAzNCA0MkgyNkMyNCA0MiAyMiA0MCAyMCA0MFYyOFoiIGZpbGw9IiM2Qjc4ODAiLz4KPHN2Zz4K';
+                    }}
+                  />
+                </div>
+              ))}
+              {hero.heroes?.length > 4 && (
+                <div className="w-16 h-16 rounded border bg-gray-800 flex items-center justify-center text-white text-xs">
+                  +{hero.heroes.length - 4}
+                </div>
+              )}
+            </div>
+
+            {/* Bulk listing badge */}
+            <div className="absolute top-2 left-2 bg-purple-600 text-white px-2 py-1 rounded text-xs font-bold">
+              BULK ({hero.heroes?.length || hero.heroCount || 0})
+            </div>
+          </div>
+
+          <div className="hero-info">
+            <h3 className="hero-name text-lg font-bold mb-2">Bulk Listing #{hero.bulkListingId}</h3>
+
+            <div className="hero-details text-sm mb-3">
+              <div className="flex justify-between">
+                <span>Heroes:</span>
+                <span className="font-bold">{hero.heroes?.length || hero.heroCount || 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Classes:</span>
+                <span className="text-xs">
+                  {[...new Set(hero.heroes?.map((h) => h.mainClass) || [])].slice(0, 3).join(', ')}
+                  {[...new Set(hero.heroes?.map((h) => h.mainClass) || [])].length > 3 ? '...' : ''}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Levels:</span>
+                <span className="text-xs">
+                  {Math.min(...(hero.heroes?.map((h) => h.level || 1) || [1]))} -{' '}
+                  {Math.max(...(hero.heroes?.map((h) => h.level || 1) || [1]))}
+                </span>
+              </div>
+            </div>
+
+            <div className="price-section mb-3">
+              <div className="flex items-center justify-between">
+                <img src={honkLogo} alt="HONK" className="w-6 h-6" />
+                <span className="price text-xl font-bold">
+                  {typeof externalFormatPrice === 'function'
+                    ? externalFormatPrice(hero.totalPrice)
+                    : formatPriceHelper(hero.totalPrice)}
+                </span>
+              </div>
+              <div className="text-xs text-gray-400 text-center">
+                ~
+                {formatPriceHelper(
+                  (hero.totalPrice || 0) / (hero.heroes?.length || hero.heroCount || 1)
+                )}{' '}
+                per hero
+              </div>
+            </div>
+
+            {renderBulkButtons()}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className={`${hero.mainClass} w-full`}>
-        <div className={`CardContainer heroCard card ${hero.element} ${hero.rarity?.toLowerCase()} ${isFlipped ? 'flipped' : ''}`} onClick={handleCardClick}>
+        <div
+          className={`CardContainer heroCard card ${hero.element} ${hero.rarity?.toLowerCase()} ${isFlipped ? 'flipped' : ''} ${isSelected ? 'bulk-selected' : ''}`}
+          onClick={handleCardClick}
+          style={{
+            ...(isSelected
+              ? {
+                  border: '3px solid #3b82f6',
+                  boxShadow: '0 0 15px rgba(59, 130, 246, 0.4)',
+                  backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                }
+              : {}),
+          }}
+        >
           {isOnQuest && (
             <div className="quest-indicator" title="Hero is currently on a quest">
               <span>!</span>
             </div>
           )}
+          {/* Private listing indicator */}
+          {(hero.isPrivate || (hero.allowedBuyer && hero.allowedBuyer !== ZERO_ADDRESS)) && (
+            <div
+              className="private-indicator absolute top-2 right-2 bg-gray-200 text-purple-700 rounded-full p-1 shadow-lg"
+              title={
+                isBuyPage
+                  ? `Private listing by: ${hero.owner || 'Unknown'}`
+                  : hero.allowedBuyer
+                    ? `Private listing for: ${hero.allowedBuyer}`
+                    : 'Private listing'
+              }
+            >
+              <span>🔒</span>
+            </div>
+          )}
           <div className="heroCardFront">
-            <div 
-              className="heroID" 
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', cursor: 'pointer' }}
+            <div
+              className="heroID"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                cursor: 'pointer',
+              }}
               onClick={handleCopyId}
               title="Click to copy full Hero ID"
             >
               {realmIcon && (
-                <img 
-                  src={realmIcon} 
-                  alt={hero.originRealm} 
-                  className="realm-icon" 
-                  style={{ 
-                    width: '16px', 
-                    height: '16px', 
+                <img loading="lazy"
+                  src={realmIcon}
+                  alt={hero.originRealm}
+                  className="realm-icon"
+                  style={{
+                    width: '16px',
+                    height: '16px',
                     marginRight: '2px',
-                    display: 'inline-block'
-                  }} 
+                    display: 'inline-block',
+                  }}
                 />
               )}
               #{formatHeroId(hero.id, hero.originRealm)}
@@ -744,10 +1180,15 @@ const HeroCard = React.memo(
             <div className={`heroPreview ${hero.rarity}`}>
               <div className={'heroGlow'} />
               <div className={`${hero.background} backgroundGeneral heroContainer`}>
-                <img src={hero.image} alt={hero.name} className={'heroImage'} onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = '/images/placeholder-hero.svg';
-                }} />
+                <img loading="lazy"
+                  src={hero.image}
+                  alt={hero.name}
+                  className={'heroImage'}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = '/images/placeholder-hero.svg';
+                  }}
+                />
               </div>
             </div>
 
@@ -770,7 +1211,7 @@ const HeroCard = React.memo(
                 Level {hero.level}
                 <span className={'subClass'}>Gen {hero.generation}</span>
               </div>
-              </div>
+            </div>
             <div className={'heroStats'}>
               <div className={'heroFrame'}>
                 <div className={`statSummons row`}>
@@ -779,7 +1220,7 @@ const HeroCard = React.memo(
                     <div
                       className={'summonsBar'}
                       style={{
-                        width: `${hero.maxSummons > 0 ? (hero.maxSummons - hero.summons) / hero.maxSummons * 100 : 0}%`,
+                        width: `${hero.maxSummons > 0 ? ((hero.maxSummons - hero.summons) / hero.maxSummons) * 100 : 0}%`,
                       }}
                     ></div>
                   </div>
@@ -790,7 +1231,7 @@ const HeroCard = React.memo(
                         <span style={{ fontSize: '16px' }}>&infin;</span>
                       </div>
                     ) : (
-                      `${hero.maxSummons ? (parseInt(hero.maxSummons) - parseInt(hero.summons)) : 0}/${hero.maxSummons || 0}`
+                      `${hero.maxSummons ? parseInt(hero.maxSummons) - parseInt(hero.summons) : 0}/${hero.maxSummons || 0}`
                     )}
                   </div>
                 </div>
@@ -847,7 +1288,7 @@ const HeroCard = React.memo(
                   <span className={`tooltip`}>{hero.gender}</span>
                 </div>
               </div>
-              
+
               {/* Tab content area */}
               <div className={`heroStats`}>
                 <div className={`heroFrame`}>
@@ -856,33 +1297,158 @@ const HeroCard = React.memo(
                     <div style={{ padding: '0 10px' }}>
                       <h3 style={styles.sectionTitle}>Growth Stats</h3>
                       <div className="statList-vertical growth-stats">
-                        <div className="growth-section-title" style={{ textAlign: 'center', fontWeight: 500, fontSize: '17px', color: '#fbe375', margin: '6px 0 2px 0', letterSpacing: '0.02em' }}>Primary Growth</div>
-                        <div className="row" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2px 8px' }}>
-                          <div className="col"><div className="statName">STR</div><div className="statValue">{hero.growthStats?.primary?.STR || '0'}%</div></div>
-                          <div className="col"><div className="statName">INT</div><div className="statValue">{hero.growthStats?.primary?.INT || '0'}%</div></div>
-                          <div className="col"><div className="statName">WIS</div><div className="statValue">{hero.growthStats?.primary?.WIS || '0'}%</div></div>
-                          <div className="col"><div className="statName">LCK</div><div className="statValue">{hero.growthStats?.primary?.LCK || '0'}%</div></div>
+                        <div
+                          className="growth-section-title"
+                          style={{
+                            textAlign: 'center',
+                            fontWeight: 500,
+                            fontSize: '17px',
+                            color: '#fbe375',
+                            margin: '6px 0 2px 0',
+                            letterSpacing: '0.02em',
+                          }}
+                        >
+                          Primary Growth
                         </div>
-                        <div className="row" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2px 8px' }}>
-                          <div className="col"><div className="statName">AGI</div><div className="statValue">{hero.growthStats?.primary?.AGI || '0'}%</div></div>
-                          <div className="col"><div className="statName">VIT</div><div className="statValue">{hero.growthStats?.primary?.VIT || '0'}%</div></div>
-                          <div className="col"><div className="statName">END</div><div className="statValue">{hero.growthStats?.primary?.END || '0'}%</div></div>
-                          <div className="col"><div className="statName">DEX</div><div className="statValue">{hero.growthStats?.primary?.DEX || '0'}%</div></div>
+                        <div
+                          className="row"
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(4, 1fr)',
+                            gap: '2px 8px',
+                          }}
+                        >
+                          <div className="col">
+                            <div className="statName">STR</div>
+                            <div className="statValue">
+                              {hero.growthStats?.primary?.STR || '0'}%
+                            </div>
+                          </div>
+                          <div className="col">
+                            <div className="statName">INT</div>
+                            <div className="statValue">
+                              {hero.growthStats?.primary?.INT || '0'}%
+                            </div>
+                          </div>
+                          <div className="col">
+                            <div className="statName">WIS</div>
+                            <div className="statValue">
+                              {hero.growthStats?.primary?.WIS || '0'}%
+                            </div>
+                          </div>
+                          <div className="col">
+                            <div className="statName">LCK</div>
+                            <div className="statValue">
+                              {hero.growthStats?.primary?.LCK || '0'}%
+                            </div>
+                          </div>
+                        </div>
+                        <div
+                          className="row"
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(4, 1fr)',
+                            gap: '2px 8px',
+                          }}
+                        >
+                          <div className="col">
+                            <div className="statName">AGI</div>
+                            <div className="statValue">
+                              {hero.growthStats?.primary?.AGI || '0'}%
+                            </div>
+                          </div>
+                          <div className="col">
+                            <div className="statName">VIT</div>
+                            <div className="statValue">
+                              {hero.growthStats?.primary?.VIT || '0'}%
+                            </div>
+                          </div>
+                          <div className="col">
+                            <div className="statName">END</div>
+                            <div className="statValue">
+                              {hero.growthStats?.primary?.END || '0'}%
+                            </div>
+                          </div>
+                          <div className="col">
+                            <div className="statName">DEX</div>
+                            <div className="statValue">
+                              {hero.growthStats?.primary?.DEX || '0'}%
+                            </div>
+                          </div>
                         </div>
                         <div className="row">
-                          <div className="growth-section-title" style={{ gridColumn: '1 / -1', textAlign: 'center', fontWeight: 500 }}>Secondary Growth</div>
+                          <div
+                            className="growth-section-title"
+                            style={{ gridColumn: '1 / -1', textAlign: 'center', fontWeight: 500 }}
+                          >
+                            Secondary Growth
+                          </div>
                         </div>
-                        <div className="row" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2px 8px' }}>
-                          <div className="col"><div className="statName">STR</div><div className="statValue">{hero.growthStats?.secondary?.STR || '0'}%</div></div>
-                          <div className="col"><div className="statName">INT</div><div className="statValue">{hero.growthStats?.secondary?.INT || '0'}%</div></div>
-                          <div className="col"><div className="statName">WIS</div><div className="statValue">{hero.growthStats?.secondary?.WIS || '0'}%</div></div>
-                          <div className="col"><div className="statName">LCK</div><div className="statValue">{hero.growthStats?.secondary?.LCK || '0'}%</div></div>
+                        <div
+                          className="row"
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(4, 1fr)',
+                            gap: '2px 8px',
+                          }}
+                        >
+                          <div className="col">
+                            <div className="statName">STR</div>
+                            <div className="statValue">
+                              {hero.growthStats?.secondary?.STR || '0'}%
+                            </div>
+                          </div>
+                          <div className="col">
+                            <div className="statName">INT</div>
+                            <div className="statValue">
+                              {hero.growthStats?.secondary?.INT || '0'}%
+                            </div>
+                          </div>
+                          <div className="col">
+                            <div className="statName">WIS</div>
+                            <div className="statValue">
+                              {hero.growthStats?.secondary?.WIS || '0'}%
+                            </div>
+                          </div>
+                          <div className="col">
+                            <div className="statName">LCK</div>
+                            <div className="statValue">
+                              {hero.growthStats?.secondary?.LCK || '0'}%
+                            </div>
+                          </div>
                         </div>
-                        <div className="row" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '2px 8px' }}>
-                          <div className="col"><div className="statName">AGI</div><div className="statValue">{hero.growthStats?.secondary?.AGI || '0'}%</div></div>
-                          <div className="col"><div className="statName">VIT</div><div className="statValue">{hero.growthStats?.secondary?.VIT || '0'}%</div></div>
-                          <div className="col"><div className="statName">END</div><div className="statValue">{hero.growthStats?.secondary?.END || '0'}%</div></div>
-                          <div className="col"><div className="statName">DEX</div><div className="statValue">{hero.growthStats?.secondary?.DEX || '0'}%</div></div>
+                        <div
+                          className="row"
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(4, 1fr)',
+                            gap: '2px 8px',
+                          }}
+                        >
+                          <div className="col">
+                            <div className="statName">AGI</div>
+                            <div className="statValue">
+                              {hero.growthStats?.secondary?.AGI || '0'}%
+                            </div>
+                          </div>
+                          <div className="col">
+                            <div className="statName">VIT</div>
+                            <div className="statValue">
+                              {hero.growthStats?.secondary?.VIT || '0'}%
+                            </div>
+                          </div>
+                          <div className="col">
+                            <div className="statName">END</div>
+                            <div className="statValue">
+                              {hero.growthStats?.secondary?.END || '0'}%
+                            </div>
+                          </div>
+                          <div className="col">
+                            <div className="statName">DEX</div>
+                            <div className="statValue">
+                              {hero.growthStats?.secondary?.DEX || '0'}%
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -891,10 +1457,42 @@ const HeroCard = React.memo(
                     <div style={{ padding: '0 10px' }}>
                       <h3 style={styles.sectionTitle}>Ability Genes</h3>
                       <div className="statList-vertical ability-genes">
-                        <div className="row"><div className="statName">Active 1</div><div className="statValue">{formatAbility(hero.abilityGenes?.active1?.name, activeAbilityMapping[Number(hero.originalStatGenes?.active1)])}</div></div>
-                        <div className="row"><div className="statName">Active 2</div><div className="statValue">{formatAbility(hero.abilityGenes?.active2?.name, activeAbilityMapping[Number(hero.originalStatGenes?.active2)])}</div></div>
-                        <div className="row"><div className="statName">Passive 1</div><div className="statValue">{formatAbility(hero.abilityGenes?.passive1?.name, passiveAbilityMapping[Number(hero.originalStatGenes?.passive1)])}</div></div>
-                        <div className="row"><div className="statName">Passive 2</div><div className="statValue">{formatAbility(hero.abilityGenes?.passive2?.name, passiveAbilityMapping[Number(hero.originalStatGenes?.passive2)])}</div></div>
+                        <div className="row">
+                          <div className="statName">Active 1</div>
+                          <div className="statValue">
+                            {formatAbility(
+                              hero.abilityGenes?.active1?.name,
+                              activeAbilityMapping[Number(hero.originalStatGenes?.active1)]
+                            )}
+                          </div>
+                        </div>
+                        <div className="row">
+                          <div className="statName">Active 2</div>
+                          <div className="statValue">
+                            {formatAbility(
+                              hero.abilityGenes?.active2?.name,
+                              activeAbilityMapping[Number(hero.originalStatGenes?.active2)]
+                            )}
+                          </div>
+                        </div>
+                        <div className="row">
+                          <div className="statName">Passive 1</div>
+                          <div className="statValue">
+                            {formatAbility(
+                              hero.abilityGenes?.passive1?.name,
+                              passiveAbilityMapping[Number(hero.originalStatGenes?.passive1)]
+                            )}
+                          </div>
+                        </div>
+                        <div className="row">
+                          <div className="statName">Passive 2</div>
+                          <div className="statValue">
+                            {formatAbility(
+                              hero.abilityGenes?.passive2?.name,
+                              passiveAbilityMapping[Number(hero.originalStatGenes?.passive2)]
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -906,28 +1504,61 @@ const HeroCard = React.memo(
                         <div className="row paired-stats">
                           <div className="stat-pair">
                             <div className="statName">Class</div>
-                            <div className="statValue" style={{ color: '#e6c15a' }}>{hero.formattedRecessiveGenes?.stat?.r1?.mainClass || 'Unknown'}</div>
+                            <div className="statValue" style={{ color: '#e6c15a' }}>
+                              {hero.formattedRecessiveGenes?.stat?.r1?.mainClass || 'Unknown'}
+                            </div>
                           </div>
                           <div className="stat-pair">
                             <div className="statName">Subclass</div>
-    <div className="statValue" style={{ color: '#d14f69' }}>{hero.formattedRecessiveGenes?.stat?.r1?.subClass || 'Unknown'}</div>
-  </div>
-</div>
-<div className="row"><div className="statName">Profession</div><div className="statValue" style={{ color: '#8bc34a' }}>{hero.formattedRecessiveGenes?.stat?.r1?.profession || 'Unknown'}</div></div>
-<div className="row paired-stats">
-  <div className="stat-pair">
-    <div className="statName">Stat Boost 1</div>
-    <div className="statValue" style={{ color: '#ff9800' }}>{hero.formattedRecessiveGenes?.stat?.r1?.statBoost1 || 'Unknown'}</div>
-  </div>
-  <div className="stat-pair">
-    <div className="statName">Stat Boost 2</div>
-    <div className="statValue" style={{ color: '#4caf50' }}>{hero.formattedRecessiveGenes?.stat?.r1?.statBoost2 || 'Unknown'}</div>
-  </div>
-</div>
-<div className="row"><div className="statName">Active 1</div><div className="statValue" style={{ color: '#2196f3' }}>{hero.formattedRecessiveGenes?.stat?.r1?.active1 || 'Unknown'}</div></div>
-<div className="row"><div className="statName">Active 2</div><div className="statValue" style={{ color: '#2196f3' }}>{hero.formattedRecessiveGenes?.stat?.r1?.active2 || 'Unknown'}</div></div>
-<div className="row"><div className="statName">Passive 1</div><div className="statValue" style={{ color: '#9c27b0' }}>{hero.formattedRecessiveGenes?.stat?.r1?.passive1 || 'Unknown'}</div></div>
-<div className="row"><div className="statName">Passive 2</div><div className="statValue" style={{ color: '#9c27b0' }}>{hero.formattedRecessiveGenes?.stat?.r1?.passive2 || 'Unknown'}</div></div>
+                            <div className="statValue" style={{ color: '#d14f69' }}>
+                              {hero.formattedRecessiveGenes?.stat?.r1?.subClass || 'Unknown'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="row">
+                          <div className="statName">Profession</div>
+                          <div className="statValue" style={{ color: '#8bc34a' }}>
+                            {hero.formattedRecessiveGenes?.stat?.r1?.profession || 'Unknown'}
+                          </div>
+                        </div>
+                        <div className="row paired-stats">
+                          <div className="stat-pair">
+                            <div className="statName">Stat Boost 1</div>
+                            <div className="statValue" style={{ color: '#ff9800' }}>
+                              {hero.formattedRecessiveGenes?.stat?.r1?.statBoost1 || 'Unknown'}
+                            </div>
+                          </div>
+                          <div className="stat-pair">
+                            <div className="statName">Stat Boost 2</div>
+                            <div className="statValue" style={{ color: '#4caf50' }}>
+                              {hero.formattedRecessiveGenes?.stat?.r1?.statBoost2 || 'Unknown'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="row">
+                          <div className="statName">Active 1</div>
+                          <div className="statValue" style={{ color: '#2196f3' }}>
+                            {hero.formattedRecessiveGenes?.stat?.r1?.active1 || 'Unknown'}
+                          </div>
+                        </div>
+                        <div className="row">
+                          <div className="statName">Active 2</div>
+                          <div className="statValue" style={{ color: '#2196f3' }}>
+                            {hero.formattedRecessiveGenes?.stat?.r1?.active2 || 'Unknown'}
+                          </div>
+                        </div>
+                        <div className="row">
+                          <div className="statName">Passive 1</div>
+                          <div className="statValue" style={{ color: '#9c27b0' }}>
+                            {hero.formattedRecessiveGenes?.stat?.r1?.passive1 || 'Unknown'}
+                          </div>
+                        </div>
+                        <div className="row">
+                          <div className="statName">Passive 2</div>
+                          <div className="statValue" style={{ color: '#9c27b0' }}>
+                            {hero.formattedRecessiveGenes?.stat?.r1?.passive2 || 'Unknown'}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -936,36 +1567,69 @@ const HeroCard = React.memo(
                       <h3 style={styles.sectionTitle}>Recessive Genes (R2)</h3>
                       <div className="statList-vertical recessive-genes">
                         <div className="row paired-stats">
-  <div className="stat-pair">
-    <div className="statName">Class</div>
-    <div className="statValue" style={{ color: '#e6c15a' }}>{hero.formattedRecessiveGenes?.stat?.r2?.mainClass || 'Unknown'}</div>
-  </div>
-  <div className="stat-pair">
-    <div className="statName">Subclass</div>
-    <div className="statValue" style={{ color: '#d14f69' }}>{hero.formattedRecessiveGenes?.stat?.r2?.subClass || 'Unknown'}</div>
-  </div>
-</div>
-<div className="row"><div className="statName">Profession</div><div className="statValue" style={{ color: '#8bc34a' }}>{hero.formattedRecessiveGenes?.stat?.r2?.profession || 'Unknown'}</div></div>
-<div className="row paired-stats">
-  <div className="stat-pair">
-    <div className="statName">Stat Boost 1</div>
-    <div className="statValue" style={{ color: '#ff9800' }}>{hero.formattedRecessiveGenes?.stat?.r2?.statBoost1 || 'Unknown'}</div>
-  </div>
-  <div className="stat-pair">
-    <div className="statName">Stat Boost 2</div>
-    <div className="statValue" style={{ color: '#4caf50' }}>{hero.formattedRecessiveGenes?.stat?.r2?.statBoost2 || 'Unknown'}</div>
-  </div>
-</div>
-<div className="row"><div className="statName">Active 1</div><div className="statValue" style={{ color: '#2196f3' }}>{hero.formattedRecessiveGenes?.stat?.r2?.active1 || 'Unknown'}</div></div>
-<div className="row"><div className="statName">Active 2</div><div className="statValue" style={{ color: '#2196f3' }}>{hero.formattedRecessiveGenes?.stat?.r2?.active2 || 'Unknown'}</div></div>
-<div className="row"><div className="statName">Passive 1</div><div className="statValue" style={{ color: '#9c27b0' }}>{hero.formattedRecessiveGenes?.stat?.r2?.passive1 || 'Unknown'}</div></div>
-<div className="row"><div className="statName">Passive 2</div><div className="statValue" style={{ color: '#9c27b0' }}>{hero.formattedRecessiveGenes?.stat?.r2?.passive2 || 'Unknown'}</div></div>
+                          <div className="stat-pair">
+                            <div className="statName">Class</div>
+                            <div className="statValue" style={{ color: '#e6c15a' }}>
+                              {hero.formattedRecessiveGenes?.stat?.r2?.mainClass || 'Unknown'}
+                            </div>
+                          </div>
+                          <div className="stat-pair">
+                            <div className="statName">Subclass</div>
+                            <div className="statValue" style={{ color: '#d14f69' }}>
+                              {hero.formattedRecessiveGenes?.stat?.r2?.subClass || 'Unknown'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="row">
+                          <div className="statName">Profession</div>
+                          <div className="statValue" style={{ color: '#8bc34a' }}>
+                            {hero.formattedRecessiveGenes?.stat?.r2?.profession || 'Unknown'}
+                          </div>
+                        </div>
+                        <div className="row paired-stats">
+                          <div className="stat-pair">
+                            <div className="statName">Stat Boost 1</div>
+                            <div className="statValue" style={{ color: '#ff9800' }}>
+                              {hero.formattedRecessiveGenes?.stat?.r2?.statBoost1 || 'Unknown'}
+                            </div>
+                          </div>
+                          <div className="stat-pair">
+                            <div className="statName">Stat Boost 2</div>
+                            <div className="statValue" style={{ color: '#4caf50' }}>
+                              {hero.formattedRecessiveGenes?.stat?.r2?.statBoost2 || 'Unknown'}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="row">
+                          <div className="statName">Active 1</div>
+                          <div className="statValue" style={{ color: '#2196f3' }}>
+                            {hero.formattedRecessiveGenes?.stat?.r2?.active1 || 'Unknown'}
+                          </div>
+                        </div>
+                        <div className="row">
+                          <div className="statName">Active 2</div>
+                          <div className="statValue" style={{ color: '#2196f3' }}>
+                            {hero.formattedRecessiveGenes?.stat?.r2?.active2 || 'Unknown'}
+                          </div>
+                        </div>
+                        <div className="row">
+                          <div className="statName">Passive 1</div>
+                          <div className="statValue" style={{ color: '#9c27b0' }}>
+                            {hero.formattedRecessiveGenes?.stat?.r2?.passive1 || 'Unknown'}
+                          </div>
+                        </div>
+                        <div className="row">
+                          <div className="statName">Passive 2</div>
+                          <div className="statValue" style={{ color: '#9c27b0' }}>
+                            {hero.formattedRecessiveGenes?.stat?.r2?.passive2 || 'Unknown'}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
                 </div>
               </div>
-              
+
               {/* Tab navigation */}
               <HeroCardTabs activeTab={activeTab} onTabChange={setActiveTab} />
             </div>
@@ -979,54 +1643,65 @@ const HeroCard = React.memo(
                   {renderPriceOrStatus()}
                 </div>
                 <div className="flex items-center justify-center gap-2">
-                  <button
-                    onClick={handleBuy}
-                    className={`button ${
-                      !isConnected ||
-                      isBuying ||
-                      pendingTransactions?.has(hero.id) ||
-                      purchasedHeroes?.has(hero.id)
-                        ? 'opacity-50 cursor-not-allowed'
-                        : ''
-                    }`}
-                    disabled={
-                      !isConnected ||
-                      isBuying ||
-                      pendingTransactions?.has(hero.id) ||
-                      purchasedHeroes?.has(hero.id)
-                    }
-                    title={
-                      !isConnected
-                        ? 'Connect wallet to buy heroes'
+                  {!disableBuying && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent card flip
+                        handleBuy();
+                      }}
+                      className={`button ${
+                        !isConnected ||
+                        isBuying ||
+                        pendingTransactions?.has(hero.id) ||
+                        purchasedHeroes?.has(hero.id)
+                          ? 'opacity-50 cursor-not-allowed'
+                          : ''
+                      }`}
+                      disabled={
+                        !isConnected ||
+                        isBuying ||
+                        pendingTransactions?.has(hero.id) ||
+                        purchasedHeroes?.has(hero.id)
+                      }
+                      title={
+                        !isConnected
+                          ? 'Connect wallet to buy heroes'
+                          : purchasedHeroes?.has(hero.id)
+                            ? 'Already purchased'
+                            : pendingTransactions?.has(hero.id) || isBuying
+                              ? 'Transaction in progress'
+                              : 'Buy this hero'
+                      }
+                    >
+                      {pendingTransactions?.has(hero.id) || isBuying
+                        ? 'Buying...'
                         : purchasedHeroes?.has(hero.id)
-                          ? 'Already purchased'
-                          : pendingTransactions?.has(hero.id) || isBuying
-                            ? 'Transaction in progress'
-                            : 'Buy this hero'
-                    }
-                  >
-                    {pendingTransactions?.has(hero.id) || isBuying
-                      ? 'Buying...'
-                      : purchasedHeroes?.has(hero.id)
-                        ? 'Bought'
-                        : 'Buy'}
-                  </button>
+                          ? 'Bought'
+                          : 'Buy'}
+                    </button>
+                  )}
                   <button
-                    onClick={() => window.open(`https://dfk-adventures.herokuapp.com/heroes/${hero.id}`, '_blank')}
+                    onClick={(e) => {
+                      e.stopPropagation(); // Prevent card flip
+                      window.open(
+                        `https://dfk-adventures.herokuapp.com/heroes/${hero.id}`,
+                        '_blank'
+                      );
+                    }}
                     className="button"
                     title="View hero details on ADFK"
                     style={{
                       display: 'inline-flex',
-                      alignItems: 'center'
+                      alignItems: 'center',
                     }}
                   >
-                    <img 
-                      src="https://dfk-adventures.herokuapp.com/static/profile.png" 
+                    <img loading="lazy"
+                      src="https://dfk-adventures.herokuapp.com/static/profile.png"
                       alt="ADFK"
                       style={{
                         width: '16px',
                         height: '16px',
-                        marginRight: '4px'
+                        marginRight: '4px',
                       }}
                     />
                     ADFK
@@ -1034,9 +1709,7 @@ const HeroCard = React.memo(
                 </div>
               </div>
             ) : (
-              <>
-                {renderButtons()}
-              </>
+              <>{renderButtons()}</>
             )}
           </div>
         )}
@@ -1071,4 +1744,4 @@ export default React.memo(HeroCard);
       font-size: 14px;
     }
   `}
-</style>
+</style>;

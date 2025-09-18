@@ -26,7 +26,7 @@ export const useWallet = () => {
       const accounts = await web3.eth.getAccounts();
       const isConnected = accounts.length > 0;
       setIsConnected(isConnected);
-      
+
       if (isConnected) {
         setConnectedAddress(accounts[0]);
         const networkCheck = await checkNetwork();
