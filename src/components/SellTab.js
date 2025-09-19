@@ -194,7 +194,7 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
 
   // Handle hero listing - opens modal
   const handleList = (heroId) => {
-    const hero = heroes.find((h) => h.id === heroId);
+    const hero = displayedHeroes.find((h) => h.id === heroId);
     if (hero) {
       setSelectedHero(hero);
       setPrice('');
@@ -210,7 +210,7 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
   };
 
   const handleModalList = async (heroId, enteredPrice, isPrivate = false, recipient = '') => {
-    const heroToList = selectedHero || heroes.find((h) => h.id === heroId);
+    const heroToList = selectedHero || displayedHeroes.find((h) => h.id === heroId);
     const listingPrice = enteredPrice || price;
     if (!heroToList || !listingPrice) {
       toast.error('Please enter a valid price');
@@ -470,146 +470,140 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
     return [...individualListings, ...bulkListingsArray];
   }, []);
 
-  // Calculate displayed heroes with filters and sorting - memoized to prevent constant re-renders
-  const displayedHeroes = useMemo(() => {
-    const sourceHeroes = heroesEnriched && heroesEnriched.length ? heroesEnriched : heroesFromManagement;
-    // Handle initial loading state
-    if (!sourceHeroes) {
-      return [];
-    }
+  // State to hold filtered and processed heroes
+  const [displayedHeroes, setDisplayedHeroes] = useState([]);
 
-    // Helper to get base hero ID by stripping any realm prefix (ensure it's in scope or defined here)
-    const getBaseHeroId = (heroId) => {
-      const id = String(heroId || '');
-      const baseId = id.slice(-6); // Get the last 6 digits
-      return baseId;
-    };
+  // Effect to calculate displayed heroes with filters and sorting
+  useEffect(() => {
+    const calculateDisplayedHeroes = async () => {
+      const sourceHeroes = heroesEnriched && heroesEnriched.length ? heroesEnriched : heroesFromManagement;
+      // Handle initial loading state
+      if (!sourceHeroes) {
+        setDisplayedHeroes([]);
+        return;
+      }
 
-    const tavernHeroes = tavernHeroesState || [];
-    const tavernHeroIds = new Set(tavernHeroes.map((h) => getBaseHeroId(h.id)));
 
-    const regularHeroes = sourceHeroes || [];
-    const filteredRegularHeroes = regularHeroes.filter((h) => {
-      const baseId = getBaseHeroId(h.id);
-      return !tavernHeroIds.has(baseId);
-    });
+      // Helper to get base hero ID by stripping any realm prefix
+      const getBaseHeroId = (heroId) => {
+        const id = String(heroId || '');
+        const baseId = id.slice(-6); // Get the last 6 digits
+        return baseId;
+      };
 
-    const listedHeroesMap = new Map();
-    if (listedHeroes && Array.isArray(listedHeroes)) {
-      listedHeroes.forEach((listed) => {
-        listedHeroesMap.set(String(listed.heroId), listed); // Ensure heroId is string for map keys
+      const tavernHeroes = tavernHeroesState || [];
+      const tavernHeroIds = new Set(tavernHeroes.map((h) => getBaseHeroId(h.id)));
+
+      const regularHeroes = sourceHeroes || [];
+      const filteredRegularHeroes = regularHeroes.filter((h) => {
+        const baseId = getBaseHeroId(h.id);
+        return !tavernHeroIds.has(baseId);
       });
-    }
-    const pendingMap = pendingListings || new Map();
 
-    const allHeroes = [...filteredRegularHeroes, ...tavernHeroes].map((hero) => {
-      const heroIdStr = String(hero.id);
-      const listedHero = listedHeroesMap.get(heroIdStr); // confirmed on-chain listing overlay
-      const pending = pendingMap.get?.(heroIdStr); // optimistic pending overlay
-
-      if (pending) {
-        // Pending listing takes precedence (optimistic UI)
-        return {
-          ...hero,
-          isForSale: true,
-          isPendingListing: true,
-          price: pending.price, // wei
-          marketplace: 'honk',
-          bulkListingId: hero.bulkListingId || 0,
-          allowedBuyer: pending.recipient || hero.allowedBuyer,
-          isPrivate: pending.isPrivate || hero.isPrivate,
-          owner: userAddress || hero.owner,
-        };
+      const listedHeroesMap = new Map();
+      if (listedHeroes && Array.isArray(listedHeroes)) {
+        listedHeroes.forEach((listed) => {
+          listedHeroesMap.set(String(listed.heroId), listed); // Ensure heroId is string for map keys
+        });
       }
+      const pendingMap = pendingListings || new Map();
 
-      if (listedHero) {
-        return {
-          ...hero,
-          isForSale: true,
-          price: listedHero.price,
-          marketplace: 'honk',
-          bulkListingId: listedHero.bulkListingId || 0,
-          // keep private listing props if they exist
-          allowedBuyer: hero.allowedBuyer || listedHero.allowedBuyer,
-          isPrivate:
-            hero.isPrivate !== undefined
-              ? hero.isPrivate
-              : (listedHero.allowedBuyer && listedHero.allowedBuyer !== ZERO_ADDRESS),
-        };
+      const allHeroes = [...filteredRegularHeroes, ...tavernHeroes].map((hero) => {
+        const heroIdStr = String(hero.id);
+        const listedHero = listedHeroesMap.get(heroIdStr); // confirmed on-chain listing overlay
+        const pending = pendingMap.get?.(heroIdStr); // optimistic pending overlay
+
+        if (pending) {
+          // Pending listing takes precedence (optimistic UI)
+          return {
+            ...hero,
+            isForSale: true,
+            isPendingListing: true,
+            price: pending.price, // wei
+            marketplace: 'honk',
+            bulkListingId: hero.bulkListingId || 0,
+            allowedBuyer: pending.recipient || hero.allowedBuyer,
+            isPrivate: pending.isPrivate || hero.isPrivate,
+            owner: userAddress || hero.owner,
+          };
+        }
+
+        if (listedHero) {
+          return {
+            ...hero,
+            isForSale: true,
+            price: listedHero.price,
+            marketplace: 'honk',
+            bulkListingId: listedHero.bulkListingId || 0,
+            // keep private listing props if they exist
+            allowedBuyer: hero.allowedBuyer || listedHero.allowedBuyer,
+            isPrivate:
+              hero.isPrivate !== undefined
+                ? hero.isPrivate
+                : (listedHero.allowedBuyer && listedHero.allowedBuyer !== ZERO_ADDRESS),
+          };
+        }
+        return hero;
+      });
+
+      try {
+        // Apply advanced filtering using the utility function
+        const filteredHeroes = await applyFiltersAndSortUtil(
+          allHeroes,
+          filters,
+          sortOrder,
+          true, // isSellTab
+          listedHeroes,
+          tavernHeroes
+        );
+
+        // Group heroes by bulk listing AFTER filtering
+        const groupedHeroes = groupHeroesByBulkListing(filteredHeroes);
+        const groupedPlusPending = [...groupedHeroes, ...pendingBulkListingsUI];
+
+        // Apply SellTab-specific UI filters
+        const filteredHeroesFromUI = groupedPlusPending.filter((hero) => {
+          if (filters.hideListedHeroes && hero.isForSale) return false;
+          if (filters.hideDFKTavern && hero.isDFKTavernListing) return false;
+          return true;
+        });
+
+        let modeFilteredHeroes = filteredHeroesFromUI;
+        // Filter for viewing existing bulk listings vs. individual heroes/listings
+        if (isSellBulkMode) { // User clicked "Bulk View" to see existing bulk listings
+          modeFilteredHeroes = filteredHeroesFromUI.filter((hero) => hero.isBulkListing === true);
+        } else { // User is viewing individual listings or their unlisted heroes
+          modeFilteredHeroes = filteredHeroesFromUI.filter((hero) => hero.isBulkListing !== true);
+        }
+
+        // If in "Bulk Select" mode (for CREATING a new bulk listing), only show unlisted, individual heroes
+        if (isBulkMode) { // isBulkMode is from useBulkListing hook, active when user clicks "Bulk Select"
+          modeFilteredHeroes = modeFilteredHeroes.filter(hero =>
+            !hero.isForSale &&
+            (!hero.isBulkListing || hero.isBulkListing === false || hero.bulkListingId === 0)
+          );
+        }
+
+        setDisplayedHeroes(modeFilteredHeroes);
+      } catch (error) {
+        console.error('Error filtering heroes:', error);
+        // Fallback to unfiltered heroes if filtering fails
+        setDisplayedHeroes(allHeroes);
       }
-      return hero;
-    });
-
-    const groupedHeroes = groupHeroesByBulkListing(allHeroes);
-    const groupedPlusPending = [...groupedHeroes, ...pendingBulkListingsUI];
-
-    const filteredHeroesFromUI = groupedPlusPending.filter((hero) => {
-      if (filters.hideListedHeroes && hero.isForSale) return false;
-      if (filters.hideDFKTavern && hero.isDFKTavernListing) return false;
-      return true;
-    });
-
-    let modeFilteredHeroes = filteredHeroesFromUI;
-    // Filter for viewing existing bulk listings vs. individual heroes/listings
-    if (isSellBulkMode) { // User clicked "Bulk View" to see existing bulk listings
-      modeFilteredHeroes = filteredHeroesFromUI.filter((hero) => hero.isBulkListing === true);
-    } else { // User is viewing individual listings or their unlisted heroes
-      modeFilteredHeroes = filteredHeroesFromUI.filter((hero) => hero.isBulkListing !== true);
-    }
-
-    // If in "Bulk Select" mode (for CREATING a new bulk listing), only show unlisted, individual heroes
-    if (isBulkMode) { // isBulkMode is from useBulkListing hook, active when user clicks "Bulk Select"
-      modeFilteredHeroes = modeFilteredHeroes.filter(hero => 
-        !hero.isForSale && 
-        (!hero.isBulkListing || hero.isBulkListing === false || hero.bulkListingId === 0)
-      );
-    }
-
-    const sortFunctions = {
-      'price-asc': (a, b) => {
-        if (a.marketplace === 'honk' && b.marketplace !== 'honk') return -1;
-        if (a.marketplace !== 'honk' && b.marketplace === 'honk') return 1;
-        return Number(a.price || 0) - Number(b.price || 0);
-      },
-      'price-desc': (a, b) => {
-        if (a.marketplace === 'honk' && b.marketplace !== 'honk') return -1;
-        if (a.marketplace !== 'honk' && b.marketplace === 'honk') return 1;
-        return Number(b.price || 0) - Number(a.price || 0);
-      },
-      'level-asc': (a, b) => {
-        if (a.marketplace === 'honk' && b.marketplace !== 'honk') return -1;
-        if (a.marketplace !== 'honk' && b.marketplace === 'honk') return 1;
-        return Number(a.level || 0) - Number(b.level || 0);
-      },
-      'level-desc': (a, b) => {
-        if (a.marketplace === 'honk' && b.marketplace !== 'honk') return -1;
-        if (a.marketplace !== 'honk' && b.marketplace === 'honk') return 1;
-        return Number(b.level || 0) - Number(a.level || 0);
-      },
-      'rarity-asc': (a, b) => {
-        if (a.marketplace === 'honk' && b.marketplace !== 'honk') return -1;
-        if (a.marketplace !== 'honk' && b.marketplace === 'honk') return 1;
-        const rarityMap = { common: 0, uncommon: 1, rare: 2, legendary: 3, mythic: 4 };
-        return (rarityMap[(a.rarity || '').toLowerCase()] || 0) - (rarityMap[(b.rarity || '').toLowerCase()] || 0);
-      },
-      'rarity-desc': (a, b) => {
-        if (a.marketplace === 'honk' && b.marketplace !== 'honk') return -1;
-        if (a.marketplace !== 'honk' && b.marketplace === 'honk') return 1;
-        const rarityMap = { common: 0, uncommon: 1, rare: 2, legendary: 3, mythic: 4 };
-        return (rarityMap[(b.rarity || '').toLowerCase()] || 0) - (rarityMap[(a.rarity || '').toLowerCase()] || 0);
-      },
     };
 
-    const sortFn = sortFunctions[sortOrder] || sortFunctions['level-desc'];
-    return [...modeFilteredHeroes].sort(sortFn);
+    calculateDisplayedHeroes();
 
   }, [
+    heroesEnriched,
     heroesFromManagement,
     listedHeroes,
     pendingBulkListingsUI,
     tavernHeroesState,
+    pendingListings,
+    userAddress,
     groupHeroesByBulkListing, // This is a useCallback, safe
-    filters, // This is an object, ensure it's stable or memoized if causing re-renders
+    JSON.stringify(filters), // Convert to string to ensure proper comparison
     sortOrder,
     isSellBulkMode, // Boolean state for viewing existing bulk listings
     isBulkMode,     // Boolean state from useBulkListing for CREATING new bulk listings
@@ -663,10 +657,6 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
     };
   }, [loadingFromManagement, isChecking, heroesFromManagement]);
 
-  // Update heroes state with filtered heroes
-  useEffect(() => {
-    setHeroes(displayedHeroes);
-  }, [displayedHeroes]);
 
   useEffect(() => {
     // If testHeroes are provided, use those instead of fetching
@@ -801,7 +791,7 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
   const handleWarningConfirm = async () => {
     if (heroToList && priceToList) {
       // Find the hero in our local state
-      const hero = heroes.find((h) => h.id === heroToList);
+      const hero = displayedHeroes.find((h) => h.id === heroToList);
       const result = await listHeroForSale(heroToList, priceToList, true, hero);
       if (result.success) {
         toast.success(`Hero ${heroToList} listed successfully after warning confirmation.`);
@@ -922,8 +912,8 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
         selectAllHeroes={selectAllHeroes}
         clearAllSelections={clearAllSelections}
         onOpenBulkModal={handleOpenBulkModal}
-        visibleHeroes={heroes}
-        totalHeroes={heroes.length}
+        visibleHeroes={displayedHeroes}
+        totalHeroes={displayedHeroes.length}
         isSellBulkMode={isSellBulkMode}
         toggleSellBulkMode={toggleSellBulkMode}
         onRefresh={handleRefresh}
@@ -931,7 +921,7 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
       />
 
       <VirtualizedHeroGrid
-        heroes={heroes}
+        heroes={displayedHeroes}
         isBuyPage={false}
         honkLogo={honkLogo}
         onList={handleHeroClick}
@@ -981,7 +971,7 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
           isOpen={isBulkModalOpen}
           onClose={() => setIsBulkModalOpen(false)}
           selectedHeroes={selectedHeroes}
-          heroes={heroes.filter((h) => selectedHeroes.has(h.id))}
+          heroes={displayedHeroes.filter((h) => selectedHeroes.has(h.id))}
           executeBulkListing={executeBulkListing} // Corrected prop
           bulkPrices={bulkPrices}
           setHeroPrice={setHeroPrice}

@@ -198,16 +198,23 @@ export const applyFiltersAndSort = async (
   listedHeroes = Array.isArray(listedHeroes) ? listedHeroes : [];
   tavernHeroes = Array.isArray(tavernHeroes) ? tavernHeroes : [];
 
-  // Create a cache key based on the inputs
-  const cacheKey = JSON.stringify({
-    heroes: heroes.map((h) => h.id),
-    filters,
-    sortOrder,
-    isSellTab,
-  });
+  // Disable caching for SellTab to prevent stale filter results
+  let useCache = !isSellTab;
 
-  if (memoizedResults.has(cacheKey)) {
-    return memoizedResults.get(cacheKey);
+  if (useCache) {
+    // Create a cache key based on the inputs (include all relevant data)
+    const cacheKey = JSON.stringify({
+      heroes: heroes.map((h) => h.id),
+      filters,
+      sortOrder,
+      isSellTab,
+      listedHeroes: listedHeroes.map((h) => h.heroId),
+      tavernHeroes: tavernHeroes.map((h) => h.id),
+    });
+
+    if (memoizedResults.has(cacheKey)) {
+      return memoizedResults.get(cacheKey);
+    }
   }
 
   // Create Sets for quick lookup
@@ -326,8 +333,18 @@ export const applyFiltersAndSort = async (
     ...filteredTavernHeroes,
   ];
 
-  // Cache and return the results
-  memoizedResults.set(cacheKey, filteredHeroes);
+  // Cache and return the results (only if caching is enabled)
+  if (useCache) {
+    const cacheKey = JSON.stringify({
+      heroes: heroes.map((h) => h.id),
+      filters,
+      sortOrder,
+      isSellTab,
+      listedHeroes: listedHeroes.map((h) => h.heroId),
+      tavernHeroes: tavernHeroes.map((h) => h.id),
+    });
+    memoizedResults.set(cacheKey, filteredHeroes);
+  }
   return filteredHeroes;
 };
 

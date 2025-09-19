@@ -10,6 +10,7 @@ import BulkListingDetailModal from './BulkListingDetailModal';
 import BulkSelectionControls from './BulkSelectionControls';
 import honkLogo from '../assets/images/honk/honkCoin.webp';
 import { HONKMarketplaceContract, HONKTokenContract, web3 } from '../Web3Config';
+import { marketplaceCache } from '../utils/cacheUtils';
 
 const BuyTab = ({ filters, sortOrder }) => {
   const { isConnected, isCorrectNetwork, connectedAddress, connect, switchNetwork, updateBalance } =
@@ -110,6 +111,9 @@ const BuyTab = ({ filters, sortOrder }) => {
         fetchHeroes();
         updateBalance();
         setIsBulkDetailModalOpen(false);
+
+        // Clear marketplace cache to ensure bulk listing disappears from seller's view
+        marketplaceCache.clearListedHeroes();
       } else {
         throw new Error('Bulk purchase transaction failed.');
       }

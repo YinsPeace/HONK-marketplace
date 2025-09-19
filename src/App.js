@@ -1,8 +1,6 @@
 import React, { useState, useEffect, Suspense, lazy, useCallback } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import honkLogo from './assets/images/honk/honkCoin.webp';
-// Dev-only: performance testing helpers
-import { generateFakeHeroes } from './utils/fakeHeroGenerator';
 import './index.css';
 import './App.css';
 import { ToastContainer, toast } from 'react-toastify';
@@ -21,7 +19,6 @@ import { APP_VERSION } from './constants';
 
 const BuyTab = lazy(() => import('./components/BuyTab'));
 const SellTab = lazy(() => import('./components/SellTab'));
-const TestInterface = lazy(() => import('./components/TestInterface'));
 
 const ConnectionStatus = ({
   isConnected,
@@ -346,7 +343,6 @@ const App = () => {
                       />
                     }
                   />
-                  <Route path="/test" element={<TestInterface />} />
                   {process.env.NODE_ENV === 'development' && (
                     <Route
                       path="/sell-test"
@@ -355,8 +351,8 @@ const App = () => {
                           userAddress={connectedAddress}
                           filters={filters}
                           sortOrder={sortOrder}
-                          // 30k fake heroes for stress-testing render performance
-                          testHeroes={generateFakeHeroes(30000)}
+                          // Development test route
+                          testHeroes={[]}
                         />
                       }
                     />
