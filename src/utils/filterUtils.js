@@ -145,10 +145,13 @@ const applyHeroFilters = async (hero, filters) => {
     };
 
     const heroRarityValue = rarityMap[(hero.rarity || '').toLowerCase()] || 0;
-    const minRarity = filters.rarityMin || 0;
-    const maxRarity = filters.rarityMax || 4;
+    const minRarity = filters.rarityMin !== undefined ? filters.rarityMin : 0;
+    const maxRarity = filters.rarityMax !== undefined ? filters.rarityMax : 4;
 
-    if (heroRarityValue < minRarity || heroRarityValue > maxRarity) {
+    // Check if this is not the default range (0-4)
+    const isDefaultRange = minRarity === 0 && maxRarity === 4;
+
+    if (!isDefaultRange && (heroRarityValue < minRarity || heroRarityValue > maxRarity)) {
       return null;
     }
   }
@@ -156,10 +159,13 @@ const applyHeroFilters = async (hero, filters) => {
   // Generation range filter
   if (filters.generationMin !== undefined || filters.generationMax !== undefined) {
     const heroGen = Number(hero.generation || 0);
-    const minGen = filters.generationMin || 0;
-    const maxGen = filters.generationMax || 11;
+    const minGen = filters.generationMin !== undefined ? filters.generationMin : 0;
+    const maxGen = filters.generationMax !== undefined ? filters.generationMax : 11;
 
-    if (heroGen < minGen || heroGen > maxGen) {
+    // Check if this is not the default range (0-11)
+    const isDefaultRange = minGen === 0 && maxGen === 11;
+
+    if (!isDefaultRange && (heroGen < minGen || heroGen > maxGen)) {
       return null;
     }
   }
@@ -170,10 +176,13 @@ const applyHeroFilters = async (hero, filters) => {
     const usedSummons = Number(hero.summons || 0);
     const summonsRemaining = heroMaxSummons - usedSummons;
 
-    const minSummons = filters.summonsRemainingMin || 0;
-    const maxSummons = filters.summonsRemainingMax || 10;
+    const minSummons = filters.summonsRemainingMin !== undefined ? filters.summonsRemainingMin : 0;
+    const maxSummons = filters.summonsRemainingMax !== undefined ? filters.summonsRemainingMax : 10;
 
-    if (summonsRemaining < minSummons || summonsRemaining > maxSummons) {
+    // Check if this is not the default range (0-10)
+    const isDefaultRange = minSummons === 0 && maxSummons === 10;
+
+    if (!isDefaultRange && (summonsRemaining < minSummons || summonsRemaining > maxSummons)) {
       return null;
     }
   }
