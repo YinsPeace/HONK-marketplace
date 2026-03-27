@@ -261,6 +261,42 @@ function kai2dec(kai) {
 
 // Using the existing genesToKai and kai2dec functions defined above
 
+const VISUAL_GENE_MAP = {
+  0: 'gender',
+  1: 'headAppendage',
+  2: 'backAppendage',
+  3: 'background',
+  4: 'hairStyle',
+  5: 'hairColor',
+  6: 'visualUnknown1',
+  7: 'eyeColor',
+  8: 'skinColor',
+  9: 'appendageColor',
+  10: 'backAppendageColor',
+  11: 'visualUnknown2',
+};
+
+/**
+ * Parse visual genes into an object of dominant trait values.
+ * Gender: 1 = Male, 3 = Female
+ * Background: see backgroundMapping in heroUtils
+ * All other trait values map through their respective mappings.
+ */
+export const parseVisualGenes = (visualGenesString) => {
+  try {
+    if (!visualGenesString) return null;
+    const genes = BigInt(visualGenesString.toString());
+    const kaiStr = genesToKai(genes);
+    const result = {};
+    for (let i = 0; i < 12; i++) {
+      result[VISUAL_GENE_MAP[i]] = kai2dec(kaiStr[i * 4 + 3]); // +3 = dominant (order is r3, r2, r1, d)
+    }
+    return result;
+  } catch (error) {
+    return null;
+  }
+};
+
 // Parse stat genes from the encrypted string
 export const parseStatGenes = (statGenesString) => {
   try {

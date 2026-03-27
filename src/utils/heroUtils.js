@@ -1,8 +1,9 @@
 import maleFirstNames from '../data/maleFirstNames.json';
 import femaleFirstNames from '../data/femaleFirstNames.json';
 import lastNames from '../data/lastNames.json';
-import { web3 } from '../Web3Config';
-import { enhanceHeroWithGeneData } from './heroGeneParser';
+import { web3, DFKHeroContract } from '../Web3Config';
+import { enhanceHeroWithGeneData, parseStatGenes, parseVisualGenes } from './heroGeneParser';
+import { CONTRACT_ONLY_MODE } from '../constants';
 
 // Mapping for crafting professions based on passive genes
 const craftingProfessionMapping = {
@@ -254,7 +255,264 @@ const getGraphQLEndpoint = async () => {
   }
 };
 
+// ---------------------------------------------------------------------------
+// Contract-only hero fetching (used when CONTRACT_ONLY_MODE is true)
+// ---------------------------------------------------------------------------
+
+const getGenderFromGenes = (visualGenes) => {
+  try {
+    const parsed = parseVisualGenes(visualGenes);
+    // Gene value 1 = Male, 3 = Female (all other values default to male)
+    return parsed?.gender === 3 ? 'female' : 'male';
+  } catch (error) {
+    return 'unknown';
+  }
+};
+
+export const getNameFromIndex = (index, nameList) => {
+  if (typeof index !== 'number' || !nameList || !nameList.length) {
+    return 'Unknown';
+  }
+  return nameList[index % nameList.length] || 'Unknown';
+};
+
+const CONTRACT_BATCH_SIZE = 300; // max IDs per getHeroesV3 call
+
+/**
+ * Fetch and shape hero data for an array of IDs using on-chain getHeroesV3.
+ * Returns heroes in the same normalised shape the GraphQL path produces.
+ */
+const fetchHeroesFromContract = async (heroIds, ownerAddress = '') => {
+  if (!heroIds || heroIds.length === 0) return [];
+
+  const contract = DFKHeroContract;
+  if (!contract) throw new Error('DFKHeroContract is not initialised');
+
+  // Split into batches of CONTRACT_BATCH_SIZE
+  const batches = [];
+  for (let i = 0; i < heroIds.length; i += CONTRACT_BATCH_SIZE) {
+    batches.push(heroIds.slice(i, i + CONTRACT_BATCH_SIZE));
+  }
+
+  const batchResults = await Promise.all(
+    batches.map((batch) =>
+      contract.methods
+        .getHeroesV3(batch.map((id) => id.toString()))
+        .call()
+        .catch((err) => {
+          console.error('[CONTRACT] getHeroesV3 batch failed:', err);
+          return [];
+        })
+    )
+  );
+
+  const rawHeroes = batchResults.flat();
+
+  return rawHeroes.map((raw) => shapeContractHero(raw, ownerAddress));
+};
+
+/**
+ * Map a raw HeroV3 struct (as returned by web3.js) into the normalised hero
+ * object shape the rest of the app expects (same keys the GraphQL path outputs).
+ */
+const shapeContractHero = (raw, ownerAddress = '') => {
+  const id = raw.id?.toString() || '0';
+
+  // --- sub-structs ---
+  const info = raw.info || {};
+  const state = raw.state || {};
+  const stats = raw.stats || {};
+  const summoningInfo = raw.summoningInfo || {};
+  const primaryStatGrowth = raw.primaryStatGrowth || {};
+  const secondaryStatGrowth = raw.secondaryStatGrowth || {};
+  const professions = raw.professions || {};
+
+  // statGenes / visualGenes come back as BigInt from web3.js — convert to string
+  const statGenes = info.statGenes?.toString() || '0';
+  const visualGenes = info.visualGenes?.toString() || '0';
+
+  // gender from visualGenes bit 0 (0 = female, 1 = male)
+  const gender = getGenderFromGenes(visualGenes);
+
+  // names come back as uint32 indices from the contract
+  const nameList = gender === 'female' ? femaleFirstNames : maleFirstNames;
+  const firstNameIdx = parseInt(info.firstName) || 0;
+  const lastNameIdx = parseInt(info.lastName) || 0;
+  const firstName = getNameFromIndex(firstNameIdx, nameList);
+  const lastName = getNameFromIndex(lastNameIdx, lastNames);
+
+  // class / rarity / element / background
+  const mainClassNum = parseInt(info.class) || 0;
+  const subClassNum = parseInt(info.subClass) || 0;
+  const mainClass = classMapping[mainClassNum] || 'Unknown';
+  const subClass = classMapping[subClassNum] || 'Unknown';
+  const rarity = rarityMapping[parseInt(info.rarity)] || 'Common';
+
+  // Parse stat genes now so we can populate all gene-derived flat fields before
+  // calling enhanceHeroWithGeneData (which reads those flat fields to build its sub-objects).
+  const parsedGenes = parseStatGenes(statGenes);
+  const parsedVisualGenes = parseVisualGenes(visualGenes);
+
+  // element is encoded in stat genes (kai slot 10)
+  const element = parsedGenes ? (elementMapping[parsedGenes.element] || 'unknown') : 'unknown';
+  // background is visual gene trait 3
+  const background = parsedVisualGenes
+    ? (backgroundMapping[parsedVisualGenes.background] || 'plains')
+    : 'plains';
+
+  // Gathering profession from stat genes
+  const profession = parsedGenes ? (professionMapping[parsedGenes.profession] || 'none') : 'none';
+
+  // Stat boosts from stat genes
+  const statBoost1 = parsedGenes ? (statsMapping[parsedGenes.statBoost1] || 'None') : 'None';
+  const statBoost2 = parsedGenes ? (statsMapping[parsedGenes.statBoost2] || 'None') : 'None';
+
+  // Ability indices from stat genes (enhanceHeroWithGeneData reads these as numbers)
+  const passive1 = parsedGenes ? (parsedGenes.passive1 || 0) : 0;
+  const passive2 = parsedGenes ? (parsedGenes.passive2 || 0) : 0;
+  const active1 = parsedGenes ? (parsedGenes.active1 || 0) : 0;
+  const active2 = parsedGenes ? (parsedGenes.active2 || 0) : 0;
+
+  // Profession skill values from the contract's professions struct (these are skill ranks, always 0 for most heroes)
+  const miningRaw = parseInt(professions.mining) || 0;
+  const gardeningRaw = parseInt(professions.gardening) || 0;
+  const foragingRaw = parseInt(professions.foraging) || 0;
+  const fishingRaw = parseInt(professions.fishing) || 0;
+
+  // Crafting profession names come from stat genes (crafting1/crafting2 kai slots), NOT professions.craft*
+  const craftProf1Name = parsedGenes ? (craftingProfessionMapping[parsedGenes.crafting1] || 'none') : 'none';
+  const craftProf2Name = parsedGenes ? (craftingProfessionMapping[parsedGenes.crafting2] || 'none') : 'none';
+  const formatCraft = (p) => (p === 'none' ? p : p.charAt(0).toUpperCase() + p.slice(1));
+
+  // Growth stats — contract stores them as percentage × 10 (i.e. 1000 = 100%)
+  // The gene parser re-derives these from statGenes, but we populate the raw
+  // fields so the enhancer has them if needed.
+  const toGrowthPct = (v) => ((parseInt(v) || 0) / 10).toFixed(1);
+
+  const imageUrl = `https://heroes.defikingdoms.com/image/${id}`;
+
+  const shaped = {
+    id,
+    fullId: id,
+    displayId: id,
+    shortId: id,
+    firstName,
+    lastName,
+    name: `${firstName} ${lastName}`,
+    gender,
+    mainClass,
+    subClass,
+    mainClassStr: mainClass,
+    subClassStr: subClass,
+    rarity,
+    element,
+    background,
+    image: imageUrl,
+    statGenes,
+    visualGenes,
+    // state
+    level: parseInt(state.level) || 0,
+    xp: parseInt(state.xp) || 0,
+    staminaFullAt: parseInt(state.staminaFullAt) || 0,
+    hpFullAt: parseInt(state.hpFullAt) || 0,
+    mpFullAt: parseInt(state.mpFullAt) || 0,
+    sp: parseInt(state.sp) || 0,
+    status: parseInt(state.status) || 0,
+    currentQuest: state.currentQuest || '0x0000000000000000000000000000000000000000',
+    // summoning
+    summons: parseInt(summoningInfo.summons) || 0,
+    maxSummons: parseInt(summoningInfo.maxSummons) || 0,
+    summonsRemaining: Math.max(
+      0,
+      (parseInt(summoningInfo.maxSummons) || 0) - (parseInt(summoningInfo.summons) || 0)
+    ),
+    summonedTime: parseInt(summoningInfo.summonedTime) || 0,
+    nextSummonTime: parseInt(summoningInfo.nextSummonTime) || 0,
+    summonsDisplay: `${parseInt(summoningInfo.summons) || 0}/${parseInt(summoningInfo.maxSummons) || 0}`,
+    // stats
+    hp: parseInt(stats.hp) || 0,
+    mp: parseInt(stats.mp) || 0,
+    stamina: parseInt(stats.stamina) || 0,
+    strength: parseInt(stats.strength) || 0,
+    agility: parseInt(stats.agility) || 0,
+    intelligence: parseInt(stats.intelligence) || 0,
+    wisdom: parseInt(stats.wisdom) || 0,
+    luck: parseInt(stats.luck) || 0,
+    dexterity: parseInt(stats.dexterity) || 0,
+    vitality: parseInt(stats.vitality) || 0,
+    endurance: parseInt(stats.endurance) || 0,
+    // professions (raw values)
+    mining: miningRaw,
+    gardening: gardeningRaw,
+    foraging: foragingRaw,
+    fishing: fishingRaw,
+    // growth (raw percentage fields expected by the gene parser / UI)
+    strengthGrowthP: toGrowthPct(primaryStatGrowth.strength),
+    strengthGrowthS: toGrowthPct(secondaryStatGrowth.strength),
+    agilityGrowthP: toGrowthPct(primaryStatGrowth.agility),
+    agilityGrowthS: toGrowthPct(secondaryStatGrowth.agility),
+    intelligenceGrowthP: toGrowthPct(primaryStatGrowth.intelligence),
+    intelligenceGrowthS: toGrowthPct(secondaryStatGrowth.intelligence),
+    wisdomGrowthP: toGrowthPct(primaryStatGrowth.wisdom),
+    wisdomGrowthS: toGrowthPct(secondaryStatGrowth.wisdom),
+    luckGrowthP: toGrowthPct(primaryStatGrowth.luck),
+    luckGrowthS: toGrowthPct(secondaryStatGrowth.luck),
+    vitalityGrowthP: toGrowthPct(primaryStatGrowth.vitality),
+    vitalityGrowthS: toGrowthPct(secondaryStatGrowth.vitality),
+    enduranceGrowthP: toGrowthPct(primaryStatGrowth.endurance),
+    enduranceGrowthS: toGrowthPct(secondaryStatGrowth.endurance),
+    dexterityGrowthP: toGrowthPct(primaryStatGrowth.dexterity),
+    dexterityGrowthS: toGrowthPct(secondaryStatGrowth.dexterity),
+    // ability genes (placeholders — gene parser overwrites these)
+    statBoost1,
+    statBoost2,
+    passive1,
+    passive2,
+    active1,
+    active2,
+    // profession string (gene parser fills in dominant profession)
+    profession,
+    professionStr: profession,
+    // crafting
+    craftProf1: formatCraft(craftProf1Name),
+    craftProf2: formatCraft(craftProf2Name),
+    hasValidCraftingGenes: parsedGenes ? (parsedGenes.crafting1 > 0 || parsedGenes.crafting2 > 0) : false,
+    // generation / shiny
+    generation: parseInt(info.generation) || 0,
+    shiny: info.shiny || false,
+    shinyStyle: parseInt(info.shinyStyle) || 0,
+    // other info
+    darkSummoned: false,
+    darkSummonLevels: 0,
+    network: '',
+    originRealm: '',
+    owner: ownerAddress,
+    ownerName: '',
+    // attributes array for Modal
+    attributes: [
+      { trait_type: 'Strength', value: parseInt(stats.strength) || 0 },
+      { trait_type: 'Agility', value: parseInt(stats.agility) || 0 },
+      { trait_type: 'Endurance', value: parseInt(stats.endurance) || 0 },
+      { trait_type: 'Wisdom', value: parseInt(stats.wisdom) || 0 },
+      { trait_type: 'Dexterity', value: parseInt(stats.dexterity) || 0 },
+      { trait_type: 'Vitality', value: parseInt(stats.vitality) || 0 },
+      { trait_type: 'Intelligence', value: parseInt(stats.intelligence) || 0 },
+      { trait_type: 'Luck', value: parseInt(stats.luck) || 0 },
+      { trait_type: 'Mining', value: miningRaw },
+      { trait_type: 'Gardening', value: gardeningRaw },
+      { trait_type: 'Fishing', value: fishingRaw },
+      { trait_type: 'Foraging', value: foragingRaw },
+    ],
+  };
+
+  return enhanceHeroWithGeneData(shaped);
+};
+
 export const getHeroesData = async (heroIds) => {
+  if (CONTRACT_ONLY_MODE) {
+    return fetchHeroesFromContract(heroIds);
+  }
+
   try {
     await apiRateLimiter.acquire();
     // Use the full IDs for the query (including realm prefix)
@@ -511,19 +769,6 @@ const getGenderFromApi = (genderValue) => {
   return genderValue === 3 ? 'female' : 'male';
 };
 
-const getGenderFromGenes = (visualGenes) => {
-  try {
-    const bigIntGenes = BigInt(visualGenes);
-    // Get the last bit (bit 0) for gender
-    const genderBit = bigIntGenes & 1n;
-
-    // 0 = female, 1 = male (reverse of what we had before)
-    return genderBit === 0n ? 'female' : 'male';
-  } catch (error) {
-    return 'unknown';
-  }
-};
-
 // eslint-disable-next-line no-unused-vars
 const fetchHeroMetadata = async (id) => {
   try {
@@ -656,6 +901,95 @@ export const getHeroesDataBatch = async (heroIds, onProgress) => {
 export const getHeroesByOwner = async (ownerAddress, onProgress = null) => {
   // Mark start time for benchmarking
   const fetchStart = performance.now();
+
+  // --- Contract-only path ---
+  if (CONTRACT_ONLY_MODE) {
+    const contract = DFKHeroContract;
+    if (!contract) {
+      console.error('[CONTRACT] DFKHeroContract not initialised');
+      if (onProgress) {
+        onProgress({
+          heroes: [],
+          totalProcessed: 0,
+          isFirstBatch: true,
+          hasMore: false,
+          isDone: true,
+          elapsedMs: 0,
+        });
+      }
+      return [];
+    }
+
+    let heroIds;
+    try {
+      heroIds = await contract.methods.getUserHeroes(ownerAddress).call();
+    } catch (err) {
+      console.error('[CONTRACT] getUserHeroes failed:', err);
+      if (onProgress) {
+        onProgress({
+          heroes: [],
+          totalProcessed: 0,
+          isFirstBatch: true,
+          hasMore: false,
+          isDone: true,
+          elapsedMs: 0,
+        });
+      }
+      return [];
+    }
+
+    if (!heroIds || heroIds.length === 0) {
+      if (onProgress) {
+        onProgress({
+          heroes: [],
+          totalProcessed: 0,
+          isFirstBatch: true,
+          hasMore: false,
+          isDone: true,
+          elapsedMs: Math.round(performance.now() - fetchStart),
+        });
+      }
+      return [];
+    }
+
+    // Map returned IDs to plain strings
+    const idStrings = heroIds.map((id) => id.toString());
+
+    // Fetch & report in batches of CONTRACT_BATCH_SIZE
+    const allHeroes = [];
+    let firstBatchReturned = false;
+
+    for (let i = 0; i < idStrings.length; i += CONTRACT_BATCH_SIZE) {
+      const batchIds = idStrings.slice(i, i + CONTRACT_BATCH_SIZE);
+      const isLastBatch = i + CONTRACT_BATCH_SIZE >= idStrings.length;
+
+      let batchHeroes = [];
+      try {
+        batchHeroes = await fetchHeroesFromContract(batchIds, ownerAddress);
+      } catch (err) {
+        console.error('[CONTRACT] fetchHeroesFromContract batch failed:', err);
+      }
+
+      allHeroes.push(...batchHeroes);
+
+      if (onProgress) {
+        const isFirstBatch = !firstBatchReturned;
+        firstBatchReturned = true;
+        onProgress({
+          heroes: batchHeroes,
+          totalProcessed: allHeroes.length,
+          isFirstBatch,
+          hasMore: !isLastBatch,
+          isDone: isLastBatch,
+          elapsedMs: Math.round(performance.now() - fetchStart),
+        });
+      }
+    }
+
+    return allHeroes;
+  }
+
+  // --- GraphQL path (legacy) ---
   // console.log(`[HONK] Starting to fetch heroes for owner: ${ownerAddress}`);
 
   const REQUEST_BATCH_SIZE = 1000; // GraphQL API limit
@@ -1041,13 +1375,6 @@ export const getIdForName = (id, originRealm) => {
   // Fallback - use full ID
   const result = parseInt(id);
   return result;
-};
-
-export const getNameFromIndex = (index, nameList) => {
-  if (typeof index !== 'number' || !nameList || !nameList.length) {
-    return 'Unknown';
-  }
-  return nameList[index % nameList.length] || 'Unknown';
 };
 
 export const getFirstName = (id, gender, originRealm) => {
