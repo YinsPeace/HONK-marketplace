@@ -353,18 +353,16 @@ export const parseStatGenes = (statGenesString) => {
       const chars = rawKai.slice(startPos, startPos + 4);
 
       // Convert each character to decimal
-      const dominant = kai2dec(chars[0]); // Position 0: Dominant
-      const r1_raw = kai2dec(chars[1]); // Position 1: Raw R1
-      const r2_raw = kai2dec(chars[2]); // Position 2: Raw R2
-
-      // FIXED: Swap R1 and R2 to match expected results
-      const r1 = r2_raw; // R1 should be what was parsed as R2
-      const r2 = r1_raw; // R2 should be what was parsed as R1
+      const dominant = kai2dec(chars[3]); // Position 3: Dominant
+      const r1 = kai2dec(chars[2]); // Position 2: Raw R1
+      const r2 = kai2dec(chars[1]); // Position 1: Raw R2
+      // const r3 = kai2dec(chars[0]); // Position 0: Raw R3 (not used in current mapping)
 
       // Store genes
       geneMap[traitName] = dominant;
       recessives.r1[traitName] = r1;
       recessives.r2[traitName] = r2;
+      // recessives.r3[traitName] = r3;
     }
 
     return {
