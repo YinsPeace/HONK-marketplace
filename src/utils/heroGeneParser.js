@@ -261,6 +261,42 @@ function kai2dec(kai) {
 
 // Using the existing genesToKai and kai2dec functions defined above
 
+const VISUAL_GENE_MAP = {
+  0: 'gender',
+  1: 'headAppendage',
+  2: 'backAppendage',
+  3: 'background',
+  4: 'hairStyle',
+  5: 'hairColor',
+  6: 'visualUnknown1',
+  7: 'eyeColor',
+  8: 'skinColor',
+  9: 'appendageColor',
+  10: 'backAppendageColor',
+  11: 'visualUnknown2',
+};
+
+/**
+ * Parse visual genes into an object of dominant trait values.
+ * Gender: 1 = Male, 3 = Female
+ * Background: see backgroundMapping in heroUtils
+ * All other trait values map through their respective mappings.
+ */
+export const parseVisualGenes = (visualGenesString) => {
+  try {
+    if (!visualGenesString) return null;
+    const genes = BigInt(visualGenesString.toString());
+    const kaiStr = genesToKai(genes);
+    const result = {};
+    for (let i = 0; i < 12; i++) {
+      result[VISUAL_GENE_MAP[i]] = kai2dec(kaiStr[i * 4 + 3]); // +3 = dominant (order is r3, r2, r1, d)
+    }
+    return result;
+  } catch (error) {
+    return null;
+  }
+};
+
 // Parse stat genes from the encrypted string
 export const parseStatGenes = (statGenesString) => {
   try {
@@ -353,18 +389,16 @@ export const parseStatGenes = (statGenesString) => {
       const chars = rawKai.slice(startPos, startPos + 4);
 
       // Convert each character to decimal
-      const dominant = kai2dec(chars[0]); // Position 0: Dominant
-      const r1_raw = kai2dec(chars[1]); // Position 1: Raw R1
-      const r2_raw = kai2dec(chars[2]); // Position 2: Raw R2
-
-      // FIXED: Swap R1 and R2 to match expected results
-      const r1 = r2_raw; // R1 should be what was parsed as R2
-      const r2 = r1_raw; // R2 should be what was parsed as R1
+      const dominant = kai2dec(chars[3]); // Position 3: Dominant
+      const r1 = kai2dec(chars[2]); // Position 2: Raw R1
+      const r2 = kai2dec(chars[1]); // Position 1: Raw R2
+      // const r3 = kai2dec(chars[0]); // Position 0: Raw R3 (not used in current mapping)
 
       // Store genes
       geneMap[traitName] = dominant;
       recessives.r1[traitName] = r1;
       recessives.r2[traitName] = r2;
+      // recessives.r3[traitName] = r3;
     }
 
     return {

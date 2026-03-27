@@ -67,8 +67,8 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
     fetchListedHeroes,
     pendingListings,
   } = useHeroListing(
-    userAddress,
-    heroes,
+    userAddress, 
+    heroes, 
     setHeroes
   );
 
@@ -579,8 +579,8 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
         // If in "Bulk Select" mode (for CREATING a new bulk listing), only show unlisted, individual heroes
         if (isBulkMode) { // isBulkMode is from useBulkListing hook, active when user clicks "Bulk Select"
           modeFilteredHeroes = modeFilteredHeroes.filter(hero =>
-            !hero.isForSale &&
-            (!hero.isBulkListing || hero.isBulkListing === false || hero.bulkListingId === 0)
+              !hero.isForSale &&
+              (!hero.isBulkListing || hero.isBulkListing === false || hero.bulkListingId === 0)
           );
         }
 
@@ -932,6 +932,7 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
         listedHeroes={listedHeroes}
         pendingCancellations={pendingCancellations}
         pendingPriceUpdates={pendingPriceUpdates}
+        lastHeroRef={lastHeroElementRef}
         // Bulk listing props
         isBulkMode={isBulkMode}
         selectedHeroes={selectedHeroes}
@@ -980,10 +981,10 @@ const SellTab = ({ userAddress, filters, sortOrder, testHeroes }) => {
           getTotalEstimatedValue={getTotalEstimatedValue}
           isBulkListing={isBulkListing}
           bulkProgress={bulkProgress} // Removed duplicate prop
-    isPrivateSale={isPrivateSale}
-    setIsPrivateSale={setIsPrivateSale}
-    recipient={recipient}
-    setRecipient={setRecipient}
+          isPrivateSale={isPrivateSale}
+          setIsPrivateSale={setIsPrivateSale}
+          recipient={recipient}
+          setRecipient={setRecipient}
         />
       )}
 
