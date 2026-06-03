@@ -18,27 +18,7 @@ error InvalidBulkPurchase(string reason);
 /// @notice Interface for the DFK Hero Core Diamond contract
 interface IHeroCoreDiamond is IERC721 {
     function transferHeroAndEquipmentFrom(address _from, address _newOwner, uint256 _heroId) external;
-    function getEquipment(uint256 _heroId) external view returns (address[] memory);
 }
-
-/// @notice Hero equipment structure for DFK Heroes
-struct HeroEquipmentV2 {
-    uint256 equippedSlots;
-    uint256 petId;
-    uint128 weapon1Id;
-    uint128 weapon1VisageId;
-    uint128 weapon2Id;
-    uint128 weapon2VisageId;
-    uint128 offhand1Id;
-    uint128 offhand1VisageId;
-    uint128 offhand2Id;
-    uint128 offhand2VisageId;
-    uint128 armorId;
-    uint128 armorVisageId;
-    uint128 accessoryId;
-    uint128 accessoryVisageId;
-}
-
 
 /// @title HONKMarketplace
 /// @notice A marketplace contract for trading DFK Heroes using HONK tokens
@@ -55,10 +35,9 @@ contract HONKMarketplace is Initializable, OwnableUpgradeable, ReentrancyGuardUp
     uint256 public proposedFeeRecipientTimestamp;
 
 
-    // Time-lock related variablestext-4xl font-bold my-8 text-white
+    // Time-lock related variables
     uint256 public constant TIMELOCK_PERIOD = 2 days;
     uint256 public constant MAX_PRICE = 1_000_000 * 10**18; // 1 million HONK
-    uint256 public constant MAX_EQUIPMENT_COUNT = 5;
     uint256 public proposedFeePercentage;
     uint256 public proposedFeePercentageTimestamp;
     uint256 public constant PRICE_UPDATE_COOLDOWN = 15 minutes;

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { initializeContracts, checkNetwork, validateContracts } from '../Web3Config';
 import { getHeroesByOwner } from '../utils/heroUtils';
 import { applyFiltersAndSort } from '../utils/filterUtils';
-import { DFKHeroContract, HONKMarketplaceContract } from '../Web3Config';
+import { HONKMarketplaceContract } from '../Web3Config';
 import { heroCache } from '../utils/cacheUtils';
 import { enhanceHeroWithGeneData } from '../utils/heroGeneParser';
 
@@ -153,7 +153,6 @@ export const useHeroManagement = (
               heroCache.set(cacheKey, currentHeroes);
               setLoading(false);
               setLastRefreshed(new Date());
-              return currentHeroes;
               return currentHeroes;
             });
           }

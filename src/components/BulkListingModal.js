@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { web3 } from '../Web3Config';
 import ConfirmationModal from './ConfirmationModal';
-import { formatPrice, getFirstName, getLastName, classMapping } from '../utils/heroUtils';
 import honkLogo from '../assets/images/honk/honkCoin.webp';
 import '../components/styles/HeroCard.css';
 

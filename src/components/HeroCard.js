@@ -1,23 +1,12 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import HeroCardTabs from './HeroCardTabs';
 import { calculateRequiredXp, calculateRemainingStamina } from '../utils/stamExpCalc';
-import { statBoosts } from '../utils/heroStatskills';
 import { DFKHeroContract, web3 } from '../Web3Config';
 import {
-  getFirstName,
-  getLastName,
-  classMapping,
-  professionMapping,
-  elementMapping,
-  statsMapping,
   activeAbilityMapping,
   passiveAbilityMapping,
 } from '../utils/heroUtils';
-import {
-  getActiveAbilityName,
-  getPassiveAbilityName,
-  abilityWithShortCode,
-} from '../utils/heroGeneParser';
+import { abilityWithShortCode } from '../utils/heroGeneParser';
 import '../components/styles/HeroCard.css';
 import { toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -48,9 +37,6 @@ import uncommonIcon from '../assets/images/hero/icons/rarity-uncommon.png';
 import rareIcon from '../assets/images/hero/icons/rarity-rare.png';
 import legendaryIcon from '../assets/images/hero/icons/rarity-legendary.png';
 import mythicIcon from '../assets/images/hero/icons/rarity-mythic.png';
-
-import healthIcon from '../assets/images/hero/icons/icon-health.png';
-import manaIcon from '../assets/images/hero/icons/icon-mana.png';
 
 import crystalIcon from '../assets/images/hero/icons/crystal.png';
 import jewelIcon from '../assets/images/hero/icons/jewel.png';

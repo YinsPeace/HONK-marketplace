@@ -4,7 +4,6 @@ import {
   checkNetwork,
   reinitializeContracts,
   HONKTokenContract,
-  subscribeToGlacierWebhooks,
 } from '../Web3Config';
 
 export const useWallet = () => {

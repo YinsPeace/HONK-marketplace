@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useWallet } from '../hooks/useWallet';
 import { useBuyTab } from '../hooks/useBuyTab';
 import { useHeroBuying } from '../hooks/useHeroBuying';

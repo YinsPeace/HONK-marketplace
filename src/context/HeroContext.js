@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { toast } from 'react-toastify';
 
 const HeroContext = createContext();
 

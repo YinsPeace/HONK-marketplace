@@ -1,17 +1,15 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useWallet } from '../hooks/useWallet';
 import { useHeroManagement } from '../hooks/useHeroManagement';
 import { useHeroListing } from '../hooks/useHeroListing';
 import { useDFKTavernCheck } from '../hooks/useDFKTavernCheck';
 import { useBulkListing } from '../hooks/useBulkListing';
 import { web3 } from '../Web3Config';
-import LoadingIndicator from './LoadingIndicator';
 import VirtualizedHeroGrid from './VirtualizedHeroGrid';
 import BulkSelectionControls from './BulkSelectionControls';
 import BulkListingModal from './BulkListingModal';
 import ConfirmationModal from './ConfirmationModal'; // Import the new modal
 import BulkListingDetailModal from './BulkListingDetailModal';
-import { enhanceHeroWithGeneData } from '../utils/heroGeneParser';
 import { toast } from 'react-toastify';
 import { HONKMarketplaceContract } from '../Web3Config';
 import honkLogo from '../assets/images/honk/honkCoin.webp';

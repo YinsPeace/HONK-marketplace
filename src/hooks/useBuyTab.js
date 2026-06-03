@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { HONKMarketplaceContract, DFKHeroContract, web3 } from '../Web3Config';
+import { HONKMarketplaceContract, web3 } from '../Web3Config';
 import { getHeroData } from '../utils/heroUtils';
 import { applyFiltersAndSort as applyFiltersAndSortUtil } from '../utils/filterUtils';
 import { enhanceHeroWithGeneData } from '../utils/heroGeneParser';
@@ -141,14 +141,13 @@ export const useBuyTab = (connectedAddress, filters, sortOrder) => {
             return {
               ...enhancedHero,
               allowedBuyer,
-               isPrivate,
+              isPrivate,
               id: hero.id.toString(),
               price: hero.price.toString(),
               owner: hero.owner,
               isForSale: true,
               bulkListingId: bulkListingId.toString(),
               isBulkListing: bulkListingId > 0n,
-              isPrivate: isPrivate
             };
           } catch (e) {
             console.error(`Error processing hero ${hero.id}:`, e);
