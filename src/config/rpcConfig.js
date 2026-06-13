@@ -2,9 +2,9 @@
 const RPC_ENDPOINTS = {
   // DFK Chain Mainnet (Chain ID: 53935)
   53935: [
-    'https://dfk-chain.api.onfinality.io/public', // Primary RPC
-    'https://subnets.avax.network/defi-kingdoms/dfk-chain/rpc', // Public RPC
+    'https://subnets.avax.network/defi-kingdoms/dfk-chain/rpc', // Primary RPC (official subnet endpoint, verified reliable)
     'https://avax-dfk.gateway.pokt.network/v1/lb/6244818c00b9f0003ad1b619/ext/bc/q2aTwKuyzgs8pynF7UXBZCU7DejbZbZ6EUyHr3JQzYgwNPUPi/rpc', // POKT Network
+    'https://dfk-chain.api.onfinality.io/public', // OnFinality (DNS dead as of 2026-06-12, kept as last-resort fallback)
     'https://dfk.api.onfinality.io/public', // OnFinality public endpoint
   ],
   // DFK Chain Testnet (Chain ID: 335)

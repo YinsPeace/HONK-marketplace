@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { web3 } from '../Web3Config';
 import ConfirmationModal from './ConfirmationModal';
+import HeroPortrait from '../heroRender/HeroPortrait';
 import honkLogo from '../assets/images/honk/honkCoin.webp';
 import '../components/styles/HeroCard.css';
 
@@ -377,23 +378,7 @@ const BulkListingModal = ({
                   <div className="flex items-center space-x-3">
                     {/* Hero Image */}
                     <div className="w-16 h-16 bg-gray-600 rounded-lg overflow-hidden flex-shrink-0">
-                      {hero.image ? (
-                        <img
-                          src={hero.image}
-                          alt={hero.name || `Hero #${hero.id}`}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'flex';
-                          }}
-                        />
-                      ) : null}
-                      <div
-                        className="w-full h-full bg-gray-600 rounded-lg flex items-center justify-center text-xs font-medium text-white"
-                        style={{ display: hero.image ? 'none' : 'flex' }}
-                      >
-                        #{hero.id}
-                      </div>
+                      <HeroPortrait hero={hero} />
                     </div>
 
                     <div>

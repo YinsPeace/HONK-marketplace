@@ -122,7 +122,7 @@ const formatBalance = (balance) => {
 
 const CreditsIcon = () => {
   const [showTooltip, setShowTooltip] = useState(false);
-  const donationAddress = '0xd72730C437f4B044e57DbBE4Acf2A61201Dc9F6b';
+  const donationAddress = '0x8ac1daf59154641766bCa01c753dEF9C68010Bb4';
 
   const handleClick = () => {
     navigator.clipboard.writeText(donationAddress);

@@ -80,8 +80,11 @@ const withTimeout = (promise, ms, label = 'timeout') =>
   });
 
 const cleanupContracts = () => {
-  if (web3?.currentProvider?.removeAllListeners) {
-    web3.currentProvider.removeAllListeners();
+  // web3 v4 HttpProvider exposes removeAllListeners but throws MethodNotImplementedError when called
+  try {
+    web3?.currentProvider?.removeAllListeners?.();
+  } catch (e) {
+    // Provider type does not support listener cleanup; nothing to clean up
   }
 
   contractInstances.forEach((contract) => {
@@ -120,7 +123,10 @@ const initWeb3 = async () => {
     const initReadWeb3 = async (rpcUrl) => {
       // Add a timeout to avoid long stalls on slow RPCs
       const provider = new Web3.providers.HttpProvider(rpcUrl, { timeout: 10000 });
-      return new Web3(provider);
+      const instance = new Web3(provider);
+      // Verify the endpoint answers so executeWithFallback rotates past dead RPCs
+      await withTimeout(instance.eth.getChainId(), 4000, `RPC unreachable: ${rpcUrl}`);
+      return instance;
     };
 
     // Initialize wallet provider for transactions
@@ -173,7 +179,10 @@ const initializeContracts = async () => {
       if (!(typeof window !== 'undefined' && window.ethereum)) {
         const initReadWeb3 = async (rpcUrl) => {
           const provider = new Web3.providers.HttpProvider(rpcUrl, { timeout: 10000 });
-          return new Web3(provider);
+          const instance = new Web3(provider);
+          // Verify the endpoint answers so executeWithFallback rotates past dead RPCs
+          await withTimeout(instance.eth.getChainId(), 4000, `RPC unreachable: ${rpcUrl}`);
+          return instance;
         };
         readWeb3 = await rpcProvider.executeWithFallback(initReadWeb3);
       } else {

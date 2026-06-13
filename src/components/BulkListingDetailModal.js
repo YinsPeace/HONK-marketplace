@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import HeroPortrait from '../heroRender/HeroPortrait';
 import honkLogo from '../assets/images/honk/honkCoin.webp';
 import HeroCard from './HeroCard';
 
@@ -227,18 +228,9 @@ const BulkListingDetailModal = ({
                         key={hero?.id || `hero-${index}`}
                         className="relative flex flex-col items-center"
                       >
-                        <img loading="lazy"
-                          src={`https://heroes.defikingdoms.com/image/${hero?.id || 'unknown'}`}
-                          alt={`Hero ${hero?.id || 'unknown'}`}
-                          className="w-16 h-16 object-cover rounded"
-                          style={{
-                            border: `3px solid ${rarityBorderColor}`,
-                          }}
-                          onError={(e) => {
-                            e.target.src =
-                              'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjMzc0MTUxIi8+CjxwYXRoIGQ9Ik0yMCAyOEMyMCAyNiAyMiAyNCAyNCAyNEgzNkMzOCAyNCA0MCAyNiA0MCAyOFY0MEMzOCA0MCAzNiA0MiAzNCA0MkgyNkMyNCA0MiAyMiA0MCAyMCA0MFYyOFoiIGZpbGw9IiM2Qjc4ODAiLz4KPHN2Zz4K';
-                          }}
-                        />
+                        <div className="w-16 h-16 rounded" style={{ border: `3px solid ${rarityBorderColor}`, overflow: 'hidden' }}>
+                          <HeroPortrait hero={hero} />
+                        </div>
                         <div
                           className="mt-1 px-2 py-1 text-white text-xs rounded"
                           style={{

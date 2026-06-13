@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import HeroPortrait from '../heroRender/HeroPortrait';
 import HeroCardTabs from './HeroCardTabs';
 import { calculateRequiredXp, calculateRemainingStamina } from '../utils/stamExpCalc';
 import { DFKHeroContract, web3 } from '../Web3Config';
@@ -409,29 +410,18 @@ const HeroCard = React.memo(
                     </button>
                   )}
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent card flip
-                      window.open(
-                        `https://dfk-adventures.herokuapp.com/heroes/${hero.id}`,
-                        '_blank'
-                      );
-                    }}
+                    onClick={(e) => e.stopPropagation()}
                     className="button"
-                    title="View hero details on ADFK"
+                    title="DFK Adventures is offline"
+                    disabled
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
+                      opacity: 0.45,
+                      filter: 'grayscale(1)',
+                      cursor: 'not-allowed',
                     }}
                   >
-                    <img loading="lazy"
-                      src="https://dfk-adventures.herokuapp.com/static/profile.png"
-                      alt="ADFK"
-                      style={{
-                        width: '16px',
-                        height: '16px',
-                        marginRight: '4px',
-                      }}
-                    />
                     ADFK
                   </button>
                 </div>
@@ -558,26 +548,18 @@ const HeroCard = React.memo(
               {isSelected ? 'Remove from bulk' : 'Add to bulk'}
             </button>
             <button
-              onClick={(e) => {
-                e.stopPropagation(); // Prevent card flip
-                window.open(`https://dfk-adventures.herokuapp.com/heroes/${hero.id}`, '_blank');
-              }}
+              onClick={(e) => e.stopPropagation()}
               className="button"
-              title="View hero details on ADFK"
+              title="DFK Adventures is offline"
+              disabled
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
+                opacity: 0.45,
+                filter: 'grayscale(1)',
+                cursor: 'not-allowed',
               }}
             >
-              <img loading="lazy"
-                src="https://dfk-adventures.herokuapp.com/static/profile.png"
-                alt="ADFK"
-                style={{
-                  width: '16px',
-                  height: '16px',
-                  marginRight: '4px',
-                }}
-              />
               ADFK
             </button>
           </>
@@ -597,26 +579,18 @@ const HeroCard = React.memo(
             List for Sale
           </button>
           <button
-            onClick={(e) => {
-              e.stopPropagation(); // Prevent card flip
-              window.open(`https://dfk-adventures.herokuapp.com/heroes/${hero.id}`, '_blank');
-            }}
+            onClick={(e) => e.stopPropagation()}
             className="button"
-            title="View hero details on ADFK"
+            title="DFK Adventures is offline"
+            disabled
             style={{
               display: 'inline-flex',
               alignItems: 'center',
+              opacity: 0.45,
+              filter: 'grayscale(1)',
+              cursor: 'not-allowed',
             }}
           >
-            <img loading="lazy"
-              src="https://dfk-adventures.herokuapp.com/static/profile.png"
-              alt="ADFK"
-              style={{
-                width: '16px',
-                height: '16px',
-                marginRight: '4px',
-              }}
-            />
             ADFK
           </button>
         </>
@@ -996,15 +970,7 @@ const HeroCard = React.memo(
                   key={bulkHero.id}
                   className="relative w-16 h-16 rounded border overflow-hidden"
                 >
-                  <img loading="lazy"
-                    src={`https://heroes.defikingdoms.com/image/${bulkHero.id}`}
-                    alt={`Hero ${bulkHero.id}`}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      e.target.src =
-                        'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjMzc0MTUxIi8+CjxwYXRoIGQ9Ik0yMCAyOEMyMCAyNiAyMiAyNCAyNCAyNEgzNkMzOCAyNCA0MCAyNiA0MCAyOFY0MEMzOCA0MCAzNiA0MiAzNCA0MkgyNkMyNCA0MiAyMiA0MCAyMCA0MFYyOFoiIGZpbGw9IiM2Qjc4ODAiLz4KPHN2Zz4K';
-                    }}
-                  />
+                  <HeroPortrait hero={bulkHero} />
                 </div>
               ))}
               {hero.heroes?.length > 4 && (
@@ -1166,15 +1132,9 @@ const HeroCard = React.memo(
             <div className={`heroPreview ${hero.rarity}`}>
               <div className={'heroGlow'} />
               <div className={`${hero.background} backgroundGeneral heroContainer`}>
-                <img loading="lazy"
-                  src={hero.image}
-                  alt={hero.name}
-                  className={'heroImage'}
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = '/images/placeholder-hero.svg';
-                  }}
-                />
+                <div className={'heroImage'}>
+                  <HeroPortrait hero={hero} />
+                </div>
               </div>
             </div>
 
@@ -1667,29 +1627,18 @@ const HeroCard = React.memo(
                     </button>
                   )}
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation(); // Prevent card flip
-                      window.open(
-                        `https://dfk-adventures.herokuapp.com/heroes/${hero.id}`,
-                        '_blank'
-                      );
-                    }}
+                    onClick={(e) => e.stopPropagation()}
                     className="button"
-                    title="View hero details on ADFK"
+                    title="DFK Adventures is offline"
+                    disabled
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
+                      opacity: 0.45,
+                      filter: 'grayscale(1)',
+                      cursor: 'not-allowed',
                     }}
                   >
-                    <img loading="lazy"
-                      src="https://dfk-adventures.herokuapp.com/static/profile.png"
-                      alt="ADFK"
-                      style={{
-                        width: '16px',
-                        height: '16px',
-                        marginRight: '4px',
-                      }}
-                    />
                     ADFK
                   </button>
                 </div>

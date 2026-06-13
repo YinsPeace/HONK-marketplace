@@ -1,4 +1,5 @@
 import React from 'react';
+import HeroPortrait from '../heroRender/HeroPortrait';
 import honkLogo from '../assets/images/honk/honkCoin.webp';
 
 const BulkHeroCard = ({
@@ -64,16 +65,7 @@ const BulkHeroCard = ({
         <div className="grid grid-cols-4 gap-1">
           {bulkListing.heroes.slice(0, 8).map((hero, index) => (
             <div key={hero.id} className="relative w-12 h-12 rounded border overflow-hidden">
-              <img
-                loading="lazy"
-                src={`https://heroes.defikingdoms.com/image/${hero.id}`}
-                alt={`Hero ${hero.id}`}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  e.target.src =
-                    'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjQiIGhlaWdodD0iNjQiIHZpZXdCb3g9IjAgMCA2NCA2NCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjMzc0MTUxIi8+CjxwYXRoIGQ9Ik0yMCAyOEMyMCAyNiAyMiAyNCAyNCAyNEgzNkMzOCAyNCA0MCAyNiA0MCAyOFY0MEMzOCA0MCAzNiA0MiAzNCA0MkgyNkMyNCA0MiAyMiA0MCAyMCA0MFYyOFoiIGZpbGw9IiM2Qjc4ODAiLz4KPHN2Zz4K';
-                }}
-              />
+              <HeroPortrait hero={hero} />
             </div>
           ))}
           {bulkListing.heroes.length > 8 && (
